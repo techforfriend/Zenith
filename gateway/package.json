@@ -1,0 +1,1 @@
+{"description":"BitChord/Zenith addon gateway backed by tracks.monochrome.st direct FLAC","engines":{"node":">=18"},"license":"GPL-3.0","main":"server.mjs","name":"zenith-mono-hires-gateway","scripts":{"start":"node server.mjs"},"type":"module","version":"1.0.0"}

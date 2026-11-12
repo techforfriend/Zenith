@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: zenith-mono-gateway
+    env: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node server.mjs
