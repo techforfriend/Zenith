@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.slideOutVertically
@@ -529,6 +530,31 @@ class MainActivity : AppCompatActivity() {
         JamInviteLink.consume(intent)
         MusicLink.consume(intent)
     }
+}
+
+/**
+ * AnimatedVisibility for the top bar's actions, where the plain call does not compile.
+ *
+ * The actions lambda is nested inside the page Row, so the compiler resolves
+ * AnimatedVisibility to its RowScope overload — which cannot be called with an
+ * implicit receiver from a plain lambda (CoverFlightHost's BoxScope sits between
+ * the two). This file-scope wrapper has no scope receiver in sight, so its own
+ * call resolves to the plain top-level overload, and the collapse animation
+ * upstream designed keeps working unchanged.
+ */
+@Composable
+private fun TopBarAnimatedVisibility(
+    visible: Boolean,
+    enter: EnterTransition,
+    exit: ExitTransition,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = enter,
+        exit = exit,
+        content = content,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -4289,7 +4315,7 @@ private fun ZenithApp(
                                 val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
                                 // An active search keeps the row open so its close button stays reachable.
                                 val actionsOpen = detailActionsExpanded || detailSearching
-                                AnimatedVisibility(
+                                TopBarAnimatedVisibility(
                                     visible = actionsOpen && releaseSongs.isNotEmpty(),
                                     enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
                                     exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
@@ -4308,7 +4334,7 @@ private fun ZenithApp(
                                 // with the app's other frosted overlays further
                                 // down — in the main hierarchy, where the haze
                                 // can see the content it blurs.
-                                AnimatedVisibility(
+                                TopBarAnimatedVisibility(
                                     visible = actionsOpen,
                                     enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
                                     exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
@@ -4325,7 +4351,7 @@ private fun ZenithApp(
                                     )
                                 }
                                 }
-                                AnimatedVisibility(
+                                TopBarAnimatedVisibility(
                                     visible = actionsOpen && isReleaseDetail && releaseSongs.isNotEmpty(),
                                     enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
                                     exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
