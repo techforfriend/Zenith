@@ -442,11 +442,11 @@ fun SongActionsMenu(
             // The player's menu has the sleep timer, and swaps its rows for
             // the picker in place.
             if (pickingSleepTimer) {
-                Column(Modifier.fillMaxWidth().jellyPopIn()) {
+                Column(Modifier.fillMaxWidth().jellyPopIn(startAt = 0.4f)) {
                     SleepTimerPicker(palette = palette, onBack = { pickingSleepTimer = false })
                 }
             } else if (pickingSpeed) {
-                Column(Modifier.fillMaxWidth().jellyPopIn()) {
+                Column(Modifier.fillMaxWidth().jellyPopIn(startAt = 0.4f)) {
                     PlaybackSpeedPage(palette = palette, onBack = { pickingSpeed = false })
                 }
             } else {

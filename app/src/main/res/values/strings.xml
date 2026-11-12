@@ -448,6 +448,14 @@
     <string name="glass_settings_subtitle">Blur, refraction, rainbow edge, tint, shadow and more</string>
     <string name="glass_enable_hint">Turn on Liquid Glass to use these settings.</string>
     <string name="glass_section_preset">Clarity preset</string>
+    <string name="glass_section_ready_presets">Ready-made presets</string>
+    <string name="glass_footer_ready_presets">Applies several values at once. The sliders below can still fine-tune it.</string>
+    <string name="glass_preset_default">Default</string>
+    <string name="glass_preset_default_subtitle">Zenith\'s default glass</string>
+    <string name="glass_preset_liquid">Liquid Glass</string>
+    <string name="glass_preset_liquid_subtitle">Kyant0 backdrop style: denser container, sharp refraction, no rainbow edge</string>
+    <string name="glass_preset_bottom_bar">Glass Bottom Bar</string>
+    <string name="glass_preset_bottom_bar_subtitle">Kyant0 tutorial style: light blur, strongly bent edges, 50% surface</string>
     <string name="glass_section_color">Blur &amp; color</string>
     <string name="glass_section_refraction">Refraction</string>
     <string name="glass_section_edge">Edge &amp; shadow</string>

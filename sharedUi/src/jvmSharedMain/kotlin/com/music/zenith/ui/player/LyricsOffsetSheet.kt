@@ -76,6 +76,7 @@ internal fun LyricsOffsetSheet(
     hazeState: HazeState,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    visible: Boolean = true,
 ) {
     val offsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
@@ -93,6 +94,11 @@ internal fun LyricsOffsetSheet(
     }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
+    val fade by animateFloatAsState(
+        targetValue = if (visible && shown) 1f else 0f,
+        animationSpec = tween(if (visible) 260 else 180),
+        label = "lyricsOffsetScrimFade",
+    )
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val frost = LocalPlayerFrost.current
 
@@ -100,8 +106,9 @@ internal fun LyricsOffsetSheet(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
-            .background(ScrimColor.copy(alpha = ScrimColor.alpha * scrimAlpha))
+            .background(ScrimColor.copy(alpha = ScrimColor.alpha * scrimAlpha * fade))
             .clickable(
+                enabled = visible,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = onDismiss,
@@ -109,7 +116,7 @@ internal fun LyricsOffsetSheet(
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
-            visible = shown,
+            visible = shown && visible,
             enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it },
             exit = slideOutVertically(tween(180)) { it },
         ) {

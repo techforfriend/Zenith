@@ -37,6 +37,9 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +74,9 @@ import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.music.zenith.R
 import com.music.zenith.data.model.Account
@@ -458,6 +464,10 @@ private fun ArtworkPageActions(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    // 0 while the pill holds only the profile photo, up to 1 once another action
+    // has opened room beside it. Written by the pill's layout, read at draw time.
+    val extraActions = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val readExtraActions = remember { { extraActions.floatValue } }
     ActionsRow(
         modifier = modifier
             .then(artworkPageSurface(shape = CircleShape, hazeState = hazeState))
@@ -479,11 +489,14 @@ private fun ArtworkPageActions(
             // button's size. Once another action exists, Apple's inset opens at
             // both ends. This is layout padding inside the surface, not an
             // outer margin, so BAR_GUTTER remains unchanged.
-            .artworkActionEdgePadding(),
+            .artworkActionEdgePadding { extraActions.floatValue = it },
     ) {
         // Apple's pill is as tall as its back button, 44pt, where the actions'
         // own 48dp touch targets stood it 4dp taller than the circle beside it.
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides TOP_CONTROL_SIZE) {
+        CompositionLocalProvider(
+            LocalMinimumInteractiveComponentSize provides TOP_CONTROL_SIZE,
+            LocalActionsExtraFraction provides readExtraActions,
+        ) {
             content()
         }
     }
@@ -578,11 +591,14 @@ private const val ACCESSORY_HINT_ALPHA = 0.6f
  * reliable source of truth. At exactly one icon target the pill stays circular;
  * above that it gains Apple's inset while retaining fully round ends.
  */
-private fun Modifier.artworkActionEdgePadding(): Modifier = layout { measurable, constraints ->
+private fun Modifier.artworkActionEdgePadding(
+    onFraction: (Float) -> Unit = {},
+): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints.copy(minWidth = 0))
     val oneActionWidth = TOP_CONTROL_SIZE.roundToPx()
     val extraActionFraction = ((placeable.width - oneActionWidth).toFloat() / oneActionWidth)
         .coerceIn(0f, 1f)
+    onFraction(extraActionFraction)
     val edgePadding = (ACTION_EDGE_INSET.roundToPx() * extraActionFraction).roundToInt()
     val width = (placeable.width + edgePadding * 2).coerceIn(constraints.minWidth, constraints.maxWidth)
 
@@ -649,11 +665,26 @@ fun TopBarAccountButton(
         animationSpec = tween(durationMillis = if (hidden) 70 else 180),
         label = "accountButtonVisibility",
     )
+    val rawExtraActions = LocalActionsExtraFraction.current
+    // Pecahan mentah melompat dalam satu frame saat aksi lain (share, unduhan)
+    // muncul, padahal pil kaca tumbuh dengan pegas. Dihaluskan dengan pegas yang
+    // sama supaya foto profil mengecil mengikuti pil, bukan loncat.
+    val extraSmooth = remember { Animatable(rawExtraActions().coerceIn(0f, 1f)) }
+    LaunchedEffect(rawExtraActions) {
+        snapshotFlow { rawExtraActions().coerceIn(0f, 1f) }.collectLatest { target ->
+            extraSmooth.animateTo(
+                target,
+                spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+            )
+        }
+    }
+    val extraActions = remember { { extraSmooth.value } }
     val scope = rememberCoroutineScope()
     // Wrapped in an IconButton so it keeps the touch target, the ripple and the
     // spacing every other action in this bar has.
-    IconButton(
-        onClick = onClick,
+    // A plain clickable box rather than an IconButton: the IconButton clips its
+    // content to a 40dp circle, which would cut the photo short of the glass edge.
+    Box(
         modifier = modifier
             .graphicsLayer {
                 translationY = translation.value
@@ -672,7 +703,11 @@ fun TopBarAccountButton(
                         }
                     },
                 )
-            },
+            }
+            .minimumInteractiveComponentSize()
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         val photo = account?.thumbnailUrl
         if (photo != null) {
@@ -681,14 +716,16 @@ fun TopBarAccountButton(
                 contentDescription = stringResource(R.string.switch_account),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(AVATAR_SIZE)
+                    .size(TOP_CONTROL_SIZE)
+                    .avatarFill(extraActions)
                     .clip(CircleShape)
                     .thumbnailBorder(CircleShape),
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(AVATAR_SIZE)
+                    .size(TOP_CONTROL_SIZE)
+                    .avatarFill(extraActions)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .thumbnailBorder(CircleShape),
@@ -698,7 +735,7 @@ fun TopBarAccountButton(
                     Icons.Rounded.Person,
                     contentDescription = stringResource(R.string.switch_account),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(28.dp),
                 )
             }
         }
@@ -735,3 +772,25 @@ private val PUCK_OVERSHOOT = 20.dp
  * glyph does, and at 24 it sat heavier in the bar than the wordmark opposite it.
  */
 private val AVATAR_SIZE = 28.dp
+
+/**
+ * 0 when the actions pill holds only the profile photo, 1 once it holds more.
+ * Read at draw time; the default (1) leaves the photo at [AVATAR_SIZE] on bars
+ * that do not provide it.
+ */
+private val LocalActionsExtraFraction =
+    androidx.compose.runtime.compositionLocalOf<() -> Float> { { 1f } }
+
+/**
+ * Grows the photo to the full height of the glass circle while it is the pill's
+ * only action, and eases it back to [AVATAR_SIZE] as another action opens room
+ * beside it. A draw-time scale, so the layout never shifts.
+ */
+private fun Modifier.avatarFill(extraActions: () -> Float): Modifier = graphicsLayer {
+    // The photo is laid out at the full circle size and only shrunk when other
+    // actions share the pill, so alone it is never an upscaled 28dp image.
+    val small = AVATAR_SIZE.value / TOP_CONTROL_SIZE.value
+    val scale = small + (1f - small) * (1f - extraActions().coerceIn(0f, 1f))
+    scaleX = scale
+    scaleY = scale
+}

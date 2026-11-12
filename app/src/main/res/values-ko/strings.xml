@@ -398,6 +398,14 @@
     <string name="glass_settings_subtitle">블러, 굴절, 무지개 테두리, 색조, 그림자 등</string>
     <string name="glass_enable_hint">이 설정을 사용하려면 리퀴드 글래스를 켜 주세요.</string>
     <string name="glass_section_preset">투명도 프리셋</string>
+    <string name="glass_section_ready_presets">글래스 프리셋</string>
+    <string name="glass_footer_ready_presets">여러 값을 한 번에 바꿔요. 아래 슬라이더로 더 다듬을 수 있어요.</string>
+    <string name="glass_preset_default">기본</string>
+    <string name="glass_preset_default_subtitle">Zenith 기본 글래스</string>
+    <string name="glass_preset_liquid">리퀴드 글래스</string>
+    <string name="glass_preset_liquid_subtitle">Kyant0 backdrop 스타일: 진한 컨테이너, 선명한 굴절, 무지개 없음</string>
+    <string name="glass_preset_bottom_bar">글래스 바텀 바</string>
+    <string name="glass_preset_bottom_bar_subtitle">Kyant0 튜토리얼 스타일: 약한 블러, 강하게 휘는 가장자리, 표면 50%</string>
     <string name="glass_section_color">블러 &amp; 색상</string>
     <string name="glass_section_refraction">굴절</string>
     <string name="glass_section_edge">테두리 &amp; 그림자</string>

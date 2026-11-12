@@ -31,7 +31,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
@@ -304,37 +306,17 @@ object YtMusicRepository {
 
     /** The charts page's shelves (top songs, trending and so on), for the lower half of Explore. */
     suspend fun exploreCharts(): Result<List<HomeShelf>> = call("explore:charts") {
-        val pages = coroutineScope {
-            val regional = EXPLORE_BROWSE_IDS.map { id -> async { runCatching { shelvesOf(id) } } }
-            val global = async {
-                runCatching {
-                    InnertubeParser.parseHome(Innertube.browseCharts("ZZ"))
-                        .map { it.copy(title = "${it.title} (Global)") }
-                }
-            }
-            (regional + global).awaitAll()
-        }
-        val shelves = pages
-            .flatMap { it.getOrDefault(emptyList()) }
-            .filter { it.items.isNotEmpty() }
-            .distinctBy { it.title.trim().lowercase() }
-        if (shelves.isEmpty()) pages.firstNotNullOfOrNull { it.exceptionOrNull() }?.let { throw it }
-        // Apple Music's "Latest Songs". YouTube Music has no endpoint for new
-        // songs: New releases lists albums and singles, and its video tab lists
-        // music videos. So the list is the first track of each newest single,
-        // and chart songs only stand in when there are too few singles. A
-        // video is never passed off as a song.
-        val singleTracks = shelves.flatMap { it.items }
-            .filter { item ->
-                item.browseId?.startsWith("MPREb") == true &&
-                    item.subtitle.trim().startsWith("Single", ignoreCase = true)
-            }
-            .distinctBy { it.browseId }
-            .take(LATEST_SINGLES_LIMIT)
-            .let { singles ->
-                coroutineScope {
-                    singles.map { single ->
-                        async {
+        // Daftar single mulai dibuka begitu halaman New releases tiba, tanpa
+        // menunggu halaman Explore, Charts, dan Global yang berjalan paralel.
+        // Hasil tiap single dibagi lewat peta ini, jadi pemilihan akhir di bawah
+        // hanya membuka single yang belum sempat dibuka lebih awal.
+        val lookups = ConcurrentHashMap<String, Deferred<ShelfItem?>>()
+        val (pages, singleTracks) = coroutineScope {
+            fun lookup(single: ShelfItem): Deferred<ShelfItem?> =
+                lookups.computeIfAbsent(single.browseId!!) {
+                    async {
+                        // Satu halaman yang macet tidak boleh menahan seluruh daftar.
+                        withTimeoutOrNull(SINGLE_LOOKUP_TIMEOUT_MS) {
                             runCatching { pageOf(Innertube.browse(single.browseId!!)).songs.firstOrNull() }
                                 .getOrNull()
                                 ?.takeUnless { it.isVideo }
@@ -350,10 +332,32 @@ object YtMusicRepository {
                                     )
                                 }
                         }
-                    }.awaitAll().filterNotNull()
+                    }
+                }
+            val regional = EXPLORE_BROWSE_IDS.map { id -> id to async { runCatching { shelvesOf(id) } } }
+            val global = async {
+                runCatching {
+                    InnertubeParser.parseHome(Innertube.browseCharts("ZZ"))
+                        .map { it.copy(title = "${it.title} (Global)") }
                 }
             }
-            .distinctBy { it.videoId }
+            val newReleases = regional.first { it.first == NEW_RELEASES_BROWSE_ID }.second
+            async { latestSingleItems(newReleases.await().getOrDefault(emptyList())).forEach { lookup(it) } }
+            val pages = (regional.map { it.second } + global).awaitAll()
+            val tracks = latestSingleItems(mergeExploreShelves(pages))
+                .map { lookup(it) }
+                .awaitAll()
+                .filterNotNull()
+                .distinctBy { it.videoId }
+            pages to tracks
+        }
+        val shelves = mergeExploreShelves(pages)
+        if (shelves.isEmpty()) pages.firstNotNullOfOrNull { it.exceptionOrNull() }?.let { throw it }
+        // Apple Music's "Latest Songs". YouTube Music has no endpoint for new
+        // songs: New releases lists albums and singles, and its video tab lists
+        // music videos. So the list is the first track of each newest single,
+        // and chart songs only stand in when there are too few singles. A
+        // video is never passed off as a song.
         val chartTracks = shelves.flatMap { it.items }
             .filter { it.videoId != null && it.browseId == null && !it.isVideo }
             .distinctBy { it.videoId }
@@ -376,6 +380,25 @@ object YtMusicRepository {
 
     /** How many of the newest singles are opened to build the Latest songs list. */
     private const val LATEST_SINGLES_LIMIT = 12
+
+    /** Waktu maksimal membuka satu halaman single untuk mengambil lagu pertamanya. */
+    private const val SINGLE_LOOKUP_TIMEOUT_MS = 6_000L
+
+    private const val NEW_RELEASES_BROWSE_ID = "FEmusic_new_releases"
+
+    private fun mergeExploreShelves(pages: List<Result<List<HomeShelf>>>): List<HomeShelf> = pages
+        .flatMap { it.getOrDefault(emptyList()) }
+        .filter { it.items.isNotEmpty() }
+        .distinctBy { it.title.trim().lowercase() }
+
+    private fun latestSingleItems(shelves: List<HomeShelf>): List<ShelfItem> = shelves
+        .flatMap { it.items }
+        .filter { item ->
+            item.browseId?.startsWith("MPREb") == true &&
+                item.subtitle.trim().startsWith("Single", ignoreCase = true)
+        }
+        .distinctBy { it.browseId }
+        .take(LATEST_SINGLES_LIMIT)
 
     /** The server-defined mood and genre categories shown as the Search tab's categories. */
     suspend fun moodAndGenres(): Result<List<MoodGenreSection>> = call("moods-and-genres") {

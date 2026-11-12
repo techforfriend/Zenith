@@ -84,6 +84,7 @@ fun AppLanguageDialog(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
     // Full script tag (zh-Hant / zh-Hans preserved); legacy bare "zh" reads as Simplified.
     val currentLanguage = com.music.zenith.data.LocaleTags.normalizeAppTag(
         AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
@@ -93,17 +94,18 @@ fun AppLanguageDialog(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -121,7 +123,8 @@ fun AppLanguageDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier

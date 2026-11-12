@@ -778,7 +778,7 @@ private fun SharedTransitionScope.InlineStandaloneTab(
 }
 
 /** Minimum time a tap keeps the lens lifted, so a quick tap still shows it rising. */
-private const val MIN_LIFT_HOLD_MS = 140L
+private const val MIN_LIFT_HOLD_MS = 260L
 
 /** How much the whole circle swells while the lens is lifted. */
 private const val STANDALONE_SWELL = 0.05f
@@ -805,7 +805,9 @@ private fun SharedTransitionScope.StandaloneTabBody(
     val glassPill = isGlassSupported() && !reduceDynamicBlur &&
         com.music.zenith.ui.components.LocalLiquidGlassEnabled.current
     val coroutineScope = rememberCoroutineScope()
-    val pill = remember { GlassPillMotion(coroutineScope, 0) }
+    // Slower and softer than the tab pill: a Search tap lifts, holds and settles
+    // over a longer, rounder spring rather than a quick pop.
+    val pill = remember { GlassPillMotion(coroutineScope, 0, slow = 1.6) }
     pill.reduceMotion = reduceAnimation
     val barGlass = rememberLayerBackdrop()
     val iconLayer = rememberLayerBackdrop()
@@ -891,6 +893,7 @@ private fun SharedTransitionScope.StandaloneTabBody(
                     barGlass = barGlass,
                     tabRow = iconLayer,
                     modifier = pillModifier,
+                    iconTint = colors.selectedContentColor,
                 )
             } else {
                 FlatSelectionPill(
@@ -1148,9 +1151,10 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     LaunchedEffect(selectedTabIndex) {
         if (selectedTabIndex >= 0) {
-            // Back from the standalone tab there is no tab to travel from.
+            // Back from the standalone tab (Search): the pill flies in from where
+            // that tab sits, one step past the last tab, instead of just appearing.
             if (lastSelectedTabIndex < 0) {
-                pill.snapTo(selectedTabIndex)
+                pill.enterFrom(tabCount.toDouble(), selectedTabIndex)
             } else {
                 pill.animateTo(selectedTabIndex)
             }
@@ -1365,6 +1369,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 fillColor = colors.indicatorColor,
                 barGlass = barGlass,
                 tabRow = tabRow,
+                iconTint = colors.selectedContentColor,
                 modifier = Modifier
                     .matchParentSize()
                     .pillPlacement(
@@ -1604,6 +1609,8 @@ data class FloatingTabBarColors(
     val backgroundColor: Color,
     val accessoryBackgroundColor: Color,
     val indicatorColor: Color,
+    /** Colour the tab row is masked to inside the lifted glass pill; Unspecified keeps each tab's own colour. */
+    val selectedContentColor: Color = Color.Unspecified,
 )
 
 /**
@@ -1656,10 +1663,12 @@ object FloatingTabBarDefaults {
         backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
         accessoryBackgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
         indicatorColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        selectedContentColor: Color = Color.Unspecified,
     ): FloatingTabBarColors = FloatingTabBarColors(
         backgroundColor = backgroundColor,
         accessoryBackgroundColor = accessoryBackgroundColor,
         indicatorColor = indicatorColor,
+        selectedContentColor = selectedContentColor,
     )
 
     /**

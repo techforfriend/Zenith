@@ -19,7 +19,6 @@ import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.slideOutVertically
@@ -31,6 +30,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -230,6 +231,7 @@ import com.music.zenith.ui.components.ReorderPlaylistPage
 import com.music.zenith.ui.components.LongPressOrigin
 import com.music.zenith.ui.components.MenuAnchor
 import com.music.zenith.ui.components.menuAnchor
+import com.music.zenith.ui.components.macOSPopupMorph
 import com.music.zenith.ui.components.IosMenuPopover
 import com.music.zenith.ui.components.SongActionsMenu
 import com.music.zenith.ui.components.HeldContextMenu
@@ -461,6 +463,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     },
                 ) {
+                com.music.zenith.ui.components.PopupTapOriginTracker()
                 // The window's width, measured rather than asked for.
                 //
                 // `Configuration.screenWidthDp` is the wrong question here: in a
@@ -532,31 +535,6 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-/**
- * AnimatedVisibility for the top bar's actions, where the plain call does not compile.
- *
- * The actions lambda is nested inside the page Row, so the compiler resolves
- * AnimatedVisibility to its RowScope overload — which cannot be called with an
- * implicit receiver from a plain lambda (CoverFlightHost's BoxScope sits between
- * the two). This file-scope wrapper has no scope receiver in sight, so its own
- * call resolves to the plain top-level overload, and the collapse animation
- * upstream designed keeps working unchanged.
- */
-@Composable
-private fun TopBarAnimatedVisibility(
-    visible: Boolean,
-    enter: EnterTransition,
-    exit: ExitTransition,
-    content: @Composable AnimatedVisibilityScope.() -> Unit,
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = enter,
-        exit = exit,
-        content = content,
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZenithApp(
@@ -603,6 +581,11 @@ private fun ZenithApp(
     LaunchedEffect(selectedTab) {
         // The Search tab's categories come from the same feed Explore loads.
         if (selectedTab == TAB_EXPLORE || selectedTab == TAB_SEARCH) viewModel.onExploreShown()
+    }
+    // Charts New dibaca di latar sesaat setelah Home, jadi tab terbuka sudah berisi.
+    LaunchedEffect(Unit) {
+        delay(3_000)
+        viewModel.prefetchExploreCharts()
     }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
@@ -1150,6 +1133,14 @@ private fun ZenithApp(
             (folder == "local:downloads" || folder == CACHE_FOLDER_BROWSE_ID || Downloads.recordIdOf(open) != null ||
                 com.music.zenith.data.spotify.LocalPlaylistStore.getPlaylist(open) != null)
         ) {
+            viewModel.reloadLocalDetail(open)
+        }
+    }
+    // Tracks copied into the downloads folder from a file manager while the app
+    // was in the background show up as soon as the page is back in front.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val open = topDetail?.browseId ?: return@LifecycleEventEffect
+        if (open == "local:downloads" || LocalGroups.folderOf(open) == "local:downloads") {
             viewModel.reloadLocalDetail(open)
         }
     }
@@ -4315,11 +4306,7 @@ private fun ZenithApp(
                                 val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
                                 // An active search keeps the row open so its close button stays reachable.
                                 val actionsOpen = detailActionsExpanded || detailSearching
-                                TopBarAnimatedVisibility(
-                                    visible = actionsOpen && releaseSongs.isNotEmpty(),
-                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
-                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
-                                ) {
+                                ActionReveal(visible = actionsOpen && releaseSongs.isNotEmpty()) {
                                     IconButton(onClick = { detailSearching = !detailSearching }) {
                                         Icon(
                                             if (detailSearching) Icons.Rounded.Close else ZenithIcons.Search,
@@ -4334,11 +4321,7 @@ private fun ZenithApp(
                                 // with the app's other frosted overlays further
                                 // down — in the main hierarchy, where the haze
                                 // can see the content it blurs.
-                                TopBarAnimatedVisibility(
-                                    visible = actionsOpen,
-                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
-                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
-                                ) {
+                                ActionReveal(visible = actionsOpen) {
                                 IconButton(
                                     onClick = { if (isLocalDetail) folderMenuOpen = true else songSortMenuOpen = true },
                                 ) {
@@ -4351,11 +4334,10 @@ private fun ZenithApp(
                                     )
                                 }
                                 }
-                                TopBarAnimatedVisibility(
-                                    visible = actionsOpen && isReleaseDetail && releaseSongs.isNotEmpty(),
-                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
-                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
-                                ) {
+                                // The same ••• is both the unfold button at rest and the
+                                // overflow once open: the bar grows to its left, so it
+                                // simply slides into place while the xmark bounces in.
+                                ActionReveal(visible = !actionsOpen || (isReleaseDetail && releaseSongs.isNotEmpty())) {
                                     // The page's own tracks, in the order the page
                                     // shows them, so the sheet has them already and
                                     // Play, Shuffle and Open are the buttons beside
@@ -4367,7 +4349,7 @@ private fun ZenithApp(
                                     IconButton(
                                         modifier = Modifier.menuAnchor(),
                                         onClick = {
-                                            openBrowseMenu(BrowseTarget(
+                                            if (!actionsOpen) detailActionsExpanded = true else openBrowseMenu(BrowseTarget(
                                                 browseId = detail.browseId,
                                                 title = detail.title,
                                                 subtitle = detail.subtitle,
@@ -4392,22 +4374,20 @@ private fun ZenithApp(
                                         )
                                     }
                                 }
-                                // The one button left at rest, as on Apple Music: the
-                                // ellipsis (•••) to unfold the actions, an xmark to fold
-                                // them again (closing any open search on the way).
-                                IconButton(
-                                    onClick = {
-                                        detailSearching = false
-                                        detailActionsExpanded = !actionsOpen
-                                    },
-                                ) {
-                                    Icon(
-                                        if (actionsOpen) SfIcons.Close else Icons.Rounded.MoreHoriz,
-                                        contentDescription = stringResource(
-                                            if (actionsOpen) R.string.close else R.string.more,
-                                        ),
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                    )
+                                // Folds the actions again, closing any open search.
+                                ActionReveal(visible = actionsOpen, bounce = true) {
+                                    IconButton(
+                                        onClick = {
+                                            detailSearching = false
+                                            detailActionsExpanded = false
+                                        },
+                                    ) {
+                                        Icon(
+                                            SfIcons.Close,
+                                            contentDescription = stringResource(R.string.close),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                 }
                             }
                             // Left of the account photo, on an artist page: iOS's
@@ -6505,6 +6485,28 @@ private fun LibrarySort.localizedLabel(): String = when (this) {
 }
 
 /**
+ * Folds a top bar action in and out. A top-level wrapper on purpose: called from
+ * inside the bar's Row it would resolve to RowScope.AnimatedVisibility, which the
+ * compiler rejects from that nested scope.
+ */
+@Composable
+private fun ActionReveal(visible: Boolean, bounce: Boolean = false, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (bounce) {
+            fadeIn(tween(140)) +
+                expandHorizontally(spring(dampingRatio = 0.55f, stiffness = 420f)) +
+                scaleIn(spring(dampingRatio = 0.35f, stiffness = 380f), initialScale = 0.3f)
+        } else {
+            fadeIn(tween(180)) + expandHorizontally(tween(220))
+        },
+        exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+    ) {
+        content()
+    }
+}
+
+/**
  * The track-list sort menu, styled after the account switcher: a full-screen
  * scrim to catch the dismissal tap, and the options on a frosted panel that
  * blurs the page behind it. Composed here in the main hierarchy rather than
@@ -6620,12 +6622,9 @@ private fun PopMenuHost(visible: Boolean, content: @Composable () -> Unit) {
     LaunchedEffect(visible) {
         if (visible) {
             present = true
-            progress.animateTo(
-                1f,
-                androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 520f),
-            )
+            progress.animateTo(1f, com.music.zenith.ui.components.MacOSPopupSpec().openSpring)
         } else {
-            progress.animateTo(0f, tween(170))
+            progress.animateTo(0f, com.music.zenith.ui.components.MacOSPopupSpec().closeSpring)
             present = false
         }
     }
@@ -6665,16 +6664,9 @@ private fun FrostedMenuPanel(
             shape = shape,
             modifier = Modifier
                 .padding(top = 56.dp, end = 20.dp)
-                // Pops out of the corner the button sits in and, on the way
-                // out, folds back into it.
-                .graphicsLayer {
-                    val p = pop()
-                    val s = 0.78f + 0.22f * p
-                    scaleX = s
-                    scaleY = s
-                    alpha = (p * 1.8f).coerceIn(0f, 1f)
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f)
-                }
+                // Grows out of the button that opened it, like the alerts do,
+                // and folds back into it on the way out.
+                .macOSPopupMorph(progress = pop, cornerRadius = 28.dp)
                 .iosMenuJelly(touch, 1f, 0f)
                 .width(IntrinsicSize.Max)
                 .clip(shape)

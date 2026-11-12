@@ -55,7 +55,10 @@ import com.music.zenith.ui.components.MessageState
 import com.music.zenith.ui.components.PAGE_GUTTER
 import com.music.zenith.ui.components.PullToRefresh
 import com.music.zenith.ui.components.EditorialShelfSkeleton
+import com.music.zenith.ui.components.SectionHeaderSkeleton
+import com.music.zenith.ui.components.ShelfSkeleton
 import com.music.zenith.ui.components.ShimmerBox
+import com.music.zenith.ui.components.SongRowSkeleton
 import com.music.zenith.ui.components.feedSkeleton
 import com.music.zenith.ui.components.instantPressClickable
 
@@ -154,6 +157,15 @@ fun ExploreScreen(
                 when (chartsState) {
                     UiState.Loading -> {
                         if (editorial == null) item(key = "charts-skeleton") { EditorialShelfSkeleton() }
+                        // Bagian di bawah shelf editorial (Latest songs dan kartu chart)
+                        // belum datang: tahan tempatnya supaya halaman tidak kosong.
+                        item(key = "charts-skeleton-latest") {
+                            Column(Modifier.padding(bottom = 26.dp)) {
+                                SectionHeaderSkeleton()
+                                repeat(4) { index -> SongRowSkeleton(index = index) }
+                            }
+                        }
+                        item(key = "charts-skeleton-shelf") { ShelfSkeleton(index = 1) }
                     }
                     is UiState.Error -> {
                         if (editorial == null) item(key = "charts-error") {
@@ -228,9 +240,9 @@ private fun MoodGenreCard(
 }
 
 /**
- * A solid stripe down the left and the category's cover filling the rest,
- * redrawn as a duotone of the stripe's colour so every card reads as one
- * tinted sleeve rather than a photo pasted onto a swatch.
+ * The category's cover filling the whole card, redrawn as a duotone of the
+ * category's colour so every card reads as one tinted sleeve, with the title
+ * at the bottom left. No solid stripe: the artwork runs edge to edge.
  *
  * Only the artwork: the caller sizes, clips and makes it clickable, which is
  * how the TV app wraps the same sleeve in its own focus treatment.
@@ -242,30 +254,22 @@ fun MoodGenreSleeve(
     titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
 ) {
     val tone = remember(item.stripeColor, item.title) { moodTone(item) }
-    Box(modifier = modifier.background(tone.stripe)) {
-        Box(
-            Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .fillMaxWidth(1f - MOOD_STRIPE_FRACTION)
-                .background(tone.placeholder),
-        ) {
-            item.thumbnailUrl?.let { artwork ->
-                AsyncImage(
-                    model = artwork,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    colorFilter = tone.duotone,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+    Box(modifier = modifier.background(tone.placeholder)) {
+        item.thumbnailUrl?.let { artwork ->
+            AsyncImage(
+                model = artwork,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                colorFilter = tone.duotone,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
-        // Pale stripes (Energize's cream, Feel good's mint) would swallow
-        // white type; a soft shade under the title keeps it legible.
+        // A soft shade rising from the bottom keeps white type legible on
+        // pale artwork.
         Box(
             Modifier
                 .matchParentSize()
-                .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = .24f), .62f to Color.Transparent)),
+                .background(Brush.verticalGradient(.38f to Color.Transparent, 1f to Color.Black.copy(alpha = .45f))),
         )
         Text(
             text = item.title,
@@ -277,7 +281,7 @@ fun MoodGenreSleeve(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.BottomStart)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
@@ -338,8 +342,7 @@ private val MOOD_CARD_SHAPE = RoundedCornerShape(18.dp)
 /** Width over height; a two-column phone row lands at about 100dp tall. */
 const val MOOD_CARD_ASPECT = 1.72f
 
-/** How much of the card the solid stripe covers before the artwork starts. */
-private const val MOOD_STRIPE_FRACTION = .28f
+
 
 /**
  * The narrowest a mood card is let get before the row drops a column.

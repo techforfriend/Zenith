@@ -142,7 +142,7 @@ fun ReplayShareSheet(
                     bitmap = image.asImageBitmap(),
                     contentDescription = stringResource(R.string.your_replay),
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.matchParentSize(),
                 )
                 failed -> Text(
                     text = stringResource(R.string.couldnt_draw_picture),

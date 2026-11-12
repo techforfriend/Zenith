@@ -88,6 +88,7 @@ fun HomeLayoutDialog(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val layout by AppSettings.homeLayout.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
 
     // 0 = Home, 1 = Library.
     var tab by remember { mutableIntStateOf(0) }
@@ -165,17 +166,18 @@ fun HomeLayoutDialog(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -191,7 +193,8 @@ fun HomeLayoutDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier

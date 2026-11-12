@@ -441,6 +441,9 @@ fun <T : Any> IosMenuPopover(
     val reduceMotion = appReduceAnimation || systemAnimationsOff
 
     val progress = remember { Animatable(0f) }
+    // The same window morph the alerts use: the panel grows out of the ⋮ or ⋯
+    // that opened it and folds back into it.
+    val morphSpec = remember { MacOSPopupSpec() }
     LaunchedEffect(open) {
         if (open) {
             // The opening frame is the heaviest the menu has: every row
@@ -465,12 +468,15 @@ fun <T : Any> IosMenuPopover(
                 if (reduceMotion) {
                     tween(durationMillis = 120, easing = LinearEasing)
                 } else {
-                    // Hampir critically damped: overshoot tipis, hanya sedikit kenyal.
-                    spring(dampingRatio = 0.78f, stiffness = 520f)
+                    morphSpec.openSpring
                 },
             )
         } else {
-            progress.animateTo(0f, tween(durationMillis = if (reduceMotion) 100 else 170, easing = FastOutSlowInEasing))
+            if (reduceMotion) {
+                progress.animateTo(0f, tween(durationMillis = 100, easing = FastOutSlowInEasing))
+            } else {
+                progress.animateTo(0f, morphSpec.closeSpring)
+            }
             last = null
         }
     }
@@ -537,7 +543,14 @@ fun <T : Any> IosMenuPopover(
                 // and only scaled.
                 Column(
                     Modifier
-                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
+                            // The rows fade in once the panel has grown, and out before it folds.
+                            if (!reduceMotion) {
+                                val span = (morphSpec.contentFadeEnd - morphSpec.contentFadeStart).coerceAtLeast(0.01f)
+                                alpha = ((progress.value - morphSpec.contentFadeStart) / span).coerceIn(0f, 1f)
+                            }
+                        }
                         .iosMenuTouchHost(touch, pressedColor)
                         .padding(vertical = 8.dp),
                 ) {
@@ -570,24 +583,33 @@ fun <T : Any> IosMenuPopover(
         val hangsDown = anchorBounds != null && anchorBounds.center.y < height / 2f
         val panelY = if (hangsDown) anchorBounds.top.roundToInt().coerceIn(top, lowest) else lowest
 
-        val growth: GraphicsLayerScope.() -> Unit = {
+        val cardRect = Rect(
+            panelX.toFloat(),
+            panelY.toFloat(),
+            (panelX + panel.width).toFloat(),
+            (panelY + panel.height).toFloat(),
+        )
+        // With no button to grow from, the panel grows out of its own corner.
+        val originRect = anchorBounds ?: Rect(
+            cardRect.right - 44.dp.toPx(),
+            cardRect.bottom - 44.dp.toPx(),
+            cardRect.right,
+            cardRect.bottom,
+        )
+        val growth: GraphicsLayerScope.(Boolean) -> Unit = { clipToMorph ->
             val p = progress.value
-            alpha = (p * 2.5f).coerceIn(0f, 1f)
-            if (!reduceMotion) {
-                transformOrigin = TransformOrigin(1f, if (hangsDown) 0f else 1f)
-                val scale = lerp(0.3f, 1f, p)
-                // Regangan X/Y berlawanan dibuat tipis supaya tidak terasa bergoyang.
-                val wobble = (p - 1f) * p * p * 0.12f
-                scaleX = scale - wobble
-                scaleY = scale + wobble
-                applyIosMenuJelly(touch, scale, 1f, if (hangsDown) 0f else 1f)
+            if (reduceMotion) {
+                alpha = (p * 2.5f).coerceIn(0f, 1f)
+            } else {
+                applyMacOSMorph(morphSpec, p, originRect, cardRect, 30.dp.toPx(), clipToMorph)
+                applyIosMenuJelly(touch, 1f, 0.5f, 0.5f)
             }
         }
         layout(width, height) {
             scrimPlaceable.place(0, 0)
-            shadowPlate.placeWithLayer(panelX, panelY, layerBlock = growth)
+            shadowPlate.placeWithLayer(panelX, panelY) { growth(false) }
             panel.placeWithLayer(panelX, panelY) {
-                growth()
+                growth(true)
                 // Drawn full size into a layer of its own, and only that
                 // picture scaled. Scaled as it was drawn, the panel's
                 // continuous corners — a path, not a rounded rect — were

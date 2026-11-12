@@ -130,7 +130,9 @@ internal class IosMenuTouch(private val scope: CoroutineScope) {
         val anchor = anchorTarget?.local()
         if (anchor != null && abs(anchor.top - anchorTop) > 2f) scrolled = true
         val t = if (scrolled) null else targetAt(pos)
-        if ((pos - down).getDistance() > slop) dragged = true
+        // Jarak diukur di ruang window: panel yang sedang pop/bergoyang menggeser
+        // koordinat lokal, sehingga jari diam bisa dianggap menyeret dan ketukannya ditelan.
+        if ((toWindow(pos) - downWindow).getDistance() > slop) dragged = true
         if (t !== hovered) select(t, animate = true)
         // Menu yang digulir tetap bergoyang mengikuti jari, hanya lebih lembut,
         // supaya menu panjang tidak terasa mati saat ditarik.

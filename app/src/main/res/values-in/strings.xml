@@ -1505,6 +1505,14 @@
     <string name="glass_settings_subtitle">Blur, refraksi, tepi pelangi, warna, bayangan, dan lainnya</string>
     <string name="glass_enable_hint">Aktifkan Kaca Cair untuk memakai pengaturan ini.</string>
     <string name="glass_section_preset">Preset kejernihan</string>
+    <string name="glass_section_ready_presets">Preset siap pakai</string>
+    <string name="glass_footer_ready_presets">Menerapkan beberapa nilai sekaligus. Slider di bawah tetap bisa menyempurnakannya.</string>
+    <string name="glass_preset_default">Bawaan</string>
+    <string name="glass_preset_default_subtitle">Tampilan kaca bawaan Zenith</string>
+    <string name="glass_preset_liquid">Liquid Glass</string>
+    <string name="glass_preset_liquid_subtitle">Gaya Kyant0 backdrop: wadah lebih pekat, refraksi tajam tanpa pelangi</string>
+    <string name="glass_preset_bottom_bar">Glass Bottom Bar</string>
+    <string name="glass_preset_bottom_bar_subtitle">Gaya tutorial Kyant0: blur tipis, tepi melengkung kuat, permukaan 50%</string>
     <string name="glass_section_color">Blur &amp; warna</string>
     <string name="glass_section_refraction">Refraksi (pembiasan cahaya)</string>
     <string name="glass_section_edge">Tepi &amp; bayangan</string>

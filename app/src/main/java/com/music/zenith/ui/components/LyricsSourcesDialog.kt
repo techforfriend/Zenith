@@ -94,21 +94,23 @@ fun LyricsSourcesDialog(
     val paxSenixApiKey by AppSettings.paxSenixApiKey.collectAsStateWithLifecycle()
     var showPaxSenixKeyDialog by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -126,7 +128,8 @@ fun LyricsSourcesDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier

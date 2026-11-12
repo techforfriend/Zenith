@@ -58,7 +58,7 @@ object ReplayClipCache {
      * streams while the copy carries on, so the music starts instead of the
      * Replay sitting silent behind a download.
      */
-    private const val STORE_GRACE_MS = 4_000L
+    const val STORE_GRACE_MS = 4_000L
 
     /** Storing runs here, apart from the caller, so a stalled read can never hold the caller up. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -144,7 +144,11 @@ object ReplayClipCache {
      * cannot be played at all. If storing fails the URL is still returned, so
      * the clip falls back to streaming instead of being skipped.
      */
-    suspend fun prepare(context: Context, song: Song): String? = withContext(Dispatchers.IO) {
+    suspend fun prepare(
+        context: Context,
+        song: Song,
+        storeGraceMs: Long = STORE_GRACE_MS,
+    ): String? = withContext(Dispatchers.IO) {
         song.localUri?.takeIf { it.isNotBlank() }?.let { return@withContext it }
         val videoId = song.videoId.takeIf { it.isNotBlank() } ?: return@withContext null
         val url = try {
@@ -166,7 +170,7 @@ object ReplayClipCache {
                 }
                 // Waited for only a moment: a clip not stored by then streams
                 // while the copy carries on.
-                withTimeoutOrNull(STORE_GRACE_MS) { copy.join() }
+                withTimeoutOrNull(storeGraceMs) { copy.join() }
             }
         } catch (e: CancellationException) {
             throw e

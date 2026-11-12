@@ -140,9 +140,9 @@ private fun BacksoundPlayer(
         // already there when it is due instead of being fetched live while the
         // story waits in silence.
         val prepared = HashMap<String, Deferred<String?>>()
-        fun prepare(song: Song): Deferred<String?> =
+        fun prepare(song: Song, graceMs: Long = ReplayClipCache.STORE_GRACE_MS): Deferred<String?> =
             prepared.getOrPut(song.clipKey()) {
-                async(Dispatchers.IO) { ReplayClipCache.prepare(context, song) }
+                async(Dispatchers.IO) { ReplayClipCache.prepare(context, song, graceMs) }
             }
 
         var index = 0
@@ -151,8 +151,11 @@ private fun BacksoundPlayer(
         while (isActive) {
             val song = tracks[index % tracks.size]
             val next = tracks[(index + 1) % tracks.size]
+            // Klip pertama ada di jalur kritis: story sudah berjalan, jadi ia
+            // hanya menunggu salinan sebentar lalu diputar lewat streaming.
+            val grace = if (index == 0) FIRST_CLIP_GRACE_MS else ReplayClipCache.STORE_GRACE_MS
             index++
-            val source = withTimeoutOrNull(PREPARE_TIMEOUT_MS) { prepare(song).await() }
+            val source = withTimeoutOrNull(PREPARE_TIMEOUT_MS) { prepare(song, grace).await() }
             // The next song is made ready while this one plays.
             if (next.clipKey() != song.clipKey()) prepare(next)
             if (source == null) Log.w("Zenith", "Replay backsound: ${song.clipKey()} could not be prepared")
@@ -202,23 +205,29 @@ private suspend fun playSegment(
     try {
         level.snapTo(0f)
         player.playWhenReady = false
+        // Durasi dari metadata lagu: pemutar langsung memuat dari titik hook,
+        // tanpa buffering dari 0:00 lalu seek ulang.
+        val plannedStart = song.durationText?.let(::parseClockMs)?.let(::clipStartFor)
         player.setMediaItem(
             MediaItem.Builder()
                 .setUri(source)
                 // The key the clip was stored under, so it plays from disk.
                 .apply { if (song.localUri.isNullOrBlank()) setCustomCacheKey(song.videoId) }
                 .build(),
+            plannedStart ?: 0L,
         )
         player.prepare()
         if (withTimeoutOrNull(READY_TIMEOUT_MS) { ready.await() } != true) return false
 
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
-        val start = if (duration > 0L) {
-            (duration * HOOK_FRACTION).toLong().coerceAtMost((duration - SEGMENT_MS).coerceAtLeast(0L))
+        val computed = if (duration > 0L) clipStartFor(duration) else 0L
+        // Titik mulai yang direncanakan dipakai selama dekat dengan durasi sebenarnya.
+        val start = if (plannedStart != null && kotlin.math.abs(computed - plannedStart) <= START_TOLERANCE_MS) {
+            plannedStart
         } else {
-            0L
+            computed
         }
-        player.seekTo(start)
+        if (start != plannedStart) player.seekTo(start)
         player.playWhenReady = !silenced()
         // The fade starts when the sound does, not when it was asked for: a seek
         // into a stream can take longer than the fade itself, and a fade run
@@ -273,7 +282,25 @@ private const val SEGMENT_MS = 30_000L
 /** Where in the track a clip starts, as a share of its length: about where a hook sits. */
 private const val HOOK_FRACTION = 0.30f
 
-private const val FADE_IN_MS = 2_200
+private const val FADE_IN_MS = 1_500
+
+/** The first clip waits this long for its disk copy before it streams instead. */
+private const val FIRST_CLIP_GRACE_MS = 600L
+
+/** How far the planned start may differ from the real duration's before a seek is made. */
+private const val START_TOLERANCE_MS = 2_000L
+
+/** Where a clip of a track [durationMs] long starts: about where its hook sits. */
+private fun clipStartFor(durationMs: Long): Long =
+    (durationMs * HOOK_FRACTION).toLong().coerceAtMost((durationMs - SEGMENT_MS).coerceAtLeast(0L))
+
+/** "3:45" or "1:02:03" in milliseconds, or null when it is not a clock time. */
+private fun parseClockMs(text: String): Long? {
+    val parts = text.trim().split(":").map { it.toIntOrNull() ?: return null }
+    if (parts.size !in 2..3) return null
+    val seconds = parts.fold(0L) { total, part -> total * 60 + part }
+    return (seconds * 1000).takeIf { it > 0L }
+}
 private const val FADE_OUT_MS = 1_800
 private const val FADE_STEPS = 28
 

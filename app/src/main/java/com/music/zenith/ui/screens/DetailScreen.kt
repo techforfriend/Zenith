@@ -642,7 +642,7 @@ fun DetailScreen(
                 val gridColumns = libraryGrid(maxWidth - PAGE_GUTTER * 2).columns
                 // Liked Music: tarikan ke bawah dibatasi kecil, jadi seni ekstra di
                 // atas hero cukup tipis dan lubang tidak pernah terlihat.
-                val listOverscroll = if (page.isLikedMusic() || page.covers.isNotEmpty() || page.isFolderCover() || page.isAlbumHero() || page.isMixHero()) {
+                val listOverscroll = if (isArtist || page.isLikedMusic() || page.covers.isNotEmpty() || page.isFolderCover() || page.isAlbumHero() || page.isMixHero()) {
                     rememberIosOverscrollEffect(LIKED_MAX_PULL)
                 } else {
                     rememberOverscrollEffect()
@@ -660,6 +660,7 @@ fun DetailScreen(
                         artHeight = artHeight,
                         listState = listState,
                         heroUrl = appleArt?.heroUrl,
+                        pull = { (listOverscroll as? PullDownOverscrollEffect)?.pullDownPx ?: 0f },
                         modifier = Modifier.matchParentSize(),
                     )
                 }
@@ -1676,6 +1677,8 @@ private fun PageBackground(
     artHeight: Dp,
     listState: LazyListState,
     heroUrl: String? = null,
+    /** How far the list is pulled past its top right now, in px; the photo zooms by it. */
+    pull: () -> Float = { 0f },
     modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -1707,6 +1710,7 @@ private fun PageBackground(
                 .fillMaxWidth()
                 .height(artHeight)
                 .graphicsLayer { alpha = reveal }
+                .zoomBackgroundOnPull(pull)
                 .offset { IntOffset(0, listState.headerTop(artHeight.toPx()).roundToInt()) }
                 // After the offset, so the flight lands on where the photo really is.
                 .coverFlightTarget(page.browseId, 0.dp, palette.wash),
@@ -3408,6 +3412,22 @@ private val LIKED_OVERSCROLL = 0.dp
  * menyeret seni hero turun, melainkan memperbesarnya: lihat [zoomOnPull].
  */
 private val LIKED_MAX_PULL = 140.dp
+
+/**
+ * Seperti [zoomOnPull], tetapi untuk seni yang digambar di belakang daftar
+ * (foto artis): lapisan ini tidak ikut bergeser saat daftar ditarik, jadi tidak
+ * perlu digeser balik. Cukup diskalakan dari tepi atasnya sejauh tarikan, sehingga
+ * kakinya tetap bertemu dengan konten daftar yang turun.
+ */
+private fun Modifier.zoomBackgroundOnPull(pull: () -> Float): Modifier = graphicsLayer {
+    val p = pull()
+    if (p > 0f && size.height > 0f) {
+        val scale = 1f + p / size.height
+        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+        scaleX = scale
+        scaleY = scale
+    }
+}
 
 /**
  * Menarik daftar melewati puncaknya memperbesar seni hero seperti Apple Music,

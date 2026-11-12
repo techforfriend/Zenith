@@ -64,23 +64,28 @@ internal fun AudioPopupCard(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val frost = LocalPlayerFrost.current
+    // onDismiss now fires once the exit has played; scrim, Back and Done all
+    // go through the same reverse animation.
+    val popup = rememberMacOSPopupState(onClosed = onDismiss)
+    androidx.activity.compose.BackHandler { popup.requestClose() }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
-            .background(POPUP_SCRIM_COLOR)
+            .macOSPopupScrim(popup, POPUP_SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = popup::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .width(POPUP_WIDTH)
-                .jellyPopIn()
+                .macOSPopupMotion(popup)
+                .jellyPopIn(animateIn = false)
                 .clip(POPUP_CARD_SHAPE)
                 .then(
                     // The ⋯ menu's frost — see [PlayerDrawer], whose drawers
@@ -101,6 +106,8 @@ internal fun AudioPopupCard(
                     onClick = {},
                 ),
         ) {
+            // The children fade in once the card has grown out of its trigger.
+            Column(Modifier.fillMaxWidth().macOSPopupContent(popup)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -138,7 +145,8 @@ internal fun AudioPopupCard(
             // Full width: the default rule is indented to clear the pipeline's
             // icon lane, which left this one sitting right of centre.
             PipelineRule(Modifier)
-            PipelineDoneAction(label = doneLabel, onClick = onDismiss)
+            PipelineDoneAction(label = doneLabel, onClick = popup::requestClose)
+            }
         }
     }
 }

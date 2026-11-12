@@ -94,11 +94,12 @@ fun UpdateAvailableDialog(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             // Tapping the scrim reads the same as Remind Me Later — nothing
             // about this update is mandatory, so backing out of it should be as
             // easy as getting into it. Mid-download it only closes the sheet;
@@ -106,13 +107,14 @@ fun UpdateAvailableDialog(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
                 .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -130,7 +132,8 @@ fun UpdateAvailableDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier

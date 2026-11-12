@@ -1032,6 +1032,16 @@ fun NowPlayingScreen(
     val playerHaze = remember { HazeState() }
     var showAudioPipeline by remember { mutableStateOf(false) }
     var showCast by remember { mutableStateOf(false) }
+    // Sheet offset lirik tetap tersusun sebentar setelah ditutup supaya animasi keluarnya sempat jalan.
+    var lyricsOffsetSheetHeld by remember { mutableStateOf(lyricsOffsetOpen) }
+    LaunchedEffect(lyricsOffsetOpen) {
+        if (lyricsOffsetOpen) {
+            lyricsOffsetSheetHeld = true
+        } else {
+            delay(220)
+            lyricsOffsetSheetHeld = false
+        }
+    }
     var showAudioOutput by remember { mutableStateOf(false) }
     var showVideoQuality by remember { mutableStateOf(false) }
     var showLyricsProviders by remember { mutableStateOf(false) }
@@ -2040,8 +2050,9 @@ fun NowPlayingScreen(
                 },
             )
         }
-        if (lyricsOffsetOpen) {
+        if (lyricsOffsetOpen || lyricsOffsetSheetHeld) {
             LyricsOffsetSheet(
+                visible = lyricsOffsetOpen,
                 hazeState = playerHaze,
                 onDismiss = onDismissLyricsOffset,
             )

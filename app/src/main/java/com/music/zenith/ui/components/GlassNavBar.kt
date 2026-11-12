@@ -233,6 +233,7 @@ val haptics = rememberHaptics()
             // Tema gelap: indikator digelapkan seperti Apple Music, bukan diangkat
             // putih, supaya ikon dan teks aktif yang cerah menonjol darinya.
             indicatorColor = if (isDarkGlass) Color.Black.copy(alpha = 0.30f) else glassIndicatorColor(),
+            selectedContentColor = selectedColor,
         ),
         // Flat, because the glass is not. Every surface here already draws its
         // own [Shadow.Default] as part of the backdrop pass, and the library's

@@ -80,20 +80,27 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
     }
     val onSurface = MaterialTheme.colorScheme.onSurface
 
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
+    val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent
+        as? androidx.compose.ui.window.DialogWindowProvider)?.window
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = motion::requestClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        // The scrim below fades with the card; the platform's flat dim would snap in.
+        androidx.compose.runtime.SideEffect { dialogWindow?.setDimAmount(0f) }
         // Window layar penuh, bukan seukuran kartu: kalau window menyusut
         // mengikuti kartu, posisi kartu di window-nya 0,0 dan kaca mengambil
         // gambar latar dari pojok kiri atas, bukan dari tempat kartu berada.
         Box(
             Modifier
                 .fillMaxSize()
+                .macOSPopupScrim(motion, SCRIM_COLOR)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
-                    onClick = onDismiss,
+                    onClick = motion::requestClose,
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -107,10 +114,12 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
         Column(
             Modifier
                 .width(ALERT_WIDTH)
-                .jellyPopIn()
+                .macOSPopupMotion(motion)
+                .jellyPopIn(animateIn = false)
                 .clip(RoundedCornerShape(ALERT_CORNER))
                 .alertGlass(RoundedCornerShape(ALERT_CORNER)),
         ) {
+            Column(Modifier.fillMaxWidth().macOSPopupContent(motion)) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -198,7 +207,8 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
                 AlertAction(label = stringResource(R.string.song_info_retry), emphasised = false, onClick = { retry++ })
                 AlertRule()
             }
-            AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = onDismiss)
+            AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = motion::requestClose)
+            }
         }
         }
         }

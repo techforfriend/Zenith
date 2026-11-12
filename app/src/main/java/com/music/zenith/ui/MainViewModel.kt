@@ -1715,8 +1715,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadExplore() {
         exploreRequested = true
         _explore.value = UiState.Loading
-        _exploreCharts.value = UiState.Loading
-        viewModelScope.launch { fetchExplore() }
+        // Charts yang sudah diambil lebih awal (lihat prefetchExploreCharts) dipakai apa adanya.
+        val chartsReady = _exploreCharts.value is UiState.Success
+        if (!chartsReady) _exploreCharts.value = UiState.Loading
+        viewModelScope.launch { fetchExplore(fetchCharts = !chartsReady) }
+    }
+
+    private var exploreChartsJob: kotlinx.coroutines.Job? = null
+
+    /** Satu pengambilan charts pada satu waktu, baik dari prefetch maupun dari tab. */
+    private fun startExploreCharts() {
+        if (exploreChartsJob?.isActive == true) return
+        exploreChartsJob = viewModelScope.launch { fetchExploreCharts() }
+    }
+
+    /**
+     * Dipanggil sesaat setelah peluncuran: hanya charts New, tanpa grid mood dan
+     * puluhan request artwork-nya, supaya tidak bersaing dengan Home.
+     */
+    fun prefetchExploreCharts() {
+        if (exploreRequested) return
+        startExploreCharts()
     }
 
     private var exploreRequested = false
@@ -1742,8 +1761,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
     }
 
-    private suspend fun fetchExplore() {
-        viewModelScope.launch { fetchExploreCharts() }
+    private suspend fun fetchExplore(fetchCharts: Boolean = true) {
+        if (fetchCharts) startExploreCharts()
         loadMoodArtworkFromDisk()
         val state = YtMusicRepository.moodAndGenres().fold(
             onSuccess = { sections ->
@@ -3397,7 +3416,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             Downloads.recordIdOf(browseId) != null ->
                 nonEmpty(downloadedPlaylist(browseId)) { text(R.string.downloaded_playlist_empty) }
             browseId == "local:downloads" ->
-                nonEmpty(Downloads.getDownloadedSongs(context)) { "No downloaded tracks" }
+                nonEmpty(LocalMediaRepository.getDownloadedSongs(context)) { "No downloaded tracks" }
             browseId == CACHE_FOLDER_BROWSE_ID -> cachedSongsState()
             browseId == "local:all" -> if (!LocalMediaRepository.canReadLocalMusic(context)) {
                 UiState.Error(text(R.string.storage_required_read))
