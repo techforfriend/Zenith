@@ -346,7 +346,9 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
         } ?: return Result.failure(AddonUnavailable("Mono catalogue returned bad JSON"))
         val tracks = elements.mapNotNull { element ->
             val track = runCatching {
-                json.decodeFromJsonElement<MonoUpstreamTrack>(element)
+                // No reified overload here in this kotlinx version — the
+                // explicit serializer is the call that resolves.
+                json.decodeFromJsonElement(MonoUpstreamTrack.serializer(), element)
             }.getOrNull() ?: return@mapNotNull null
             val id = (track.id as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
                 ?: return@mapNotNull null
