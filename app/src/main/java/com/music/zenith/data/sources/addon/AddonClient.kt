@@ -11,10 +11,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlin.math.roundToInt
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -37,6 +44,26 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
 
     /** Where this addon lives, with `/manifest.json` and trailing slashes off. */
     val baseUrl: String = normalizeBase(rawBaseUrl)
+
+    /**
+     * Whether this client answers locally instead of over the network.
+     *
+     * True only for the Auris Hi-Res link — see [isMonoDirectUrl]. Its server
+     * answers with a line of text and no manifest, so there is no addon to
+     * speak to; the catalogue it names is answered here instead, from the
+     * same public host Auris's own backend reads. Nothing else changes: the
+     * manifest, the search rows and the stream answers are the same shapes
+     * the remote protocol would have returned.
+     */
+    private val monoDirect: Boolean = isMonoDirectUrl(baseUrl)
+
+    /**
+     * Search results remembered briefly (id -> durationMs), so [monoStream]
+     * can measure a file's real bitrate from its HEAD Content-Length. The
+     * eldest entry goes when it fills; losing one only costs the measured
+     * figures on that track, never the track itself.
+     */
+    private val monoDurations = ConcurrentHashMap<String, Long>()
 
     private val json = Json {
         isLenient = true
@@ -79,7 +106,8 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
      * the user is still looking at the URL they pasted, rather than the addon
      * being accepted and then silently returning nothing on every track.
      */
-    suspend fun manifest(): Result<AddonManifest> = manifests.get(
+    suspend fun manifest(): Result<AddonManifest> =
+        if (monoDirect) Result.success(MONO_MANIFEST) else manifests.get(
         key = baseUrl,
         describe = { "▶ addon manifest(${redact(baseUrl)})" },
     ) {
@@ -117,7 +145,8 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
      * read the [Result] rather than the count.
      */
     suspend fun probeSearch(): Result<Int> =
-        fetch<AddonSearchResponse>(endpoint(listOf("search"), mapOf("q" to PROBE_QUERY)))
+        if (monoDirect) monoSearch(PROBE_QUERY).map { it.tracks.size }
+        else fetch<AddonSearchResponse>(endpoint(listOf("search"), mapOf("q" to PROBE_QUERY)))
             .map { it.tracks.size }
 
     // ── Search ────────────────────────────────────────────────────────────
@@ -134,6 +163,12 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return Result.success(emptyList())
         val params = settingsFor(tier)
+        if (monoDirect) {
+            return searches.get(
+                key = keyOf(trimmed, params.toString()),
+                describe = { "▶ mono search q=\"$trimmed\" tier=$tier" },
+            ) { monoSearch(trimmed) }.map { it.tracks }
+        }
         return searches.get(
             // The parameters are in the key because they are in the request:
             // the same query at a different quality is a different question,
@@ -163,12 +198,204 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
      */
     suspend fun stream(trackId: String, tier: String, stereoOnly: Boolean = false): Result<AddonStream> {
         val params = settingsFor(tier, stereoOnly)
+        if (monoDirect) {
+            return streams.get(
+                key = keyOf(trackId, params.toString()),
+                describe = { "▶ mono stream id=$trackId tier=$tier" },
+            ) { monoStream(trackId) }
+        }
         return streams.get(
             key = keyOf(trackId, params.toString()),
             describe = { "▶ addon stream(${redact(baseUrl)}) id=$trackId tier=$tier" },
         ) {
             fetch<AddonStream>(endpoint(listOf("stream", trackId), params))
         }
+    }
+
+    // ── Mono direct ─────────────────────────────────────────────────────
+    //
+    // The Auris Hi-Res link is not an addon server: pasting it used to fail
+    // at the manifest, because its host answers with a line of text ("This
+    // addon is only compatible with Auris") and no manifest, search or
+    // stream. The catalogue it names is real, though — the same public
+    // direct-FLAC host Auris's own open-source backend queries, with no key
+    // and no account — so this mode answers the three protocol questions
+    // here, on the phone, instead of asking a server that has nothing to
+    // say. No deploy and no gateway are needed for it: the phone reaches
+    // the catalogue host directly, exactly as Auris's backend does.
+    //
+    // The mapping is the same one the gateway server uses, kept in step with
+    // it on purpose: search rows carry no stream URL (so the measured
+    // figures below are not skipped), the bitrate is measured from the
+    // file's HEAD Content-Length against the duration seen at search time,
+    // and a file below the lossless floor is a miss, not a stream.
+
+    /**
+     * Tracks the Mono catalogue holds for [query], in addon rows.
+     *
+     * The upstream answers `{tracks: [...]}`; a row that says it is not
+     * playable, or carries no id, is dropped. The duration is in
+     * milliseconds upstream and seconds in the row. A catalogue that does
+     * not answer, or answers with something unreadable, is a transient
+     * failure — the next source is tried, and the addon stays switched on.
+     */
+    private suspend fun monoSearch(query: String): Result<AddonSearchResponse> =
+        withContext(Dispatchers.IO) {
+            val url = MONO_UPSTREAM.toHttpUrlOrNull()?.newBuilder()
+                ?.addPathSegment("search")
+                ?.addPathSegment("tracks")
+                ?.addQueryParameter("q", query)
+                ?.addQueryParameter("limit", MONO_SEARCH_LIMIT.toString())
+                ?.build().toString()
+                ?: return@withContext Result.failure(
+                    AddonException("Mono catalogue address is not usable"),
+                )
+            val request = Request.Builder().url(url)
+                .header("Accept", "application/json")
+                .header("User-Agent", MONO_USER_AGENT)
+                .build()
+            val code: Int
+            val payload: String
+            try {
+                client.newCall(request).execute().use { response ->
+                    code = response.code
+                    payload = response.body?.string().orEmpty()
+                }
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: Exception) {
+                return@withContext Result.failure(
+                    AddonUnavailable("Mono catalogue unreachable: ${failure.message}"),
+                )
+            }
+            if (code != 200) {
+                return@withContext Result.failure(
+                    AddonUnavailable("Mono catalogue answered HTTP $code"),
+                )
+            }
+            if (payload.isBlank()) {
+                return@withContext Result.failure(
+                    AddonUnavailable("Mono catalogue answered empty"),
+                )
+            }
+            val upstream = runCatching { json.decodeFromString<MonoUpstreamSearch>(payload) }
+                .getOrNull()
+                ?: return@withContext Result.failure(
+                    AddonUnavailable("Mono catalogue returned bad JSON"),
+                )
+            val tracks = upstream.tracks.mapNotNull { track ->
+                val id = (track.id as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                if ((track.playable as? JsonPrimitive)?.content == "false") {
+                    return@mapNotNull null
+                }
+                val durationMs = (track.duration as? JsonPrimitive)?.content
+                    ?.toDoubleOrNull()?.takeIf { it > 0 }?.toLong()
+                val artists = (track.artistNames as? JsonArray)
+                    ?.mapNotNull { (it as? JsonPrimitive)?.content }
+                    .orEmpty()
+                if (durationMs != null) monoMemoize(id, durationMs)
+                AddonTrack(
+                    id = id,
+                    title = track.title,
+                    artist = artists.joinToString(", "),
+                    album = track.albumTitle ?: track.releaseTitle ?: "",
+                    duration = durationMs?.let { it / 1000.0 },
+                    artworkURL = track.artwork,
+                    format = "flac",
+                    audioQuality = "LOSSLESS",
+                )
+            }
+            Result.success(AddonSearchResponse(tracks))
+        }
+
+    /**
+     * A playable URL for one of the Mono catalogue's own track ids.
+     *
+     * The file is found by HEAD: its Content-Length against the duration
+     * remembered from the search is the file's real bitrate, measured the
+     * way Auris's backend measures it. A file below the lossless floor is
+     * a transcode in a FLAC container and is refused as a miss, exactly as
+     * that backend refuses it. A HEAD that fails outright does not fail
+     * the track — the search already proved the id exists, so the URL is
+     * handed over unmeasured and the player tries it.
+     */
+    private suspend fun monoStream(trackId: String): Result<AddonStream> =
+        withContext(Dispatchers.IO) {
+            // Monochrome ids are numeric strings. Anything else can never be a track.
+            if (trackId.isEmpty() || trackId.any { !it.isDigit() }) {
+                return@withContext Result.failure(AddonNotFound())
+            }
+            val fileUrl = "$MONO_UPSTREAM/track/$trackId"
+            var lengthBytes = 0L
+            val headStatus: Int? = try {
+                val request = Request.Builder().url(fileUrl)
+                    .head()
+                    .header("User-Agent", MONO_USER_AGENT)
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (response.code == 200 || response.code == 206) {
+                        lengthBytes = response.header("Content-Length")?.toLongOrNull() ?: 0L
+                    }
+                    response.code
+                }
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (_: Exception) {
+                null
+            }
+            if (headStatus != null && headStatus != 200 && headStatus != 206) {
+                // A 4xx/5xx here is the host saying it has no such file — a
+                // miss, which the caller reads as "try the next source".
+                return@withContext Result.failure(AddonNotFound())
+            }
+            val durationMs = monoDurations[trackId]
+            val kbps = if (lengthBytes > 0 && durationMs != null && durationMs > 0) {
+                (lengthBytes * 8.0 / durationMs).roundToInt()
+            } else {
+                null
+            }
+            if (kbps != null && kbps < MONO_MIN_KBPS) {
+                return@withContext Result.failure(AddonNotFound())
+            }
+            Result.success(
+                AddonStream(
+                    url = fileUrl,
+                    format = "flac",
+                    quality = monoQualityLabel(kbps),
+                    audioQuality = "LOSSLESS",
+                    codec = "flac",
+                    container = "flac",
+                    manifest = "none",
+                    mimeType = "audio/flac",
+                    encrypted = JsonPrimitive(false),
+                    bitrate = kbps?.toDouble(),
+                    bitDepth = kbps?.let { if (it > MONO_CD_KBPS) 24.0 else 16.0 },
+                    sampleRate = kbps?.let { if (it > MONO_HIRES_KBPS) 96000.0 else 44100.0 },
+                ),
+            )
+        }
+
+    /**
+     * The quality label for a measured bitrate, in Auris's own words.
+     *
+     * CD PCM is 1411.2 kbps and hi-res PCM 2116.8 kbps, so those are the
+     * lines a file is judged against; unmeasured, it is lossless and
+     * nothing more specific is claimed.
+     */
+    private fun monoQualityLabel(kbps: Int?): String {
+        if (kbps == null) return "FLAC · Lossless"
+        val bits = if (kbps > MONO_CD_KBPS) 24 else 16
+        val rate = if (kbps > MONO_HIRES_KBPS) "96 kHz" else "44.1 kHz"
+        return "FLAC · $bits-bit · $rate"
+    }
+
+    /** Remember a search result's duration for [monoStream]; the eldest entry goes when it fills. */
+    private fun monoMemoize(id: String, durationMs: Long) {
+        if (monoDurations.size >= MONO_MAX_MEMOIZED) {
+            monoDurations.keys.firstOrNull()?.let { monoDurations.remove(it) }
+        }
+        monoDurations[id] = durationMs
     }
 
     // ── Settings passthrough ──────────────────────────────────────────────
@@ -422,6 +649,69 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
     companion object {
         private const val TAG = "Zenith"
 
+        /**
+         * The Auris Hi-Res link, and the host it lives on.
+         *
+         * The link itself is a static refusal page — "This addon is only
+         * compatible with Auris" — with no manifest behind it, so no fetch
+         * of it could ever settle as an addon. This fork answers any address
+         * on that host locally instead ([monoDirect]), serving the catalogue
+         * the link names from the public host Auris's own backend reads.
+         * Matching the host rather than the one slug covers the link as
+         * pasted, the bare host, and a trailing slash; the host publishes
+         * nothing else this app could mistake for an addon.
+         */
+        const val AURIS_ADDON_HOST = "auris.shehriyar.ink"
+
+        /** Whether [raw] names the Auris link, in whatever form it was pasted. */
+        fun isMonoDirectUrl(raw: String): Boolean {
+            val url = normalizeBase(raw.trim()).toHttpUrlOrNull() ?: return false
+            return url.host == AURIS_ADDON_HOST
+        }
+
+        /**
+         * The manifest the Auris link is answered with.
+         *
+         * The same shape the gateway server publishes, so a source added
+         * from that link and one added from a deployed gateway are the same
+         * addon by id, name and quality options — only where the answers
+         * come from differs.
+         */
+        val MONO_MANIFEST = AddonManifest(
+            id = "zenith-mono-hires",
+            name = "Mono Hi-Res Lossless",
+            version = "1.0.0",
+            resources = listOf("search", "stream"),
+            settings = listOf(
+                AddonSetting(
+                    key = QUALITY_KEY,
+                    default = JsonPrimitive("LOSSLESS"),
+                    options = listOf(
+                        AddonSettingOption(JsonPrimitive("LOSSLESS"), JsonPrimitive("Lossless")),
+                        AddonSettingOption(JsonPrimitive("HIGH"), JsonPrimitive("High")),
+                        AddonSettingOption(JsonPrimitive("LOW"), JsonPrimitive("Low")),
+                    ),
+                ),
+            ),
+        )
+
+        /** The direct-FLAC catalogue, reached from the phone with no key and no account. */
+        private const val MONO_UPSTREAM = "https://tracks.monochrome.st"
+
+        /** The neutral browser string Auris's own backend sends. The catalogue host answers it. */
+        private const val MONO_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+
+        private const val MONO_SEARCH_LIMIT = 25
+        private const val MONO_MAX_MEMOIZED = 256
+
+        /** Bitrate floors, mirrored from Auris's backend: CD PCM 1411.2 kbps, hi-res PCM 2116.8 kbps. */
+        private const val MONO_CD_KBPS = 1411
+        private const val MONO_HIRES_KBPS = 2116
+
+        /** Below this a "FLAC" is a transcode in a lossless container, and is refused. */
+        private const val MONO_MIN_KBPS = 300
+
         /** The tiers [AddonSource][com.music.zenith.data.sources.AddonSource] asks in. */
         const val TIER_LOSSLESS = "LOSSLESS"
         const val TIER_HIGH = "HIGH"
@@ -566,3 +856,31 @@ class AddonUnavailable(message: String) : Exception(message)
 
 /** The addon answered, and does not have what was asked for. A miss, not a fault. */
 class AddonNotFound : Exception("Not held by this addon")
+
+/**
+ * The Monochrome catalogue's own shapes, as [AddonClient.monoSearch] reads them.
+ *
+ * Kept separate from the addon protocol's shapes above: these are what the
+ * catalogue host sends, and the mapping into addon rows is the client's job.
+ * The loosely-typed fields are deliberate — `id`, `duration`, `playable`
+ * and `artistNames` arrive in more than one spelling across the host's
+ * answers, and a row that costs the whole search to parse is a row that
+ * should have been skipped instead.
+ */
+@Serializable
+private data class MonoUpstreamSearch(
+    @SerialName("tracks") val tracks: List<MonoUpstreamTrack> = emptyList(),
+)
+
+@Serializable
+private data class MonoUpstreamTrack(
+    @SerialName("id") val id: JsonElement? = null,
+    @SerialName("title") val title: String = "",
+    @SerialName("artistNames") val artistNames: JsonElement? = null,
+    @SerialName("albumTitle") val albumTitle: String? = null,
+    @SerialName("releaseTitle") val releaseTitle: String? = null,
+    /** Milliseconds upstream; seconds in the addon row. */
+    @SerialName("duration") val duration: JsonElement? = null,
+    @SerialName("artwork") val artwork: String? = null,
+    @SerialName("playable") val playable: JsonElement? = null,
+)

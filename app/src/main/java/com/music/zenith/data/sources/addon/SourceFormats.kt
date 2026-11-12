@@ -83,6 +83,20 @@ object SourceFormats {
             )
         }
 
+        // The Auris Hi-Res link is not an addon at all: its server answers
+        // with a line of text and no manifest, so no fetch here could ever
+        // settle it. This fork answers it locally instead — see
+        // [AddonClient.isMonoDirectUrl] and the Mono direct mode there — so
+        // pasting that link adds a working Hi-Res source rather than a refusal.
+        if (AddonClient.isMonoDirectUrl(url)) {
+            return@withContext Result.success(
+                DetectedFormat.Addon(
+                    manifest = AddonClient.MONO_MANIFEST,
+                    baseUrl = AddonClient.normalizeBase(url),
+                ),
+            )
+        }
+
         val base = AddonClient.normalizeBase(url)
         val isDocument = url.substringBefore('?').endsWith(".json", ignoreCase = true)
         val attempts = if (isDocument) {
