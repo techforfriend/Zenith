@@ -63,6 +63,45 @@ function qualityLabel(kbps) {
   return `FLAC · ${bits}-bit · ${rate}`;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// How long to wait after a 429, from the header when it sent one —
+// otherwise the wait doubles from 500 ms, capped at 8 s. Mirrors the
+// in-app transport, so the two halves of this addon behave the same.
+function retryAfterMs(header, attempt) {
+  const stated = header == null ? NaN : Number(header.trim()) * 1000;
+  const wait = Number.isFinite(stated) ? stated : 500 << attempt;
+  return Math.min(Math.max(wait, 500), 8000);
+}
+
+// One upstream fetch with the transient failures retried: a dropped
+// connection, a 5xx, or a 429 gets two more attempts. A 4xx that is not
+// a 429, or a body that will not parse, is not retried — asking again
+// for the same bytes would answer the same way.
+async function fetchUpstreamWithRetry(url, opts = {}) {
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    let res;
+    try {
+      res = await fetchUpstream(url, opts);
+    } catch (e) {
+      if (attempt >= 2) throw e;
+      await sleep(500 << attempt);
+      continue;
+    }
+    if (res.status === 429) {
+      if (attempt >= 2) return res;
+      await sleep(retryAfterMs(res.headers.get("retry-after"), attempt));
+      continue;
+    }
+    if (res.status >= 500) {
+      if (attempt >= 2) return res;
+      await sleep(500 << attempt);
+      continue;
+    }
+    return res;
+  }
+}
+
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(status, {
@@ -107,8 +146,8 @@ async function fetchUpstream(url, { method = "GET", timeoutMs = SEARCH_TIMEOUT_M
 }
 
 function mapTrack(t) {
-  const durationMs =
-    typeof t.duration === "number" && t.duration > 0 ? t.duration : null;
+  const d = Number(t.duration);
+  const durationMs = Number.isFinite(d) && d > 0 ? d : null;
   return {
     id: String(t.id ?? ""),
     title: t.title ?? "",
@@ -129,7 +168,7 @@ async function handleSearch(url, res) {
 
   let upstream;
   try {
-    upstream = await fetchUpstream(
+    upstream = await fetchUpstreamWithRetry(
       `${UPSTREAM}/search/tracks?q=${encodeURIComponent(q)}&limit=${SEARCH_LIMIT}`,
     );
   } catch (e) {
@@ -147,10 +186,17 @@ async function handleSearch(url, res) {
     return sendJson(res, 502, { error: "Upstream search returned bad JSON" });
   }
   const tracks = (Array.isArray(data?.tracks) ? data.tracks : [])
-    .filter((t) => t && t.playable !== false && String(t.id ?? "").length > 0)
+    .filter(
+      (t) =>
+        t &&
+        t.playable !== false &&
+        t.playable !== "false" &&
+        String(t.id ?? "").length > 0,
+    )
     .map((t) => {
-      if (typeof t.duration === "number") memoize(t.id, t.duration);
-      return mapTrack(t);
+      const row = mapTrack(t);
+      if (row.duration != null) memoize(t.id, row.duration * 1000);
+      return row;
     });
   return sendJson(res, 200, { tracks });
 }
@@ -162,29 +208,56 @@ async function handleStream(id, res) {
   }
   const fileUrl = `${UPSTREAM}/track/${id}`;
   let lengthBytes = 0;
-  let headOk = false;
+  let confirmed = false; // HEAD said the file is there
   try {
     const head = await fetchUpstream(fileUrl, {
       method: "HEAD",
       timeoutMs: HEAD_TIMEOUT_MS,
     });
-    headOk = head.status === 200 || head.status === 206;
-    if (!headOk) {
-      // A 4xx/5xx here is the host saying it has no such file — a miss,
+    if (head.status === 200 || head.status === 206) {
+      confirmed = true;
+      lengthBytes = Number(head.headers.get("content-length") ?? 0) || 0;
+    } else if (head.status === 429 || head.status >= 500) {
+      // The host is busy, not saying the file is gone — fall through to
+      // the ranged try, which may still measure it.
+    } else {
+      // A 4xx here is the host saying it has no such file — a miss,
       // which Zenith reads as "try the next source", not a fault.
       return sendJson(res, 404, { error: "No playable audio for this track" });
     }
-    lengthBytes = Number(head.headers.get("content-length") ?? 0) || 0;
   } catch {
-    // HEAD failed but the search already proved the id exists: still hand
-    // the URL over unmeasured and let the player try, rather than failing
-    // a track on a transient HEAD error.
-    headOk = false;
+    // HEAD never answered; the ranged try below decides.
+  }
+  if (lengthBytes <= 0) {
+    // HEAD's Content-Length is not always sent — the host fronts
+    // Cloudflare, and a 200 HEAD can carry no length at all. A ranged
+    // GET of one byte is the reliable one: its Content-Range total is
+    // the file's size whether HEAD sent a length or not.
+    try {
+      const ranged = await fetch(fileUrl, {
+        method: "GET",
+        headers: { "User-Agent": USER_AGENT, Range: "bytes=0-0" },
+        signal: AbortSignal.timeout(HEAD_TIMEOUT_MS),
+      });
+      if (ranged.status === 404 && !confirmed) {
+        return sendJson(res, 404, { error: "No playable audio for this track" });
+      }
+      if (ranged.status === 206) {
+        const total = ranged.headers.get("content-range")?.split("/").pop();
+        lengthBytes = Number(total ?? 0) || 0;
+      } else if (ranged.status === 200) {
+        // The range was ignored: Content-Length is the whole file.
+        lengthBytes = Number(ranged.headers.get("content-length") ?? 0) || 0;
+      }
+      if (ranged.body) ranged.body.cancel().catch(() => {});
+    } catch {
+      // The size stays unmeasured; the track still plays.
+    }
   }
 
   const origin = origins.get(id);
   const kbps =
-    headOk && lengthBytes > 0 && origin
+    lengthBytes > 0 && origin
       ? measuredKbps(lengthBytes, origin.durationMs)
       : null;
 

@@ -16,6 +16,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.roundToInt
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -238,6 +239,14 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
      * milliseconds upstream and seconds in the row. A catalogue that does
      * not answer, or answers with something unreadable, is a transient
      * failure — the next source is tried, and the addon stays switched on.
+     *
+     * Transient failures are retried, like the generic transport: a dropped
+     * connection, a 5xx, or a 429 gets two more attempts with backoff, and a
+     * 429 sets the shared quiet period so the whole client backs off. A 4xx
+     * that is not a 429, an empty body, or unreadable JSON is not retried —
+     * asking again for the same bytes would answer the same way. Each track
+     * is decoded on its own, so one malformed row cannot cost the whole
+     * search its results.
      */
     private suspend fun monoSearch(query: String): Result<AddonSearchResponse> =
         withContext(Dispatchers.IO) {
@@ -254,69 +263,124 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
                 .header("Accept", "application/json")
                 .header("User-Agent", MONO_USER_AGENT)
                 .build()
-            val code: Int
-            val payload: String
-            try {
-                client.newCall(request).execute().use { response ->
-                    code = response.code
-                    payload = response.body?.string().orEmpty()
+            var attempt = 0
+            while (true) {
+                (quietUntilMs - System.currentTimeMillis()).takeIf { it > 0 }?.let { delay(it) }
+                val code: Int
+                val payload: String
+                val retryAfter: String?
+                try {
+                    client.newCall(request).execute().use { response ->
+                        code = response.code
+                        payload = response.body?.string().orEmpty()
+                        retryAfter = response.header("Retry-After")
+                    }
+                } catch (failure: CancellationException) {
+                    throw failure
+                } catch (failure: Exception) {
+                    if (attempt >= MAX_RETRIES) {
+                        return@withContext Result.failure(
+                            AddonUnavailable("Mono catalogue unreachable: ${failure.message}"),
+                        )
+                    }
+                    delay(retryAfterMs(null, attempt))
+                    attempt++
+                    continue
                 }
-            } catch (failure: CancellationException) {
-                throw failure
-            } catch (failure: Exception) {
-                return@withContext Result.failure(
-                    AddonUnavailable("Mono catalogue unreachable: ${failure.message}"),
-                )
-            }
-            if (code != 200) {
-                return@withContext Result.failure(
-                    AddonUnavailable("Mono catalogue answered HTTP $code"),
-                )
-            }
-            if (payload.isBlank()) {
-                return@withContext Result.failure(
-                    AddonUnavailable("Mono catalogue answered empty"),
-                )
-            }
-            val upstream = runCatching { json.decodeFromString<MonoUpstreamSearch>(payload) }
-                .getOrNull()
-                ?: return@withContext Result.failure(
-                    AddonUnavailable("Mono catalogue returned bad JSON"),
-                )
-            val tracks = upstream.tracks.mapNotNull { track ->
-                val id = (track.id as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
-                    ?: return@mapNotNull null
-                if ((track.playable as? JsonPrimitive)?.content == "false") {
-                    return@mapNotNull null
+                when {
+                    code == 429 -> {
+                        if (attempt >= MAX_RETRIES) {
+                            return@withContext Result.failure(
+                                AddonUnavailable("Mono catalogue is rate limiting Zenith"),
+                            )
+                        }
+                        quietUntilMs = System.currentTimeMillis() + retryAfterMs(retryAfter, attempt)
+                        attempt++
+                        continue
+                    }
+                    code >= 500 -> {
+                        if (attempt >= MAX_RETRIES) {
+                            return@withContext Result.failure(
+                                AddonUnavailable("Mono catalogue answered HTTP $code"),
+                            )
+                        }
+                        delay(retryAfterMs(null, attempt))
+                        attempt++
+                        continue
+                    }
+                    code != 200 -> {
+                        return@withContext Result.failure(
+                            AddonUnavailable("Mono catalogue answered HTTP $code"),
+                        )
+                    }
+                    payload.isBlank() -> {
+                        return@withContext Result.failure(
+                            AddonUnavailable("Mono catalogue answered empty"),
+                        )
+                    }
+                    else -> return@withContext monoRows(payload)
+                        .map { AddonSearchResponse(it) }
                 }
-                val durationMs = (track.duration as? JsonPrimitive)?.content
-                    ?.toDoubleOrNull()?.takeIf { it > 0 }?.toLong()
-                val artists = (track.artistNames as? JsonArray)
-                    ?.mapNotNull { (it as? JsonPrimitive)?.content }
-                    .orEmpty()
-                if (durationMs != null) monoMemoize(id, durationMs)
-                AddonTrack(
-                    id = id,
-                    title = track.title,
-                    artist = artists.joinToString(", "),
-                    album = track.albumTitle ?: track.releaseTitle ?: "",
-                    duration = durationMs?.let { it / 1000.0 },
-                    artworkURL = track.artwork,
-                    format = "flac",
-                    audioQuality = "LOSSLESS",
-                )
             }
-            Result.success(AddonSearchResponse(tracks))
+            // Unreachable: every path out of the loop returns.
+            @Suppress("UNREACHABLE_CODE")
+            Result.failure(AddonException("unreachable"))
         }
+
+    /**
+     * The addon rows in a catalogue search answer, decoded one track at a time.
+     *
+     * The top level is `{tracks: [...]}` — a bare array is accepted too, for a
+     * host that answers with one. A row that fails to decode is skipped rather
+     * than costing the whole search: the catalogue holds thousands of tracks
+     * and one malformed entry is not a reason to return nothing. A top level
+     * that is neither shape is unreadable, and fails the search.
+     */
+    private fun monoRows(payload: String): Result<List<AddonTrack>> {
+        val root = runCatching { json.parseToJsonElement(payload) }.getOrNull()
+            ?: return Result.failure(AddonUnavailable("Mono catalogue returned bad JSON"))
+        val elements = when (root) {
+            is JsonObject -> root["tracks"] as? JsonArray
+            is JsonArray -> root
+            else -> null
+        } ?: return Result.failure(AddonUnavailable("Mono catalogue returned bad JSON"))
+        val tracks = elements.mapNotNull { element ->
+            val track = runCatching {
+                json.decodeFromJsonElement<MonoUpstreamTrack>(element)
+            }.getOrNull() ?: return@mapNotNull null
+            val id = (track.id as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            if ((track.playable as? JsonPrimitive)?.content == "false") {
+                return@mapNotNull null
+            }
+            val durationMs = (track.duration as? JsonPrimitive)?.content
+                ?.toDoubleOrNull()?.takeIf { it > 0 }?.toLong()
+            val artists = (track.artistNames as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.content }
+                .orEmpty()
+            if (durationMs != null) monoMemoize(id, durationMs)
+            AddonTrack(
+                id = id,
+                title = track.title,
+                artist = artists.joinToString(", "),
+                album = track.albumTitle ?: track.releaseTitle ?: "",
+                duration = durationMs?.let { it / 1000.0 },
+                artworkURL = track.artwork,
+                format = "flac",
+                audioQuality = "LOSSLESS",
+            )
+        }
+        return Result.success(tracks)
+    }
 
     /**
      * A playable URL for one of the Mono catalogue's own track ids.
      *
-     * The file is found by HEAD: its Content-Length against the duration
+     * The file is found by [monoFileSizeBytes]: its size against the duration
      * remembered from the search is the file's real bitrate, measured the
      * way Auris's backend measures it. A file below the lossless floor is
      * a transcode in a FLAC container and is refused as a miss, exactly as
-     * that backend refuses it. A HEAD that fails outright does not fail
+     * that backend refuses it. A size that could not be measured does not fail
      * the track — the search already proved the id exists, so the URL is
      * handed over unmeasured and the player tries it.
      */
@@ -327,28 +391,8 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
                 return@withContext Result.failure(AddonNotFound())
             }
             val fileUrl = "$MONO_UPSTREAM/track/$trackId"
-            var lengthBytes = 0L
-            val headStatus: Int? = try {
-                val request = Request.Builder().url(fileUrl)
-                    .head()
-                    .header("User-Agent", MONO_USER_AGENT)
-                    .build()
-                client.newCall(request).execute().use { response ->
-                    if (response.code == 200 || response.code == 206) {
-                        lengthBytes = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                    }
-                    response.code
-                }
-            } catch (failure: CancellationException) {
-                throw failure
-            } catch (_: Exception) {
-                null
-            }
-            if (headStatus != null && headStatus != 200 && headStatus != 206) {
-                // A 4xx/5xx here is the host saying it has no such file — a
-                // miss, which the caller reads as "try the next source".
-                return@withContext Result.failure(AddonNotFound())
-            }
+            val lengthBytes = monoFileSizeBytes(fileUrl)
+                ?: return@withContext Result.failure(AddonNotFound())
             val durationMs = monoDurations[trackId]
             val kbps = if (lengthBytes > 0 && durationMs != null && durationMs > 0) {
                 (lengthBytes * 8.0 / durationMs).roundToInt()
@@ -377,6 +421,87 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
         }
 
     /**
+     * The file's size in bytes, or null when the host says there is no such file.
+     *
+     * HEAD's Content-Length is the first try, but the host fronts Cloudflare and
+     * the header is not always sent — verified live, a HEAD that answers 200 can
+     * carry no Content-Length at all. A ranged GET of one byte is the reliable
+     * one: its Content-Range total is the file's size whether HEAD sent a length
+     * or not. A HEAD that fails outright gets the same ranged try before the
+     * track is handed over unmeasured. 0 is a file whose size could not be
+     * measured, which still plays, just without measured figures.
+     *
+     * A 429 or 5xx from HEAD is the host being busy, not the file being gone,
+     * so it is treated like a HEAD that never answered rather than a miss.
+     * Called only from [monoStream], which runs on Dispatchers.IO — the calls
+     * below block, as that path already does.
+     */
+    private fun monoFileSizeBytes(fileUrl: String): Long? {
+        var headStatus: Int? = null
+        var lengthBytes = 0L
+        try {
+            val request = Request.Builder().url(fileUrl)
+                .head()
+                .header("User-Agent", MONO_USER_AGENT)
+                .build()
+            client.newCall(request).execute().use { response ->
+                headStatus = response.code
+                if (headStatus == 200 || headStatus == 206) {
+                    lengthBytes = response.header("Content-Length")?.toLongOrNull() ?: 0L
+                }
+            }
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (_: Exception) {
+            // HEAD never answered; the ranged try below decides.
+        }
+        val status = headStatus
+        if (status != null && status != 200 && status != 206) {
+            if (status == 429 || status >= 500) {
+                // Transient: the host is busy, not saying the file is gone.
+                headStatus = null
+            } else {
+                // A 4xx here is the host saying it has no such file — a miss,
+                // which the caller reads as "try the next source".
+                return null
+            }
+        }
+        if (lengthBytes > 0) return lengthBytes
+        var rangedMissing = false
+        try {
+            val request = Request.Builder().url(fileUrl)
+                .header("User-Agent", MONO_USER_AGENT)
+                .header("Range", "bytes=0-0")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (response.code == 404 && headStatus == null) {
+                    // The host says there is no such file, and HEAD never
+                    // confirmed otherwise.
+                    rangedMissing = true
+                } else {
+                    // A 206 carries the total in Content-Range; a 200 that
+                    // ignored the range carries the whole file in
+                    // Content-Length. A 206 without Content-Range must not
+                    // fall back to its Content-Length, which is the one
+                    // ranged byte, not the file.
+                    lengthBytes = when (response.code) {
+                        206 -> response.header("Content-Range")
+                            ?.substringAfterLast('/')?.toLongOrNull() ?: 0L
+                        200 -> response.header("Content-Length")?.toLongOrNull() ?: 0L
+                        else -> 0L
+                    }
+                }
+            }
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (_: Exception) {
+            // The size stays unmeasured; the track still plays.
+        }
+        if (rangedMissing) return null
+        return lengthBytes
+    }
+
+    /**
      * The quality label for a measured bitrate, in Auris's own words.
      *
      * CD PCM is 1411.2 kbps and hi-res PCM 2116.8 kbps, so those are the
@@ -390,7 +515,7 @@ class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null)
         return "FLAC · $bits-bit · $rate"
     }
 
-    /** Remember a search result's duration for [monoStream]; the eldest entry goes when it fills. */
+    /** Remember a search result's duration for [monoStream]; an arbitrary entry goes when it fills. */
     private fun monoMemoize(id: String, durationMs: Long) {
         if (monoDurations.size >= MONO_MAX_MEMOIZED) {
             monoDurations.keys.firstOrNull()?.let { monoDurations.remove(it) }
@@ -867,11 +992,6 @@ class AddonNotFound : Exception("Not held by this addon")
  * answers, and a row that costs the whole search to parse is a row that
  * should have been skipped instead.
  */
-@Serializable
-private data class MonoUpstreamSearch(
-    @SerialName("tracks") val tracks: List<MonoUpstreamTrack> = emptyList(),
-)
-
 @Serializable
 private data class MonoUpstreamTrack(
     @SerialName("id") val id: JsonElement? = null,
