@@ -808,7 +808,9 @@ private fun SharedTransitionScope.StandaloneTabBody(
     // Slower and softer than the tab pill: a Search tap lifts, holds and settles
     // over a longer, rounder spring rather than a quick pop.
     val pill = remember { GlassPillMotion(coroutineScope, 0, slow = 1.6) }
+    val glassIndicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     pill.reduceMotion = reduceAnimation
+    pill.squashScale = glassIndicator.squash
     val barGlass = rememberLayerBackdrop()
     val iconLayer = rememberLayerBackdrop()
     val interactionSource = remember { MutableInteractionSource() }
@@ -830,7 +832,7 @@ private fun SharedTransitionScope.StandaloneTabBody(
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
     val insetPx = with(density) { PILL_INSET.toPx() }
-    val growPx = with(density) { PILL_GROW_HEIGHT.toPx() }
+    val growPx = with(density) { PILL_GROW_HEIGHT.toPx() } * glassIndicator.lift
     val w = boxSize.width.toFloat()
     val h = boxSize.height.toFloat()
     val restSize = Size((w - 2f * insetPx).coerceAtLeast(1f), (h - 2f * insetPx).coerceAtLeast(1f))
@@ -1094,7 +1096,9 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     val coroutineScope = rememberCoroutineScope()
     val pill = remember { GlassPillMotion(coroutineScope, selectedTabIndex.coerceAtLeast(0)) }
+    val glassIndicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     pill.reduceMotion = reduceAnimation
+    pill.squashScale = glassIndicator.squash
     // The lens samples the recorded page, and "reduce dynamic blur" stops that
     // recording. There the flat pill carries the whole motion on its own.
     val glassPill = isGlassSupported() && !reduceDynamicBlur &&
@@ -1136,7 +1140,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     val rowHeightPx = rowSize.height.toFloat()
     val restSize = Size(tabWidthPx, rowHeightPx)
     val liftedHeightPx = rowHeightPx + padTopPx + padBottomPx +
-        with(density) { PILL_GROW_HEIGHT.toPx() }
+        with(density) { PILL_GROW_HEIGHT.toPx() * glassIndicator.lift }
     val liftedSize = if (rowHeightPx > 0f) {
         Size(liftedHeightPx * tabWidthPx / rowHeightPx, liftedHeightPx)
     } else {

@@ -155,6 +155,9 @@ internal class GlassPillMotion(
     /** "Reduce animation": every move lands at once, with no lift. */
     var reduceMotion: Boolean = false
 
+    /** Pengali squash akselerasi dari pengaturan indikator; 1 = bawaan. */
+    var squashScale: Float = 1f
+
     private var travelPos = initialIndex.toDouble()
     private var travelVel = 0.0
     private var travelTarget = travelPos
@@ -436,7 +439,8 @@ internal class GlassPillMotion(
     fun liveSize(rest: Size, lifted: Size): Size {
         val w = rest.width + (lifted.width - rest.width) * liftX
         val h = rest.height + (lifted.height - rest.height) * liftY
-        return Size(w * (1 + deviation), h * (1 - deviation))
+        val d = deviation * squashScale
+        return Size(w * (1 + d), h * (1 - d))
     }
 
     private companion object {
@@ -593,12 +597,13 @@ internal fun FlatSelectionPill(
 ) {
     val shape = remember { RoundedCornerShape(percent = 50) }
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val ind by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     if (reduceDynamicBlur || !isGlassSupported()) {
         Box(modifier.background(color, shape))
         return
     }
     val page = LocalAppBackdrop.current
-    val blurPx = with(LocalDensity.current) { INDICATOR_BLUR.toPx() }
+    val blurPx = with(LocalDensity.current) { INDICATOR_BLUR.toPx() * ind.blur }
     val backdrop = remember(page, barGlass) { PageAndBarBackdrop(page, barGlass) }
     // Frosted: halaman dan kaca bar di bawah indikator di-blur, lalu diberi
     // warna fill indikator di atasnya. Tab digambar di atas pill ini, jadi
@@ -608,19 +613,41 @@ internal fun FlatSelectionPill(
             backdrop = backdrop,
             shape = { shape },
             effects = {
-                colorControls(brightness = INDICATOR_BRIGHTNESS, saturation = INDICATOR_SATURATION)
+                colorControls(
+                    brightness = INDICATOR_BRIGHTNESS * ind.brightness,
+                    saturation = INDICATOR_SATURATION * ind.saturation,
+                )
                 blur(blurPx)
+                // Lengkung lensa tetap ada saat indikator diam, tidak hanya saat digeser.
+                if (ind.restLens && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    lens(
+                        refractionHeight = PILL_LENS_HEIGHT.toPx() * ind.restRefractionWidth,
+                        refractionAmount = PILL_LENS_AMOUNT.toPx() * ind.restRefraction,
+                        depthEffect = ind.depth,
+                        chromaticAberration = false,
+                    )
+                }
             },
-            highlight = { Highlight.Ambient.copy(width = 1.dp, alpha = REST_RIM_ALPHA) },
+            highlight = {
+                Highlight.Ambient.copy(
+                    width = 1.dp,
+                    alpha = (REST_RIM_ALPHA * ind.rim).coerceIn(0f, 1f),
+                )
+            },
             shadow = null,
             innerShadow = {
                 InnerShadow(
-                    radius = REST_INNER_RADIUS,
+                    radius = REST_INNER_RADIUS * ind.innerRadius,
                     offset = DpOffset(0.dp, 0.dp),
-                    alpha = REST_INNER_ALPHA,
+                    alpha = (REST_INNER_ALPHA * ind.innerShadow).coerceIn(0f, 1f),
                 )
             },
-            onDrawSurface = { drawRect(color = color, size = size) },
+            onDrawSurface = {
+                drawRect(
+                    color = color.copy(alpha = (color.alpha * ind.fill).coerceIn(0f, 1f)),
+                    size = size,
+                )
+            },
         ),
     )
 }
@@ -689,6 +716,7 @@ internal fun GlassSelectionPill(
     iconTint: Color = Color.Unspecified,
 ) {
     val page = LocalAppBackdrop.current
+    val ind by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     val shape = remember { RoundedCornerShape(percent = 50) }
     // White rim on a dark bar, dark rim on a light one: a white edge over a
     // light page is invisible, so the lens would have nothing to bend.
@@ -700,12 +728,14 @@ internal fun GlassSelectionPill(
     }
     // The tab row is drawn on top of the lens, not through it: refracting it
     // stretched the glyphs and flipped the labels near the pill's edge.
-    val tabsBackdrop = remember(tabRow, iconTint, motion) {
-        PillTabsBackdrop(tabRow, iconTint) { 1f + PILL_ICON_LIFT_SCALE * motion.material }
+    val iconLiftMul = ind.iconLift
+    val fillMul = ind.fill
+    val tabsBackdrop = remember(tabRow, iconTint, motion, iconLiftMul) {
+        PillTabsBackdrop(tabRow, iconTint) { 1f + PILL_ICON_LIFT_SCALE * iconLiftMul * motion.material }
     }
-    val backdrop = remember(page, barGlass, tabsBackdrop, fillColor, edge) {
+    val backdrop = remember(page, barGlass, tabsBackdrop, fillColor, edge, fillMul) {
         SelectionPillBackdrop(page, barGlass, tabsBackdrop, Color.Unspecified, edge) {
-            fillColor.copy(alpha = fillColor.alpha * (1f - motion.material))
+            fillColor.copy(alpha = (fillColor.alpha * fillMul * (1f - motion.material)).coerceIn(0f, 1f))
         }
     }
     Box(
@@ -715,29 +745,38 @@ internal fun GlassSelectionPill(
             shape = { shape },
             effects = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    // Dari lengkung saat diam ke lengkung saat terangkat, tanpa lompatan
+                    // ke pil datar yang mengambil alih sesudah mendarat.
+                    val restAmount = if (ind.restLens) PILL_LENS_AMOUNT.toPx() * ind.restRefraction else 0f
+                    val restHeight = if (ind.restLens) PILL_LENS_HEIGHT.toPx() * ind.restRefractionWidth else 0f
+                    val liftAmount = PILL_LENS_AMOUNT.toPx() * ind.liftRefraction
+                    val liftHeight = PILL_LENS_HEIGHT.toPx() * ind.liftRefractionWidth
                     lens(
-                        refractionHeight = PILL_LENS_HEIGHT.toPx() * motion.glassPresence,
-                        refractionAmount = PILL_LENS_AMOUNT.toPx() * motion.material,
-                        depthEffect = true,
-                        chromaticAberration = true,
-                        chromaticStrength = PILL_CHROMATIC_STRENGTH,
+                        refractionHeight = restHeight + (liftHeight - restHeight) * motion.glassPresence,
+                        refractionAmount = restAmount + (liftAmount - restAmount) * motion.material,
+                        depthEffect = ind.depth,
+                        chromaticAberration = ind.rainbow > 0f,
+                        chromaticStrength = PILL_CHROMATIC_STRENGTH * ind.rainbow * motion.material,
                     )
                 }
             },
             highlight = {
                 val live = motion.material * rimOf(motion.glassPresence)
-                Highlight.Ambient.copy(width = 1.dp, alpha = restBlend(REST_RIM_ALPHA, live))
+                Highlight.Ambient.copy(
+                    width = 1.dp,
+                    alpha = restBlend((REST_RIM_ALPHA * ind.rim).coerceIn(0f, 1f), live),
+                )
             },
             shadow = {
                 val alpha = motion.material * rimOf(motion.glassPresence)
-                if (alpha > 0f) PILL_SHADOW.copy(alpha = alpha) else null
+                if (alpha > 0f) PILL_SHADOW.copy(alpha = (alpha * ind.shadow).coerceIn(0f, 1f)) else null
             },
             innerShadow = {
                 val live = motion.material * rimOf(motion.glassPresence)
                 InnerShadow(
-                    radius = REST_INNER_RADIUS + (LIFT_INNER_RADIUS - REST_INNER_RADIUS) * live,
+                    radius = (REST_INNER_RADIUS + (LIFT_INNER_RADIUS - REST_INNER_RADIUS) * live) * ind.innerRadius,
                     offset = DpOffset(0.dp, 0.dp),
-                    alpha = restBlend(REST_INNER_ALPHA, live),
+                    alpha = restBlend((REST_INNER_ALPHA * ind.innerShadow).coerceIn(0f, 1f), live),
                 )
             },
         ),

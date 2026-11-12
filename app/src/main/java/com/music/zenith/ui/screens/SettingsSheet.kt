@@ -166,6 +166,7 @@ import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.data.settings.OutputPcmMode
 import com.music.zenith.data.settings.GlassClarity
 import com.music.zenith.data.settings.GlassCustom
+import com.music.zenith.data.settings.GlassIndicator
 import com.music.zenith.data.settings.GlassPreset
 import com.music.zenith.data.settings.BitPerfectMode
 import com.music.zenith.playback.AudioOutputStatus
@@ -3242,6 +3243,7 @@ private fun LiquidGlassSettingsContent() {
     val clarity by AppSettings.glassClarity.collectAsStateWithLifecycle()
     val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
+    val indicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     val supported = isGlassSupported()
     val active = liquidGlass && supported
     val lensActive = active && !frosted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -3421,6 +3423,187 @@ private fun LiquidGlassSettingsContent() {
         )
     }
 
+    SettingsGroup(
+        header = stringResource(R.string.glass_ind_section_rest),
+        footer = stringResource(R.string.glass_ind_footer_rest),
+    ) {
+        SettingsRow(
+            title = stringResource(R.string.glass_ind_rest_lens),
+            subtitle = stringResource(R.string.glass_ind_rest_lens_subtitle),
+            enabled = lensActive,
+            trailing = {
+                IosSwitch(
+                    checked = indicator.restLens,
+                    onCheckedChange = { AppSettings.setGlassIndicator(indicator.copy(restLens = it)) },
+                    enabled = lensActive,
+                )
+            },
+            onClick = { AppSettings.setGlassIndicator(indicator.copy(restLens = !indicator.restLens)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_rest_refraction),
+            valueText = percent(indicator.restRefraction),
+            value = indicator.restRefraction,
+            range = 0f..2.5f,
+            enabled = lensActive && indicator.restLens,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(restRefraction = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_rest_width),
+            valueText = percent(indicator.restRefractionWidth),
+            value = indicator.restRefractionWidth,
+            range = 0.2f..2.5f,
+            enabled = lensActive && indicator.restLens,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(restRefractionWidth = it)) },
+        )
+    }
+
+    SettingsGroup(header = stringResource(R.string.glass_ind_section_lift)) {
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_lift_refraction),
+            valueText = percent(indicator.liftRefraction),
+            value = indicator.liftRefraction,
+            range = 0f..2.5f,
+            enabled = lensActive,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(liftRefraction = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_lift_width),
+            valueText = percent(indicator.liftRefractionWidth),
+            value = indicator.liftRefractionWidth,
+            range = 0.2f..2.5f,
+            enabled = lensActive,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(liftRefractionWidth = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_rainbow),
+            valueText = percent(indicator.rainbow),
+            value = indicator.rainbow,
+            range = 0f..3f,
+            enabled = lensActive,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(rainbow = it)) },
+        )
+        RowDivider()
+        SettingsRow(
+            title = stringResource(R.string.glass_depth),
+            subtitle = stringResource(R.string.glass_depth_subtitle),
+            enabled = lensActive,
+            trailing = {
+                IosSwitch(
+                    checked = indicator.depth,
+                    onCheckedChange = { AppSettings.setGlassIndicator(indicator.copy(depth = it)) },
+                    enabled = lensActive,
+                )
+            },
+            onClick = { AppSettings.setGlassIndicator(indicator.copy(depth = !indicator.depth)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_lift_height),
+            valueText = percent(indicator.lift),
+            value = indicator.lift,
+            range = 0f..2f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(lift = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_icon_lift),
+            valueText = percent(indicator.iconLift),
+            value = indicator.iconLift,
+            range = 0f..2f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(iconLift = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_squash),
+            valueText = percent(indicator.squash),
+            value = indicator.squash,
+            range = 0f..3f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(squash = it)) },
+        )
+    }
+
+    SettingsGroup(header = stringResource(R.string.glass_ind_section_surface)) {
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_blur),
+            valueText = percent(indicator.blur),
+            value = indicator.blur,
+            range = 0f..3f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(blur = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_saturation),
+            valueText = percent(indicator.saturation),
+            value = indicator.saturation,
+            range = 0f..2.5f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(saturation = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_brightness),
+            valueText = percent(indicator.brightness),
+            value = indicator.brightness,
+            range = 0f..4f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(brightness = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_fill),
+            valueText = percent(indicator.fill),
+            value = indicator.fill,
+            range = 0f..3f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(fill = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_rim),
+            valueText = percent(indicator.rim),
+            value = indicator.rim,
+            range = 0f..2f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(rim = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_inner_shadow),
+            valueText = percent(indicator.innerShadow),
+            value = indicator.innerShadow,
+            range = 0f..2f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(innerShadow = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_inner_radius),
+            valueText = percent(indicator.innerRadius),
+            value = indicator.innerRadius,
+            range = 0f..3f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(innerRadius = it)) },
+        )
+        RowDivider()
+        GlassSliderRow(
+            title = stringResource(R.string.glass_ind_shadow),
+            valueText = percent(indicator.shadow),
+            value = indicator.shadow,
+            range = 0f..3f,
+            enabled = active,
+            onValueChange = { AppSettings.setGlassIndicator(indicator.copy(shadow = it)) },
+        )
+    }
+
     SettingsGroup(header = stringResource(R.string.glass_section_edge)) {
         GlassSliderRow(
             title = stringResource(R.string.glass_rim),
@@ -3487,8 +3670,9 @@ private fun LiquidGlassSettingsContent() {
         SettingsRow(
             icon = SfIcons.Tune,
             title = stringResource(R.string.glass_reset),
-            enabled = active && (!custom.isDefault || clarity.level != GlassClarity.BALANCED_LEVEL || frosted),
+            enabled = active && (!custom.isDefault || !indicator.isDefault || clarity.level != GlassClarity.BALANCED_LEVEL || frosted),
             onClick = {
+                AppSettings.setGlassIndicator(GlassIndicator())
                 AppSettings.setGlassCustom(GlassCustom())
                 AppSettings.setGlassClarity(GlassClarity.BALANCED_LEVEL)
                 AppSettings.setFrostedGlass(false)
