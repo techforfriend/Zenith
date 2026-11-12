@@ -1432,6 +1432,11 @@
     <string name="song_info_unavailable">Not available</string>
     <string name="song_info_error">Some information could not be loaded.</string>
     <string name="song_info_retry">Retry</string>
+    <string name="song_info_credits">Credits</string>
+    <string name="song_info_writers">Writers</string>
+    <string name="song_info_producers">Producers</string>
+    <string name="song_info_additional_vocals">Additional vocals</string>
+    <string name="song_info_sample">Sample</string>
     <!-- Settings: Zenith for Wear OS -->
     <string name="footer_github">GitHub</string>
     <string name="footer_developer">Developer</string>

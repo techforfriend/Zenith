@@ -39,6 +39,7 @@
 
 package com.music.zenith.ui.components.floatingtabbar
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -61,6 +62,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -117,6 +119,7 @@ import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.ui.components.GlassSpring
 import com.music.zenith.ui.components.JellyPush
 import com.music.zenith.ui.components.LocalGlassExport
+import com.music.zenith.ui.components.PILL_INSET
 import com.music.zenith.ui.components.backdrop.backdrops.layerBackdrop
 import com.music.zenith.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.music.zenith.ui.components.isGlassSupported
@@ -124,6 +127,7 @@ import com.music.zenith.ui.haptics.Haptic
 import com.music.zenith.ui.haptics.rememberHaptics
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /** Hoisted so the default is one stable lambda rather than a new one per call. */
 /**
@@ -761,11 +765,76 @@ private fun SharedTransitionScope.InlineStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: @Composable () -> Modifier
 ) {
-    Tab(
-        icon = standaloneTab.icon,
-        title = standaloneTab.title,
+    StandaloneTabBody(
+        standaloneTab = standaloneTab,
         isInline = true,
-        isStandalone = true,
+        shapes = shapes,
+        colors = colors,
+        elevation = elevations.inlineElevation,
+        animatedVisibilityScope = animatedVisibilityScope,
+        tabBarContentModifier = tabBarContentModifier,
+        modifier = modifier,
+    )
+}
+
+/** Minimum time a tap keeps the lens lifted, so a quick tap still shows it rising. */
+private const val MIN_LIFT_HOLD_MS = 140L
+
+/** How much the whole circle swells while the lens is lifted. */
+private const val STANDALONE_SWELL = 0.05f
+
+/**
+ * The standalone tab (Search) in both bar states. A press lifts the same glass
+ * lens the tab pill uses: it inflates past the circle on springs, refracts the
+ * circle's own glass and glyph, and sheds back to nothing on release. The
+ * circle swells with it, riding the lens's own lift spring.
+ */
+@Composable
+private fun SharedTransitionScope.StandaloneTabBody(
+    standaloneTab: FloatingTabBarTab,
+    isInline: Boolean,
+    shapes: FloatingTabBarShapes,
+    colors: FloatingTabBarColors,
+    elevation: Dp,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    tabBarContentModifier: @Composable () -> Modifier,
+    modifier: Modifier,
+) {
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val glassPill = isGlassSupported() && !reduceDynamicBlur &&
+        com.music.zenith.ui.components.LocalLiquidGlassEnabled.current
+    val coroutineScope = rememberCoroutineScope()
+    val pill = remember { GlassPillMotion(coroutineScope, 0) }
+    pill.reduceMotion = reduceAnimation
+    val barGlass = rememberLayerBackdrop()
+    val iconLayer = rememberLayerBackdrop()
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressedAt = remember { LongArray(1) }
+
+    LaunchedEffect(pressed, reduceAnimation) {
+        if (reduceAnimation) return@LaunchedEffect
+        if (pressed) {
+            pressedAt[0] = SystemClock.uptimeMillis()
+            pill.startDrag()
+        } else {
+            val held = SystemClock.uptimeMillis() - pressedAt[0]
+            if (held < MIN_LIFT_HOLD_MS) delay(MIN_LIFT_HOLD_MS - held)
+            pill.release(0)
+        }
+    }
+
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
+    val insetPx = with(density) { PILL_INSET.toPx() }
+    val growPx = with(density) { PILL_GROW_HEIGHT.toPx() }
+    val w = boxSize.width.toFloat()
+    val h = boxSize.height.toFloat()
+    val restSize = Size((w - 2f * insetPx).coerceAtLeast(1f), (h - 2f * insetPx).coerceAtLeast(1f))
+    val liftedSize = Size(w + growPx, h + growPx)
+
+    Box(
         modifier = modifier
             .sharedElement(
                 sharedContentState = rememberSharedContentState("standaloneTab"),
@@ -773,22 +842,64 @@ private fun SharedTransitionScope.InlineStandaloneTab(
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .shadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.inlineElevation
+            .graphicsLayer {
+                val swell = if (reduceAnimation) 0f else pill.liftY.coerceAtLeast(0f)
+                scaleX = 1f + STANDALONE_SWELL * swell
+                scaleY = 1f + STANDALONE_SWELL * swell
+            }
+            .onSizeChanged { boxSize = it }
+    ) {
+        CompositionLocalProvider(LocalGlassExport provides barGlass) {
+            Tab(
+                icon = {
+                    Box(Modifier.layerBackdrop(iconLayer)) { standaloneTab.icon() }
+                },
+                title = standaloneTab.title,
+                isInline = isInline,
+                isStandalone = true,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(
+                        shape = shapes.standaloneTabShape,
+                        elevation = elevation
+                    )
+                    .background(
+                        color = colors.backgroundColor,
+                        shape = shapes.standaloneTabShape
+                    )
+                    .clip(shapes.standaloneTabShape)
+                    .then(tabBarContentModifier())
+                    .clickable(
+                        onClick = standaloneTab.onClick,
+                        indication = standaloneTab.indication?.invoke(),
+                        interactionSource = interactionSource
+                    )
             )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier())
-            .clickable(
-                onClick = standaloneTab.onClick,
-                indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
-            )
-    )
+        }
+
+        if (w > 0f && !pill.isFlat) {
+            val pillModifier = Modifier
+                .matchParentSize()
+                .pillPlacement(
+                    center = { Offset(w / 2f, h / 2f) },
+                    size = { pill.liveSize(restSize, liftedSize) },
+                )
+            if (glassPill) {
+                GlassSelectionPill(
+                    motion = pill,
+                    fillColor = Color.Transparent,
+                    barGlass = barGlass,
+                    tabRow = iconLayer,
+                    modifier = pillModifier,
+                )
+            } else {
+                FlatSelectionPill(
+                    color = colors.indicatorColor,
+                    modifier = pillModifier.graphicsLayer { alpha = pill.material },
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -1275,33 +1386,15 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: @Composable () -> Modifier
 ) {
-    Tab(
-        icon = standaloneTab.icon,
-        title = standaloneTab.title,
+    StandaloneTabBody(
+        standaloneTab = standaloneTab,
         isInline = false,
-        isStandalone = true,
-        modifier = modifier
-            .sharedElement(
-                sharedContentState = rememberSharedContentState("standaloneTab"),
-                boundsTransform = LiquidBounds,
-                animatedVisibilityScope = animatedVisibilityScope,
-                zIndexInOverlay = 1f
-            )
-            .shadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.expandedElevation
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier())
-            .clickable(
-                onClick = standaloneTab.onClick,
-                indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
-            )
+        shapes = shapes,
+        colors = colors,
+        elevation = elevations.expandedElevation,
+        animatedVisibilityScope = animatedVisibilityScope,
+        tabBarContentModifier = tabBarContentModifier,
+        modifier = modifier,
     )
 }
 

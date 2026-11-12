@@ -133,6 +133,11 @@ fun LibraryScreen(
     artistsRow: Boolean = false,
     /** Called with true for the sideways row, false for the grid, from the Artists header. */
     onArtistsRowChange: (Boolean) -> Unit = {},
+    /**
+     * Cards for pinned playlists that sit in no shelf of this page — a Spotify
+     * account's, which carries its own title and cover with the pin.
+     */
+    pinnedExtraItems: List<ShelfItem> = emptyList(),
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val onDevice = stringResource(Res.string.on_device)
@@ -151,7 +156,9 @@ fun LibraryScreen(
     // import), and the second kind lives on the On Device shelf, not the
     // account's Playlists shelf, so both are searched.
     val pinnedItems = pinnedPlaylists.mapNotNull { id ->
-        playlistItems.firstOrNull { it.browseId == id } ?: deviceItems.firstOrNull { it.browseId == id }
+        playlistItems.firstOrNull { it.browseId == id }
+            ?: deviceItems.firstOrNull { it.browseId == id }
+            ?: pinnedExtraItems.firstOrNull { it.browseId == id }
     }
     PullToRefresh(
         refreshing = refreshing,

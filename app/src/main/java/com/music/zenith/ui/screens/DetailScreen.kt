@@ -3395,10 +3395,13 @@ private val LIKED_COLORS = listOf(Color(0xFF7B5CF0), Color(0xFFB45FDB), Color(0x
 private val MOST_PLAYED_COLORS = listOf(Color(0xFF1B2FB0), Color(0xFF6A33CC), Color(0xFF1A6FD8))
 
 /**
- * Seberapa jauh seni hero menjulur ke atas, melewati tepi atasnya. Di luar layar
- * saat diam; terlihat ketika halaman ditarik ke bawah, supaya tidak ada lubang.
+ * Seberapa jauh seni hero menjulur ke atas, melewati tepi atasnya. Nol: tarikan
+ * ke bawah kini memperbesar hero (lihat [zoomOnPull]) sehingga tidak ada lubang
+ * yang perlu ditutup. Seni yang lebih tinggi dari kotak hero justru di-crop
+ * lebih besar daripada cover terbang yang mendarat di kotak itu, dan terlihat
+ * sebagai loncatan zoom saat masuk halaman.
  */
-private val LIKED_OVERSCROLL = 48.dp
+private val LIKED_OVERSCROLL = 0.dp
 
 /**
  * Batas tarikan ke bawah halaman dengan hero full-bleed. Tarikan itu tidak

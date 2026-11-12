@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.music.zenith.R
+import com.music.zenith.data.CreditKind
 import com.music.zenith.data.SongInfo
 import com.music.zenith.data.SongInfoRepository
 import com.music.zenith.data.compactCount
@@ -164,6 +165,24 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
                         value = value ?: unavailable.takeIf { info != null },
                     )
                 }
+                val credits = info?.credits.orEmpty()
+                if (credits.isNotEmpty()) {
+                    AlertRule(Modifier.padding(start = 16.dp))
+                    Text(
+                        text = stringResource(R.string.song_info_credits),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.W700),
+                        color = onSurface,
+                    )
+                    credits.forEachIndexed { index, credit ->
+                        if (index > 0) AlertRule(Modifier.padding(horizontal = 16.dp))
+                        SongCreditBlock(
+                            label = stringResource(creditLabel(credit.kind)),
+                            text = credit.names.joinToString(if (credit.kind == CreditKind.SAMPLE) "; " else ", ") + ".",
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                }
                 if (info?.failed == true) {
                     Text(
                         text = stringResource(R.string.song_info_error),
@@ -183,6 +202,35 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
         }
         }
         }
+    }
+}
+
+private fun creditLabel(kind: CreditKind): Int = when (kind) {
+    CreditKind.WRITERS -> R.string.song_info_writers
+    CreditKind.PRODUCERS -> R.string.song_info_producers
+    CreditKind.ADDITIONAL_VOCALS -> R.string.song_info_additional_vocals
+    CreditKind.SAMPLE -> R.string.song_info_sample
+}
+
+/** One group of credits: its role in small grey type, the names under it. */
+@Composable
+private fun SongCreditBlock(label: String, text: String) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+            color = onSurface.copy(alpha = 0.6f),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 20.sp),
+            color = onSurface,
+        )
     }
 }
 

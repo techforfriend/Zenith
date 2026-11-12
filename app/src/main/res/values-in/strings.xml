@@ -1478,6 +1478,11 @@
     <string name="song_info_unavailable">Tidak tersedia</string>
     <string name="song_info_error">Sebagian informasi tidak dapat dimuat.</string>
     <string name="song_info_retry">Coba lagi</string>
+    <string name="song_info_credits">Kredit</string>
+    <string name="song_info_writers">Penulis</string>
+    <string name="song_info_producers">Produser</string>
+    <string name="song_info_additional_vocals">Vokal tambahan</string>
+    <string name="song_info_sample">Sampel</string>
     <string name="no_audio_version">Video ini tidak punya versi audio</string>
     <string name="no_video_version">Versi video tidak ditemukan untuk lagu ini</string>
     <string name="version_switch_in_party">Semua orang di Dengar bersama mendengar versi yang sama</string>

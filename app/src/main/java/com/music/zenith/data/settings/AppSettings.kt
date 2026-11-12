@@ -952,6 +952,15 @@ object AppSettings {
     /** How many playlists [pinnedPlaylists] can hold at once. */
     const val MAX_PINNED_PLAYLISTS = 6
 
+    /**
+     * What a pinned playlist's Library card is drawn from when no Library shelf
+     * holds that playlist — a Spotify account's, which lives on its own page.
+     */
+    data class PinnedCard(val title: String, val subtitle: String, val thumbnailUrl: String?)
+
+    /** The [PinnedCard] of each pin that needs one, keyed by browse id. */
+    val pinnedCards = MutableStateFlow<Map<String, PinnedCard>>(emptyMap())
+
     // ── Scrobbling ──────────────────────────────────────────────────────
 
     /** One release gate shared by the settings UI and the playback service. */
@@ -1469,6 +1478,7 @@ object AppSettings {
             webdavPassword.value,
         )
         pinnedPlaylists.value = readPinnedPlaylists()
+        pinnedCards.value = readPinnedCards()
         discordToken.value = authStore.discordToken.orEmpty()
         discordUsername.value = prefs.getString(KEY_DISCORD_USERNAME, "").orEmpty()
         discordName.value = prefs.getString(KEY_DISCORD_NAME, "").orEmpty()
@@ -2655,7 +2665,7 @@ object AppSettings {
      * disappears from the row without them ever having touched it, the moment
      * they pin a sixth. Unpinning always succeeds.
      */
-    fun togglePinnedPlaylist(browseId: String): Boolean {
+    fun togglePinnedPlaylist(browseId: String, card: PinnedCard? = null): Boolean {
         val current = pinnedPlaylists.value
         val updated = when {
             browseId in current -> current - browseId
@@ -2664,7 +2674,18 @@ object AppSettings {
         }
         pinnedPlaylists.value = updated
         prefs.edit().putString(KEY_PINNED_PLAYLISTS, updated.joinToString(",")).apply()
-        return browseId in updated
+        val pinned = browseId in updated
+        val cards = pinnedCards.value
+        val nextCards = when {
+            !pinned -> cards - browseId
+            card != null -> cards + (browseId to card)
+            else -> cards
+        }
+        if (nextCards != cards) {
+            pinnedCards.value = nextCards
+            prefs.edit().putString(KEY_PINNED_CARDS, encodePinnedCards(nextCards)).apply()
+        }
+        return pinned
     }
 
     private fun readDetailSongSorts(): Map<String, SongSort> =
@@ -2681,6 +2702,39 @@ object AppSettings {
     private fun readPinnedPlaylists(): List<String> {
         val stored = prefs.getString(KEY_PINNED_PLAYLISTS, null) ?: return emptyList()
         return stored.split(",").filter { it.isNotBlank() }
+    }
+
+    private fun readPinnedCards(): Map<String, PinnedCard> {
+        val raw = prefs.getString(KEY_PINNED_CARDS, null) ?: return emptyMap()
+        return runCatching {
+            val root = org.json.JSONObject(raw)
+            val cards = LinkedHashMap<String, PinnedCard>()
+            val ids = root.keys()
+            while (ids.hasNext()) {
+                val id = ids.next()
+                val entry = root.getJSONObject(id)
+                cards[id] = PinnedCard(
+                    title = entry.optString("t"),
+                    subtitle = entry.optString("s"),
+                    thumbnailUrl = entry.optString("u").takeIf { it.isNotBlank() },
+                )
+            }
+            cards as Map<String, PinnedCard>
+        }.getOrDefault(emptyMap())
+    }
+
+    private fun encodePinnedCards(cards: Map<String, PinnedCard>): String {
+        val root = org.json.JSONObject()
+        cards.forEach { (id, card) ->
+            root.put(
+                id,
+                org.json.JSONObject()
+                    .put("t", card.title)
+                    .put("s", card.subtitle)
+                    .put("u", card.thumbnailUrl ?: ""),
+            )
+        }
+        return root.toString()
     }
 
     /** Forgets the account: token and cached profile. */
@@ -2930,6 +2984,7 @@ object AppSettings {
     private const val KEY_SMB_BASE_PATH = "smb_base_path"
     private const val KEY_SMB_USERNAME = "smb_username"
     private const val KEY_PINNED_PLAYLISTS = "pinned_playlists"
+    private const val KEY_PINNED_CARDS = "pinned_cards"
 
     private const val KEY_LASTFM_ENABLED = "lastfm_enabled"
     private const val KEY_LASTFM_USERNAME = "lastfm_username"

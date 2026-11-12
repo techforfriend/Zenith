@@ -1073,6 +1073,20 @@ private fun ZenithApp(
     }
     // Playlists imported without (or instead of) a YouTube Music account live
     // in the app's own store, and sit on the same shelf as the downloaded ones.
+    // A pinned Spotify playlist sits in no Library shelf, so its card is
+    // rebuilt from what was saved when it was pinned.
+    val pinnedCards by AppSettings.pinnedCards.collectAsStateWithLifecycle()
+    val spotifyPinnedItems = remember(pinnedCards) {
+        pinnedCards.map { (id, card) ->
+            ShelfItem(
+                title = card.title,
+                subtitle = card.subtitle,
+                thumbnailUrl = card.thumbnailUrl,
+                videoId = null,
+                browseId = id,
+            )
+        }
+    }
     val localPlaylists by com.music.zenith.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
     val localPlaylistItems = localPlaylists.map { playlist ->
         ShelfItem(
@@ -2195,7 +2209,12 @@ private fun ZenithApp(
     val onBrowseLongPress: (ShelfItem) -> Unit = { item ->
         val id = item.browseId
         val type = id?.let { viewModel.browseTypeOf(it) }
-        if (id != null && type != BrowseType.ARTIST) {
+        if (id != null && id.startsWith(SPOTIFY_PAGE_PREFIX)) {
+            // Only a pinned card reaches here. The menu's queue and download
+            // rows fetch through YouTube Music and cannot read a Spotify page,
+            // so holding the card unpins it instead of raising a menu that fails.
+            if (id in AppSettings.pinnedPlaylists.value) AppSettings.togglePinnedPlaylist(id)
+        } else if (id != null && type != BrowseType.ARTIST) {
             openBrowseMenu(
                 BrowseTarget(
                     browseId = id,
@@ -3897,6 +3916,7 @@ private fun ZenithApp(
                                 contentPadding = listPadding,
                                 links = libraryLinks(signedIn),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
+                                pinnedExtraItems = spotifyPinnedItems,
                                 artistsRow = libraryArtistsRow,
                                 onArtistsRowChange = AppSettings::setLibraryArtistsRow,
                                 layout = libraryLayout,
@@ -5566,7 +5586,15 @@ private fun ZenithApp(
                 isPinned = pinnableId != null && pinnableId in pinnedPlaylists,
                 onTogglePin = pinnableId?.let { id ->
                     {
-                        val nowPinned = AppSettings.togglePinnedPlaylist(id)
+                        val nowPinned = AppSettings.togglePinnedPlaylist(
+                            id,
+                            // A Spotify page lives in no Library shelf, so its pin carries its own card.
+                            if (id.startsWith(SPOTIFY_PAGE_PREFIX)) {
+                                AppSettings.PinnedCard(target.title, target.subtitle, target.thumbnailUrl)
+                            } else {
+                                null
+                            },
+                        )
                         if (!nowPinned && id !in pinnedPlaylists) {
                             Toast.makeText(
                                 context,
