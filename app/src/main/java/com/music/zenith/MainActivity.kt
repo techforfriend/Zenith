@@ -28,6 +28,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1004,6 +1006,9 @@ private fun ZenithApp(
     val detailSongSorts by AppSettings.detailSongSorts.collectAsStateWithLifecycle()
     val songSort = topDetail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT
     var songSortMenuOpen by remember { mutableStateOf(false) }
+    // Search / sort / overflow on an album or playlist page stay folded into one
+    // button until it is tapped, so the top bar is a single glass circle at rest.
+    var detailActionsExpanded by rememberSaveable(topDetail?.browseId) { mutableStateOf(false) }
     // A device folder's equivalents — its sort and whether it is a grid —
     // kept apart for Downloads and shared by every other folder, as they
     // always were. Up here because both the page and the top bar's menu read
@@ -4282,7 +4287,13 @@ private fun ZenithApp(
                             // Shuffle / Play / Add.
                             if ((isReleaseDetail || isLocalDetail) && detail != null) {
                                 val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
-                                if (releaseSongs.isNotEmpty()) {
+                                // An active search keeps the row open so its close button stays reachable.
+                                val actionsOpen = detailActionsExpanded || detailSearching
+                                AnimatedVisibility(
+                                    visible = actionsOpen && releaseSongs.isNotEmpty(),
+                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
+                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+                                ) {
                                     IconButton(onClick = { detailSearching = !detailSearching }) {
                                         Icon(
                                             if (detailSearching) Icons.Rounded.Close else ZenithIcons.Search,
@@ -4297,6 +4308,11 @@ private fun ZenithApp(
                                 // with the app's other frosted overlays further
                                 // down — in the main hierarchy, where the haze
                                 // can see the content it blurs.
+                                AnimatedVisibility(
+                                    visible = actionsOpen,
+                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
+                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+                                ) {
                                 IconButton(
                                     onClick = { if (isLocalDetail) folderMenuOpen = true else songSortMenuOpen = true },
                                 ) {
@@ -4308,7 +4324,12 @@ private fun ZenithApp(
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
-                                if (isReleaseDetail && releaseSongs.isNotEmpty()) {
+                                }
+                                AnimatedVisibility(
+                                    visible = actionsOpen && isReleaseDetail && releaseSongs.isNotEmpty(),
+                                    enter = fadeIn(tween(180)) + expandHorizontally(tween(220)),
+                                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+                                ) {
                                     // The page's own tracks, in the order the page
                                     // shows them, so the sheet has them already and
                                     // Play, Shuffle and Open are the buttons beside
@@ -4344,6 +4365,23 @@ private fun ZenithApp(
                                             tint = MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
+                                }
+                                // The one button left at rest, as on Apple Music: the
+                                // ellipsis (•••) to unfold the actions, an xmark to fold
+                                // them again (closing any open search on the way).
+                                IconButton(
+                                    onClick = {
+                                        detailSearching = false
+                                        detailActionsExpanded = !actionsOpen
+                                    },
+                                ) {
+                                    Icon(
+                                        if (actionsOpen) SfIcons.Close else Icons.Rounded.MoreHoriz,
+                                        contentDescription = stringResource(
+                                            if (actionsOpen) R.string.close else R.string.more,
+                                        ),
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                    )
                                 }
                             }
                             // Left of the account photo, on an artist page: iOS's
