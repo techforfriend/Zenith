@@ -296,7 +296,6 @@
     <string name="activity_watching">Menonton</string>
     <string name="add_to_queue">Tambahkan ke antrean</string>
     <string name="after_this_song">Setelah lagu ini</string>
-    <string name="always_on">Selalu aktif</string>
     <string name="api_token">Token API</string>
     <string name="audio_quality_connection">Saat %1$s</string>
     <string name="back_in_future_version">Akan kembali di versi mendatang</string>

@@ -281,6 +281,7 @@ object SourceResolver {
      * is lost cannot start a track. The unhurried half is [upgradeFor], which
      * runs with sound already playing and is where a slow source's better answer
      * gets its hearing.
+     * When YouTube is switched off there is no YouTube leg to race; the enabled sources are asked alone and a miss means no stream.
      */
     suspend fun substituteForYouTube(target: TrackMatcher.Target): SourceStream? {
         // Video rows always use YouTube's own stream unless the listener
@@ -288,9 +289,13 @@ object SourceResolver {
         // is another recording and can be a wrong song altogether.
         if (target.title.isBlank() || target.isVideo) return null
         val active = SourceRegistry.activeForPlayback()
-        val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
+        // No YouTube anchor when it is switched off: [rankedAbove] treats a
+        // config that isn't in the list as ranking last, so every enabled
+        // source is worth trying ahead of it — the download path below
+        // already reads it this way.
+        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId.orEmpty()
         val request = requestForNow()
-        val (source, stream) = bestAcross(rankedAbove(youtube.configId, active), target, request)
+        val (source, stream) = bestAcross(rankedAbove(youtubeId, active), target, request)
             ?: return null
         // Says what was found, not what the caller will do with it. This
         // line used to read "substituted" unconditionally, including for
@@ -307,6 +312,7 @@ object SourceResolver {
     /**
      * The addons Direct Source Stream plays from: enabled, inside the
      * connection's ceiling, and ranked above YouTube — in rank order.
+     * With YouTube switched off, every enabled addon ranks above it.
      *
      * Ranked above, not merely enabled, because that is what keys a YouTube
      * id's cache entry apart from YouTube's own Opus (`#alt` — see
@@ -316,8 +322,8 @@ object SourceResolver {
      */
     fun directAddons(): List<MusicSource> {
         val active = SourceRegistry.activeForPlayback()
-        val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return emptyList()
-        return rankedAbove(youtube.configId, active).filter { it.kind == SourceKind.ADDON }
+        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId.orEmpty()
+        return rankedAbove(youtubeId, active).filter { it.kind == SourceKind.ADDON }
     }
 
     /**
@@ -389,14 +395,16 @@ object SourceResolver {
      * [StreamChoice] exists to prevent, arrived at from a new direction.
      *
      * Returning null is not a failure and needs no handling beyond falling back
-     * to YouTube, which is what the caller would have done anyway: nothing has
-     * been pinned, so the ordinary resolve at playback time is untouched.
+     * to YouTube when it is switched on, which is what the caller would have
+     * done anyway: nothing has been pinned, so the ordinary resolve at playback
+     * time is untouched. With YouTube switched off there is no fallback, and
+     * the track fails instead of silently playing from it.
      */
     suspend fun prefetchSubstitute(target: TrackMatcher.Target): SourceStream? {
         if (target.title.isBlank() || target.isVideo) return null
         val active = SourceRegistry.activeForPlayback()
-        val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
-        val quick = rankedAbove(youtube.configId, active).filter { it.kind.worthPrefetching }
+        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId.orEmpty()
+        val quick = rankedAbove(youtubeId, active).filter { it.kind.worthPrefetching }
         if (quick.isEmpty()) return null
         val (source, stream) = bestAcross(quick, target, requestForNow()) ?: return null
         TrackLog.d(
@@ -465,7 +473,7 @@ object SourceResolver {
         if (target.title.isBlank() || target.durationSec == null || target.isVideo) return null
         val request = requestForNow()
         val active = SourceRegistry.activeForPlayback()
-        val youtube = active.firstOrNull { it.kind == SourceKind.YOUTUBE } ?: return null
+        val youtubeId = active.firstOrNull { it.kind == SourceKind.YOUTUBE }?.configId.orEmpty()
         // Every source gets asked, whether or not it can serve lossless, and
         // they are asked at once.
         //
@@ -495,7 +503,7 @@ object SourceResolver {
         // and the seam then landed mid-song rather than near its start. Raced,
         // the same swap happens inside a second.
         val (source, chosen) = bestAcross(
-            rankedAbove(youtube.configId, active).filterNot { it.configId == servedBy },
+            rankedAbove(youtubeId, active).filterNot { it.configId == servedBy },
             target,
             request,
             waitForAll = true,
@@ -869,13 +877,21 @@ object SourceResolver {
      * Whether anything outranks YouTube right now — i.e. whether a YouTube
      * track is worth offering around before it is resolved.
      *
+     * With YouTube switched off, any enabled source counts: there is nothing
+     * left to outrank.
+     *
      * Answerable from the source list alone, without a search, which is what
      * lets the cache and the read-ahead in
      * [AudioCache][com.music.zenith.playback.AudioCache] decide how to treat
      * a YouTube id before anyone has asked a source for it.
      */
-    fun canSubstituteForYouTube(): Boolean =
-        SourceRegistry.activeForPlayback().indexOfFirst { it.kind == SourceKind.YOUTUBE } > 0
+    fun canSubstituteForYouTube(): Boolean {
+        val active = SourceRegistry.activeForPlayback()
+        val youtubeIndex = active.indexOfFirst { it.kind == SourceKind.YOUTUBE }
+        // No YouTube in the walk means every enabled source outranks it: a
+        // YouTube track is worth offering around whenever anything is on.
+        return if (youtubeIndex < 0) active.isNotEmpty() else youtubeIndex > 0
+    }
 
     /**
      * The sources ranked above [configId], in order.

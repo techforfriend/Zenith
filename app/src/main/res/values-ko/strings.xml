@@ -501,7 +501,6 @@
     <string name="add_addon_detail">직접 호스팅하거나 링크를 받은 애드온 서버를 Zenith에 연결해요</string>
     <string name="add_to_queue">대기열에 추가</string>
     <string name="after_this_song">이 곡 다음에</string>
-    <string name="always_on">항상 켜짐</string>
     <string name="api_token">API 토큰</string>
     <string name="audio_quality_connection">%1$s 연결 시</string>
     <string name="back_in_future_version">향후 버전에서 다시 제공돼요</string>

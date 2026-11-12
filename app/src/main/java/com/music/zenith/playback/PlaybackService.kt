@@ -1582,6 +1582,14 @@ class PlaybackService : MediaLibraryService() {
             // something actually outranks YouTube; otherwise this is the
             // plain resolve every build before this one made.
             if (!SourceResolver.canSubstituteForYouTube()) {
+                // Reached only when nothing outranks YouTube — which, with
+                // YouTube switched off, means nothing at all is on. Playing
+                // it from YouTube here would undo the switch, so the track
+                // fails instead of silently coming from the source just
+                // switched off.
+                if (!SourceRegistry.isYouTubeEnabled()) {
+                    throw java.io.IOException("YouTube is switched off and no other source can serve this track")
+                }
                 val streamUrl = try {
                     runBlocking(about) {
                         withTimeout(RESOLVE_TIMEOUT_MS) { StreamResolver.resolve(videoId) }
@@ -5462,6 +5470,13 @@ class PlaybackService : MediaLibraryService() {
         // handing over the search that just cost three attempts would only
         // schedule a fourth.
         if (StreamChoice.substitutesRefused(videoId)) {
+            // Its substitutes already broke this track once, so YouTube is
+            // the one answer that hasn't failed — unless it is switched off,
+            // in which case there is no answer left and the track fails
+            // rather than playing from the source just switched off.
+            if (!SourceRegistry.isYouTubeEnabled()) {
+                throw java.io.IOException("YouTube is switched off and this track's substitutes already failed")
+            }
             return Resolved.YouTube(StreamResolver.resolve(videoId))
         }
         if (DirectSourceGate.isActive()) return resolveDirect(videoId, target)
@@ -5478,8 +5493,16 @@ class PlaybackService : MediaLibraryService() {
         // wrapped rather than thrown from: it is awaited only on the paths
         // that need it, and an async that fails without ever being awaited is
         // an unhandled exception in this service's scope.
+        // Started only while YouTube is switched on. With it off, the leg
+        // completes failed at once: the select below then waits on the
+        // substitute lookup instead, and a miss there fails the track
+        // instead of starting it on YouTube.
         val fallback = scope.async(Dispatchers.IO + TrackLog.about(videoId)) {
-            runCatching { StreamResolver.resolve(videoId) }
+            if (SourceRegistry.isYouTubeEnabled()) {
+                runCatching { StreamResolver.resolve(videoId) }
+            } else {
+                Result.failure<String>(java.io.IOException("YouTube is switched off"))
+            }
         }
 
         // First past the post. A null because [lookup] won is a module miss; a
@@ -5612,7 +5635,9 @@ class PlaybackService : MediaLibraryService() {
         val running = DirectSourceGate.stillLooking(videoId)
         TrackLog.d(
             "Zenith",
-            if (running != null) {
+            if (!SourceRegistry.isYouTubeEnabled()) {
+                "no addon served '${target.title}' directly and YouTube is switched off"
+            } else if (running != null) {
                 "no addon answered for '${target.title}' within " +
                     "${DirectSourceGate.LOOKUP_TIMEOUT_MS / 1000}s; starting it on YouTube and still looking"
             } else {
@@ -5620,6 +5645,15 @@ class PlaybackService : MediaLibraryService() {
             },
             about = videoId,
         )
+        // Direct Source Stream plays the addons' answer as final; when none
+        // answers, YouTube is the fallback — unless it is switched off, in
+        // which case a lookup still running is all that is left.
+        if (!SourceRegistry.isYouTubeEnabled()) {
+            return Resolved.Module(
+                running?.await()
+                    ?: throw java.io.IOException("YouTube is switched off and no addon served '${target.title}' directly"),
+            )
+        }
         val url = try {
             StreamResolver.resolve(videoId)
         } catch (e: Exception) {

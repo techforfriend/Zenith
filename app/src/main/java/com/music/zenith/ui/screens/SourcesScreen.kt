@@ -216,7 +216,10 @@ fun SourcesScreen(
             header = stringResource(R.string.sources_order_header),
             footer = buildString {
                 append(stringResource(R.string.sources_order_footer))
-                if (cappedByQuality) {
+                if (configs.none { it.enabled }) {
+                    append("\n\n")
+                    append(stringResource(R.string.sources_none_enabled))
+                } else if (cappedByQuality) {
                     append("\n\n")
                     append(stringResource(R.string.sources_quality_capped))
                 } else if (!anyLosslessSource) {
@@ -266,18 +269,17 @@ fun SourcesScreen(
                         // delete. JioSaavn and YouTube have no address to
                         // change, so a tap on them would open an empty editor.
                         onClick = if (config.kind.needsServer) ({ onEditSource(config) }) else null,
-                        // YouTube gets no switch at all — see
-                        // [SourceRegistry.setEnabled] for why one would be a lie.
-                        onToggle = if (config.kind == SourceKind.YOUTUBE) {
-                            null
-                        } else {
-                            ({ enabled ->
-                                if (config.kind == SourceKind.JIOSAAVN && enabled && !config.enabled) {
-                                    onConfirmJioSaavn()
-                                } else {
-                                    SourceRegistry.setEnabled(config.id, enabled)
-                                }
-                            })
+                        // Every kind gets the same switch: off means the
+                        // source is not asked for audio at all — see
+                        // [SourceRegistry.setEnabled]. JioSaavn still asks
+                        // first, because enabling it accepts its
+                        // catalogue-matching risk.
+                        onToggle = { enabled ->
+                            if (config.kind == SourceKind.JIOSAAVN && enabled && !config.enabled) {
+                                onConfirmJioSaavn()
+                            } else {
+                                SourceRegistry.setEnabled(config.id, enabled)
+                            }
                         },
                         handle = handle,
                     )
@@ -774,7 +776,7 @@ private fun SourceRow(
     config: SourceConfig,
     health: SourceHealth?,
     onClick: (() -> Unit)?,
-    onToggle: ((Boolean) -> Unit)?,
+    onToggle: (Boolean) -> Unit,
     skippedByQuality: Boolean = false,
     awaitingOutput: LosslessOutput.State? = null,
     onMetered: Boolean = false,
@@ -821,8 +823,7 @@ private fun SourceRowHeader(
     config: SourceConfig,
     health: SourceHealth?,
     onClick: (() -> Unit)?,
-    /** Null for a source that cannot be switched off, which gets a label instead. */
-    onToggle: ((Boolean) -> Unit)?,
+    onToggle: (Boolean) -> Unit,
     /** On, but skipped by the ceiling the current connection is set to. */
     skippedByQuality: Boolean = false,
     /** On, but its addon needs a lossless output and this is what is connected instead. Null when not waiting. */
@@ -959,18 +960,10 @@ private fun SourceRowHeader(
             }
         }
         Spacer(Modifier.width(8.dp))
-        if (onToggle == null) {
-            Text(
-                text = stringResource(R.string.always_on),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            IosSwitch(
-                checked = config.enabled,
-                onCheckedChange = onToggle,
-            )
-        }
+        IosSwitch(
+            checked = config.enabled,
+            onCheckedChange = onToggle,
+        )
         // Outside the dimming above, and last in the row. A source switched off
         // still has a position worth setting for when it is switched back on,
         // so the grip stays at full strength on a row that is otherwise faded.

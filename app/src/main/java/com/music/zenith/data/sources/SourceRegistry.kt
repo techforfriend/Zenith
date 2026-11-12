@@ -165,11 +165,10 @@ object SourceRegistry {
         return seeded
             .filterNot { it.kind == SourceKind.MODULE }
             .map { config ->
-                when {
-                    config.kind == SourceKind.YOUTUBE && !config.enabled -> config.copy(enabled = true)
-                    config.kind == SourceKind.JIOSAAVN && forceJioSaavnOff -> config.copy(enabled = false)
-                    else -> config
-                }
+                // YouTube keeps the switch the user left it on: off is a real
+                // choice now — see [setEnabled] — so a stored off is honoured
+                // on the next launch instead of being forced back on.
+                if (config.kind == SourceKind.JIOSAAVN && forceJioSaavnOff) config.copy(enabled = false) else config
             }
     }
 
@@ -376,18 +375,29 @@ object SourceRegistry {
     /**
      * Turns one source on or off.
      *
-     * YouTube is not switchable and silently ignores a request to disable it.
-     * It is the only source that can supply a home feed, radio or related
-     * tracks, and nothing else holds the full catalogue — switching it off
-     * doesn't even stop it being played, because a YouTube-queued track whose
-     * substitutes all miss still falls back to it. A switch that cannot honour
-     * its own off position is worse than no switch, so it isn't offered one:
-     * see [SourcesScreen][com.music.zenith.ui.screens.SourcesScreen].
+     * Off means off for audio: the source leaves the walk — see [active] —
+     * and the playback paths ask [isYouTubeEnabled] before starting anything
+     * on YouTube, so a YouTube-queued track no other source has fails instead
+     * of silently playing from the source just switched off. That is what
+     * makes the switch honest: it used to be refused here because a
+     * YouTube-queued track whose substitutes all missed still fell back to
+     * it, so the off position could not be honoured.
+     *
+     * What off does *not* do is remove the catalogue: home, radio, related
+     * tracks and search still come from YouTube Music, because nothing else
+     * holds it. This switch is about where the audio comes from, not where
+     * the music is found.
      */
     fun setEnabled(configId: String, enabled: Boolean) {
-        if (!enabled && config(configId)?.kind == SourceKind.YOUTUBE) return
         publish(configs.value.map { if (it.id == configId) it.copy(enabled = enabled) else it })
     }
+
+    /**
+     * Whether the YouTube Music source is switched on — the answer the
+     * playback paths ask before starting anything on YouTube.
+     */
+    fun isYouTubeEnabled(): Boolean =
+        configs.value.any { it.kind == SourceKind.YOUTUBE && it.enabled }
 
     /**
      * Puts the addons in [orderedIds], which is the order they will be asked in.
