@@ -198,6 +198,12 @@ class PlayerDock {
     var panelShown by mutableStateOf(false)
         private set
 
+    /**
+     * Warna solid latar panel selagi tumbuh dari pill: diambil dari cover lagu
+     * oleh pemutar penuh, hitam polos sebelum diketahui.
+     */
+    var panelColor by mutableStateOf(Color(0xFF151517))
+
     /** From the panel's root, once placed: where its window starts on screen. */
     fun panelPlaced(coordinates: LayoutCoordinates) {
         windowOrigin = coordinates.localToScreen(Offset.Zero)

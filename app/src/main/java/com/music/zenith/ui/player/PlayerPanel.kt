@@ -166,7 +166,7 @@ fun PlayerPanel(
         dock == null || covered -> Modifier
         glassOn && glassNeeded -> Modifier.liquidGlass(shape)
         glassOn -> Modifier
-        else -> Modifier.background(PanelFallbackFill, shape)
+        else -> Modifier.background(dock?.panelColor ?: PanelFallbackFill, shape)
     }
 
     Box(
@@ -198,7 +198,7 @@ fun PlayerPanel(
                     Modifier
                         .matchParentSize()
                         .graphicsLayer { alpha = dock.panelFill(fillUntil) }
-                        .background(PanelFallbackFill, shape),
+                        .background(dock.panelColor, shape),
                 )
             }
             Box(Modifier.fillMaxSize().clip(shape)) {

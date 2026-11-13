@@ -1174,6 +1174,13 @@ private fun ZenithApp(
     }
     val controller = rememberMediaController()
     val player = rememberPlayerState(controller)
+    // Warna solid latar panel player selagi tumbuh dari mini player. Dibaca dari
+    // cover lagu yang sedang diputar sejak lagu berganti, bukan saat player
+    // dibuka, supaya frame pertama sudah warna cover (bukan warna tema/lagu lama).
+    val panelArtUrl = com.music.zenith.ui.components.rememberRemoteArtworkUrl(player.song)
+    val panelArtColor = com.music.zenith.ui.theme.rememberArtworkPanelColor(panelArtUrl)
+        ?: androidx.compose.ui.graphics.Color(0xFF151517)
+    androidx.compose.runtime.SideEffect { playerDock.panelColor = panelArtColor }
     // A music video's picture follows this controller's clock — see [MusicVideoEngine].
     DisposableEffect(controller) {
         MusicVideoEngine.attach(controller)

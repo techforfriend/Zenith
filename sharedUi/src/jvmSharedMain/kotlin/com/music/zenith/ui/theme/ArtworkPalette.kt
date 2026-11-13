@@ -179,6 +179,18 @@ fun rememberPlayerTint(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
     return remember(seed) { seed?.playerTint() }
 }
 
+/**
+ * Solid dark colour of the artwork at [imageUrl] for the player's panel, or
+ * null until it has been read. Unlike [rememberArtworkPalette] it never
+ * crossfades through the theme's colours on the way, so a panel painted with
+ * it is the sleeve's colour from its first frame or the caller's own neutral.
+ */
+@Composable
+fun rememberArtworkPanelColor(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
+    val seed = rememberArtworkSeed(imageUrl, artPx)
+    return remember(seed) { seed?.toPalette(dark = true)?.background }
+}
+
 private fun Seed.playerTint(): Color? {
     val source = listOf(dominant, vibrant).firstOrNull { it.chroma() >= TINT_MIN_CHROMA } ?: return null
     // Much nearer white than an album page's secondary line: the player's
