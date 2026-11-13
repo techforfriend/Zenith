@@ -118,5 +118,17 @@
     "block": 5,
     "layer": "not_found_in_project",
     "file": "app/src/main/java/com/music/zenith/ui/components/SongActionsMenu.kt"
+  },
+  {
+    "timestamp": "2026-11-13 11:34:43",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/PlayerControls.kt"
+  },
+  {
+    "timestamp": "2026-11-13 11:34:47",
+    "block": 2,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/icons/ZenithIcons.kt"
   }
 ]

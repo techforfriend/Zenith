@@ -405,9 +405,9 @@ object ZenithIcons {
             defaultWidth = 24.dp, defaultHeight = 24.dp,
             viewportWidth = 24f, viewportHeight = 24f,
         ).apply {
-            val topEnd = if (one) 12.0f else 16.0f
-            val headBase = if (one) 11.4f else 15.4f
-            val headTip = if (one) 15.4f else 19.4f
+            val topEnd = if (one) 10.0f else 16.0f
+            val headBase = if (one) 9.4f else 15.4f
+            val headTip = if (one) 13.4f else 19.4f
             path(
                 stroke = stroke,
                 strokeLineWidth = STROKE,
@@ -440,11 +440,11 @@ object ZenithIcons {
             if (one) {
                 path(
                     stroke = stroke,
-                    strokeLineWidth = 1.8f,
+                    strokeLineWidth = 1.6f,
                     strokeLineCap = StrokeCap.Round,
                     strokeLineJoin = StrokeJoin.Round,
                 ) {
-                    moveTo(17.4f, 5.4f); lineTo(19.2f, 4.2f); lineTo(19.2f, 9.6f)
+                    moveTo(18.2f, 5.6f); lineTo(20.0f, 4.4f); lineTo(20.0f, 10.0f)
                 }
             }
         }.build()

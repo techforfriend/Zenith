@@ -1323,18 +1323,17 @@ private fun QueueModeBadges(
         horizontalArrangement = Arrangement.spacedBy(1.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Repeat one wins: shown alone, shuffle steps aside.
-        if (shuffleEnabled && repeatMode != RepeatModes.ONE) {
-            Icon(
-                imageVector = ZenithIcons.Shuffle,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(10.dp),
-            )
+        // Only one badge at a time. Priority: repeat-one, then shuffle,
+        // then repeat-all.
+        val badgeIcon = when {
+            repeatMode == RepeatModes.ONE -> ZenithIcons.RepeatOne
+            shuffleEnabled -> ZenithIcons.Shuffle
+            repeatMode != RepeatModes.OFF -> ZenithIcons.Repeat
+            else -> null
         }
-        if (repeatMode != RepeatModes.OFF) {
+        if (badgeIcon != null) {
             Icon(
-                imageVector = if (repeatMode == RepeatModes.ONE) ZenithIcons.RepeatOne else ZenithIcons.Repeat,
+                imageVector = badgeIcon,
                 contentDescription = null,
                 tint = tint,
                 modifier = Modifier.size(10.dp),

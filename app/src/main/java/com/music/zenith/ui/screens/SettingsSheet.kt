@@ -50,6 +50,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.FileUpload
 import androidx.compose.material.icons.rounded.FilterAlt
@@ -2034,10 +2035,43 @@ fun SettingsScreen(
         // The version line is the page's colophon, not a setting: it belongs to
         // the whole list, so it goes when the list is narrowed to a few rows.
         if (section == null && searchQuery.isBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
+                            shape = RoundedCornerShape(percent = 50),
+                        )
+                        .clickable { context.openLink("https://saweria.co/Zeuxxi") }
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Favorite,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = "Support Zenith",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 4.dp),
+                    .padding(top = 10.dp, bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(
