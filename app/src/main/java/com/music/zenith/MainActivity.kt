@@ -1245,6 +1245,7 @@ private fun ZenithApp(
         }
     }
     val shuffleEnabled by QueueShuffle.enabled.collectAsStateWithLifecycle()
+    com.music.zenith.ui.components.StarPromptHost(isPlaying = player.isPlaying)
     // For the version switch's "there is no other version" notice.
     val versionContext = LocalContext.current
     // Tracks whose other cut a switch looked for and didn't find: their menu
