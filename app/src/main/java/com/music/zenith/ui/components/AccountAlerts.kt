@@ -903,7 +903,6 @@ internal fun AlertScaffold(
     motion: MacOSPopupState = rememberMacOSPopupState(onClosed = onDismiss),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
     androidx.activity.compose.BackHandler { motion.requestClose() }
 
@@ -924,16 +923,7 @@ internal fun AlertScaffold(
                 .macOSPopupMotion(motion)
                 .jellyPopIn(animateIn = false)
                 .clip(shape)
-                .then(
-                    when {
-                        reduceDynamicBlur -> Modifier.background(MaterialTheme.colorScheme.surface)
-                        !frosted || hazeState == null -> Modifier.alertGlass(shape)
-                        else -> Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted, shape)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -947,23 +937,57 @@ internal fun AlertScaffold(
     }
 }
 
-private const val ALERT_GLASS_TINT = 0.6f
+private const val ALERT_FROST_ALPHA_DARK = 0.80f
+private const val ALERT_FROST_ALPHA_LIGHT = 0.72f
 
 /**
- * The card of an alert drawn in a window of its own: [liquidGlass] sampling the
- * app backdrop, under the theme's surface at [ALERT_GLASS_TINT] so the text on
- * it stays readable. Haze cannot do this job — it reads only its own window.
- * Plain surface where glass is unsupported; [liquidGlass] itself falls back to
- * a solid fill under "reduce dynamic blur".
+ * The card of an alert drawn in a window of its own: the same frost as the
+ * audio output popup and the iOS menu ([menuBackdropFrost]), sampling the menu
+ * or app backdrop. Haze cannot do this job — it reads only its own window.
+ * Solid fill where glass is unsupported or under "reduce dynamic blur".
  */
 @Composable
 internal fun Modifier.alertGlass(shape: RoundedCornerShape): Modifier {
-    val surface = MaterialTheme.colorScheme.surface
-    return if (isGlassSupported()) {
-        liquidGlass(shape = shape, surfaceTint = surface.copy(alpha = ALERT_GLASS_TINT))
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val colors = iosMenuColors()
+    val backdrop = LocalMenuBackdrop.current ?: LocalAppBackdrop.current
+    return if (isGlassSupported() && !reduceDynamicBlur) {
+        menuBackdropFrost(
+            backdrop = backdrop,
+            shape = shape,
+            fill = colors.fill.copy(alpha = if (colors.dark) ALERT_FROST_ALPHA_DARK else ALERT_FROST_ALPHA_LIGHT),
+        )
     } else {
-        background(surface, shape)
+        background(colors.fill, shape)
     }
+}
+
+/**
+ * The one surface every alert card is drawn on: the audio output popup's frost
+ * (backdrop frost in its own window, Haze frost in the activity window, solid
+ * under "reduce dynamic blur") plus the [touchGlow] that follows the finger.
+ * Call it after the card's clip.
+ */
+@Composable
+internal fun Modifier.alertSurface(
+    hazeState: HazeState?,
+    frosted: Boolean,
+    shape: RoundedCornerShape,
+): Modifier {
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val colors = iosMenuColors()
+    val surface = when {
+        reduceDynamicBlur -> background(colors.fill)
+        !frosted || hazeState == null -> alertGlass(shape)
+        else -> optimizedHazeEffect(
+            state = hazeState,
+            style = menuFrost(
+                colors.fill,
+                alpha = if (colors.dark) ALERT_FROST_ALPHA_DARK else ALERT_FROST_ALPHA_LIGHT,
+            ),
+        )
+    }
+    return surface.touchGlow()
 }
 
 /**

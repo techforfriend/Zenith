@@ -1,5 +1,8 @@
 package com.music.zenith.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -117,7 +120,16 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
                 .macOSPopupMotion(motion)
                 .jellyPopIn(animateIn = false)
                 .clip(RoundedCornerShape(ALERT_CORNER))
-                .alertGlass(RoundedCornerShape(ALERT_CORNER)),
+                .alertGlass(RoundedCornerShape(ALERT_CORNER))
+                .touchGlow()
+                // Credits and values arrive after the card is up; it eases to its new
+                // height instead of jumping.
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ),
         ) {
             Column(Modifier.fillMaxWidth().macOSPopupContent(motion)) {
             Column(

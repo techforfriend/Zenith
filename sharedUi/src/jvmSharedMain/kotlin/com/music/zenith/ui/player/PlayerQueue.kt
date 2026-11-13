@@ -530,8 +530,7 @@ private fun QueueModeRow(
             modifier = Modifier.weight(1f),
         )
         QueueModeButton(
-            icon = ZenithIcons.Repeat,
-            label = if (repeatMode == RepeatModes.ONE) "1" else null,
+            icon = if (repeatMode == RepeatModes.ONE) ZenithIcons.RepeatOne else ZenithIcons.Repeat,
             contentDescription = when (repeatMode) {
                 RepeatModes.ONE -> stringResource(Res.string.repeat_one)
                 RepeatModes.ALL -> stringResource(Res.string.repeat_all)

@@ -98,6 +98,7 @@ internal fun AudioPopupCard(
                         else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                     }
                 )
+                .touchGlow()
                 // Swallows the tap before it reaches the scrim behind, so
                 // touching the card itself never dismisses it.
                 .clickable(

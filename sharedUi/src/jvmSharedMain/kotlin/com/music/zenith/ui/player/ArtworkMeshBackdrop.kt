@@ -152,14 +152,22 @@ fun FullArtworkBlurBackdrop(
     outgoing: ImageBitmap? = null,
     /** 0 = hanya [outgoing], 1 = hanya [image]. Dibaca di fase gambar. */
     progress: () -> Float = { 1f },
+    /**
+     * Where the sharp full-bleed banner ends, in this backdrop's pixels; 0 for none.
+     * With a seam, the blur is cropped exactly as the banner crops the sleeve and its
+     * bottom rows carry on below the seam, so the banner dissolves into its own
+     * out-of-focus continuation instead of a differently cropped picture. Read in the
+     * draw phase.
+     */
+    seam: () -> Float = { 0f },
 ) {
     Box(modifier = modifier.fillMaxSize().background(FallbackBackdrop)) {
         if (outgoing != null) {
-            val outgoingPainter = remember(outgoing) { BitmapPainter(outgoing) }
+            val outgoingPainter = remember(outgoing, seam) { SeamAlignedBlurPainter(outgoing, seam) }
             Image(
                 painter = outgoingPainter,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -178,11 +186,11 @@ fun FullArtworkBlurBackdrop(
                 label = "preparedBackdropImage",
             ) { bitmap ->
                 if (bitmap != null) {
-                    val painter = remember(bitmap) { BitmapPainter(bitmap) }
+                    val painter = remember(bitmap, seam) { SeamAlignedBlurPainter(bitmap, seam) }
                     Image(
                         painter = painter,
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.FillBounds,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -452,11 +460,62 @@ private fun DrawScope.drawMesh(mesh: ArtworkMesh, seamY: Float, alpha: Float) {
     )
 }
 
+/**
+ * The blurred cover laid out the way the full-bleed banner lays out the sharp one.
+ *
+ * Above [seam] it is a centre crop to the banner's own width and height, so each
+ * blurred pixel sits right behind the sharp pixel it was made from. Below, the
+ * cover's last rows are stretched down to the foot, which carries the colours the
+ * banner ended on instead of jumping to another part of the picture. With no seam
+ * (0) it is the plain centre crop over the whole bounds, as before.
+ */
+private class SeamAlignedBlurPainter(
+    private val image: ImageBitmap,
+    private val seam: () -> Float,
+) : androidx.compose.ui.graphics.painter.Painter() {
+    override val intrinsicSize: androidx.compose.ui.geometry.Size =
+        androidx.compose.ui.geometry.Size.Unspecified
+
+    override fun DrawScope.onDraw() {
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f || image.width <= 0 || image.height <= 0) return
+        val seamY = seam().coerceIn(0f, h)
+        val coverH = if (seamY > 1f) seamY else h
+        val scale = maxOf(w / image.width, coverH / image.height)
+        val srcW = (w / scale).roundToInt().coerceIn(1, image.width)
+        val srcH = (coverH / scale).roundToInt().coerceIn(1, image.height)
+        val srcX = (image.width - srcW) / 2
+        val srcY = (image.height - srcH) / 2
+        drawImage(
+            image = image,
+            srcOffset = IntOffset(srcX, srcY),
+            srcSize = IntSize(srcW, srcH),
+            dstOffset = IntOffset.Zero,
+            dstSize = IntSize(w.roundToInt(), coverH.roundToInt().coerceAtLeast(1)),
+            filterQuality = FilterQuality.Low,
+        )
+        if (seamY > 1f && seamY < h - 1f) {
+            // Only the last row or two: the colour below the seam has to be the colour
+            // the cover ended on, or the join shows as a line across the screen.
+            val band = (srcH * 0.012f).roundToInt().coerceIn(1, srcH)
+            drawImage(
+                image = image,
+                srcOffset = IntOffset(srcX, srcY + srcH - band),
+                srcSize = IntSize(srcW, band),
+                dstOffset = IntOffset(0, seamY.roundToInt()),
+                dstSize = IntSize(w.roundToInt(), (h - seamY).roundToInt().coerceAtLeast(1)),
+                filterQuality = FilterQuality.Low,
+            )
+        }
+    }
+}
+
 /** The shade over the blurred cover, deepening toward the controls at the foot. */
 private val FullArtworkScrim = Brush.verticalGradient(
-    0f to Color.Black.copy(alpha = 0.34f),
-    0.55f to Color.Black.copy(alpha = 0.48f),
-    1f to Color.Black.copy(alpha = 0.64f),
+    0f to Color.Black.copy(alpha = 0.16f),
+    0.55f to Color.Black.copy(alpha = 0.28f),
+    1f to Color.Black.copy(alpha = 0.44f),
 )
 
 /** Drawn only until an artwork has been read — never a colour anyone chose. */

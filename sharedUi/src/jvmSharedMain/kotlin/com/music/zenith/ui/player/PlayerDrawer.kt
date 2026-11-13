@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.zenith.ui.components.MENU_FROST_ALPHA
 import com.music.zenith.ui.components.MenuFrostDark
 import com.music.zenith.ui.components.liveMenuFrost
+import com.music.zenith.ui.components.touchGlow
 import com.music.zenith.ui.utils.containSheetGestures
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
@@ -242,6 +243,7 @@ fun PlayerDrawer(
                         else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                     }
                 )
+                .touchGlow()
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },

@@ -240,6 +240,8 @@
     <string name="animated_cover_art">Sampul animasi</string>
     <string name="synced_lyrics">Lirik tersinkron</string>
     <string name="synced_lyrics_subtitle">Menyorot kata-kata di pemutar saat dinyanyikan</string>
+    <string name="lyric_strip">Baris lirik di bawah judul</string>
+    <string name="lyric_strip_subtitle">Tampilkan lirik yang sedang dinyanyikan di bawah judul dan artis</string>
     <string name="lyrics_sources">Sumber lirik</string>
     <string name="song_cache_limit">Batas cache lagu</string>
     <string name="cache_shrink_title">Kecilkan batas cache?</string>

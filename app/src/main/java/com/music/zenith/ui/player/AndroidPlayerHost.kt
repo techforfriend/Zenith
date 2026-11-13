@@ -9,7 +9,9 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -28,9 +30,9 @@ import com.music.zenith.playback.AudioRouting
 import com.music.zenith.playback.audio.bitperfect.BitPerfectOutput
 import com.music.zenith.playback.audio.bitperfect.DacVolume
 import com.music.zenith.playback.cast.CastController
-import com.music.zenith.ui.components.backdrop.backdrops.SnapshotBackdrop
-import com.music.zenith.ui.components.backdrop.backdrops.rememberSnapshotBackdrop
-import com.music.zenith.ui.components.backdrop.backdrops.snapshotBackdropSource
+import com.music.zenith.ui.components.backdrop.backdrops.LayerBackdrop
+import com.music.zenith.ui.components.backdrop.backdrops.layerBackdrop
+import com.music.zenith.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.music.zenith.ui.components.isGlassSupported
 import com.music.zenith.ui.components.menuBackdropFrost
 import dev.chrisbanes.haze.HazeState
@@ -103,6 +105,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         override val smartTransitionWindow get() = AppSettings.smartTransitionWindow
         override val spotifyCanvasAutoHide get() = AppSettings.spotifyCanvasAutoHide
         override val syncedLyrics get() = AppSettings.syncedLyrics
+        override val lyricStrip get() = AppSettings.lyricStrip
         override val translationLanguage get() = AppSettings.translationLanguage
         override val versionAlignmentInProgress get() = AppSettings.versionAlignmentInProgress
 
@@ -221,13 +224,13 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
             isPlaying = isPlaying,
         )
 
-    // The ⋯ menu's own material: a still of the player, blurred under each
+    // The ⋯ menu's own material: the player recorded live, blurred under each
     // panel exactly as [menuBackdropFrost] blurs it under the menu. Below
     // Android 12 there is no RenderEffect to blur it with.
     @Composable
     override fun rememberPlayerFrost(): PlayerFrost? {
         if (!isGlassSupported()) return null
-        val backdrop = rememberSnapshotBackdrop()
+        val backdrop = rememberLayerBackdrop()
         return remember(backdrop) { BackdropPlayerFrost(backdrop) }
     }
 
@@ -342,13 +345,21 @@ private class MusicStreamVolume(private val context: Context) : SystemVolume {
     }
 }
 
-private class BackdropPlayerFrost(private val backdrop: SnapshotBackdrop) : PlayerFrost {
+private class BackdropPlayerFrost(private val backdrop: LayerBackdrop) : PlayerFrost {
+    // The player is recorded only while a drawer or popup is up over it, so a
+    // player with nothing over it pays nothing for the live frost.
+    private var recording by mutableStateOf(false)
+
     @Composable
-    override fun Modifier.frostSource(): Modifier = snapshotBackdropSource(backdrop)
+    override fun Modifier.frostSource(): Modifier = if (recording) layerBackdrop(backdrop) else this
 
-    override fun capture() = backdrop.capture()
+    override fun capture() {
+        recording = true
+    }
 
-    override fun release() = backdrop.release()
+    override fun release() {
+        recording = false
+    }
 
     override fun Modifier.frostPanel(shape: Shape, fill: Color): Modifier = menuBackdropFrost(backdrop, shape, fill)
 }

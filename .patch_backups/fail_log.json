@@ -94,5 +94,29 @@
     "block": 6,
     "layer": "not_found_in_project",
     "file": "app/src/main/java/com/music/zenith/ui/components/floatingtabbar/GlassSelectionPill.kt"
+  },
+  {
+    "timestamp": "2026-11-13 07:39:47",
+    "block": 3,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/NowPlayingScreen.kt"
+  },
+  {
+    "timestamp": "2026-11-13 07:39:47",
+    "block": 4,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/NowPlayingScreen.kt"
+  },
+  {
+    "timestamp": "2026-11-13 07:50:48",
+    "block": 3,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/LyricsShare.kt"
+  },
+  {
+    "timestamp": "2026-11-13 10:14:16",
+    "block": 5,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/ui/components/SongActionsMenu.kt"
   }
 ]

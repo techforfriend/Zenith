@@ -513,6 +513,8 @@
     <string name="artist_signatures_test_failed">Could not reach the API at that URL</string>
     <string name="synced_lyrics">Synced lyrics</string>
     <string name="synced_lyrics_subtitle">Lights up the words on the player as they’re sung</string>
+    <string name="lyric_strip">Lyric line under the title</string>
+    <string name="lyric_strip_subtitle">Show the current lyric below the song title and artist</string>
     <string name="lyrics_sources">Lyrics sources</string>
     <string name="song_cache_limit">Song cache limit</string>
     <string name="cache_shrink_title">Lower the cache limit?</string>

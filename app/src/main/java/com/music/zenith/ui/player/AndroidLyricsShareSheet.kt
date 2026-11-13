@@ -137,7 +137,7 @@ internal fun AndroidLyricsShareSheet(
 
             ShareAction(
                 label = stringResource(if (story) R.string.lyrics_share_story_revert else R.string.lyrics_share_story),
-                icon = if (story) Icons.Rounded.Undo else Icons.Rounded.PhoneIphone,
+                icon = if (story) SfIcons.Revert else SfIcons.Story,
                 accent = false,
                 enabled = image != null,
                 modifier = Modifier.fillMaxWidth(),
@@ -162,7 +162,7 @@ internal fun AndroidLyricsShareSheet(
             ) {
                 ShareAction(
                     label = stringResource(R.string.save),
-                    icon = Icons.Rounded.Download,
+                    icon = SfIcons.Download,
                     accent = false,
                     enabled = image != null,
                     modifier = Modifier.weight(1f),

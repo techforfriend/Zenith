@@ -562,8 +562,8 @@ internal fun TransportRow(
     }
 }
 
-/** ThinSlider's fixed touch target at the volume bar's size: 10dp + 22dp. */
-internal val VOLUME_ROW_HEIGHT = 32.dp
+/** ThinSlider's fixed touch target at the volume bar's size: 6dp + 22dp. */
+internal val VOLUME_ROW_HEIGHT = 28.dp
 
 /** The volume bar between its two speaker glyphs. */
 @Composable
@@ -591,8 +591,8 @@ internal fun VolumeRow(
             value = value(),
             onValueChange = onValueChange,
             onValueChangeFinished = onValueChangeFinished,
-            idleHeight = 6.dp,
-            activeHeight = 10.dp,
+            idleHeight = 3.dp,
+            activeHeight = 6.dp,
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(10.dp))
@@ -633,6 +633,19 @@ internal fun PlayerActionRow(
     val inParty = rememberPartyBadge().inParty
     // Just the output glyph in the middle.
     val compact = !showPartyButton && !inParty
+    // Shared by the badge and the cut-out it leaves in the queue glyph, so the two
+    // fade together and vanish as the queue page opens.
+    val anyMode = shuffleEnabled || repeatMode != RepeatModes.OFF
+    val badgeVisibility by animateFloatAsState(
+        targetValue = if (anyMode && !queueOpen) 1f else 0f,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "queueModeBadge",
+    )
+    val badgeWidth = if (shuffleEnabled && repeatMode != RepeatModes.OFF && repeatMode != RepeatModes.ONE) {
+        29.dp
+    } else {
+        18.dp
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         // Sized for the wider of the two capsules — the three-up one — whether
         // that or the output/party one is up, so the lyrics and queue glyphs
@@ -681,12 +694,46 @@ internal fun PlayerActionRow(
                     .align(Alignment.CenterEnd)
                     .offset { IntOffset(-(closeIn.toPx() * compactness.value).roundToInt(), 0) },
             ) {
-                BottomGlyph(
-                    icon = ZenithIcons.Queue,
-                    contentDescription = stringResource(Res.string.up_next),
-                    onClick = onToggleQueue,
-                    highlighted = queueOpen,
-                    haptic = if (queueOpen) Haptic.Tap else Haptic.Expand,
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithContent {
+                            drawContent()
+                            val v = badgeVisibility
+                            if (v > 0.001f) {
+                                // The badge's rect, grown by a gap, erased from the glyph.
+                                val s = 0.6f + 0.4f * v
+                                val gap = 2.dp.toPx()
+                                val halfW = (badgeWidth.toPx() / 2f + gap) * s
+                                val halfH = (9.dp.toPx() + gap) * s
+val cx = (BOTTOM_ACTION_SIZE - 1.dp).toPx() - badgeWidth.toPx() / 2f
+// The badge's centre: its 5dp drop plus half its 22dp height.
+val cy = 16.dp.toPx()
+                                drawRoundRect(
+                                    color = Color.Black.copy(alpha = v),
+                                    topLeft = Offset(cx - halfW, cy - halfH),
+                                    size = Size(halfW * 2f, halfH * 2f),
+                                    cornerRadius = CornerRadius(halfH, halfH),
+                                    blendMode = BlendMode.DstOut,
+                                )
+                            }
+                        },
+                ) {
+                    BottomGlyph(
+                        icon = ZenithIcons.Queue,
+                        contentDescription = stringResource(Res.string.up_next),
+                        onClick = onToggleQueue,
+                        highlighted = queueOpen,
+                        haptic = if (queueOpen) Haptic.Tap else Haptic.Expand,
+                    )
+                }
+                QueueModeBadges(
+                    shuffleEnabled = shuffleEnabled,
+                    repeatMode = repeatMode,
+                    visibility = badgeVisibility,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-1).dp, y = 5.dp),
                 )
             }
         }
@@ -694,11 +741,8 @@ internal fun PlayerActionRow(
 }
 
 /**
- * Translucent circular button used for the track menu and the like control.
- *
- * [active] brightens the disc rather than only the glyph: this sits on album
- * artwork of any colour, and a white icon on a white-ish sleeve has no tint
- * change left to make. The filled star carries the state as a shape too —
+ * Plain glyph button (no disc, like Apple Music) used for the track menu and
+ * the like control. The filled star carries the liked state as a shape —
  * see [ZenithIcons.StarFilled].
  */
 @Composable
@@ -745,15 +789,12 @@ internal fun CircleGlyph(
             }
         }
     }
-    val discAlpha by animateFloatAsState(
-        targetValue = if (active) 0.34f else 0.18f,
-        label = "glyphDisc",
-    )
+
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(LocalPlayerTint.current.copy(alpha = discAlpha))
+
             .drawBehind {
                 val p = burst.value
                 if (p > 0f && p < 1f) {
@@ -783,7 +824,7 @@ internal fun CircleGlyph(
                 contentDescription = contentDescription,
                 tint = LocalPlayerTint.current,
                 modifier = Modifier
-                    .size(19.dp)
+                    .size(26.dp)
                     .graphicsLayer {
                         scaleX = pop.value
                         scaleY = pop.value
@@ -1253,6 +1294,53 @@ private fun rememberPartyBadge(): PartyBadge {
     return badges
         .collectAsStateWithLifecycle(initialValue = PlayerPlatform.host.party.value.badge())
         .value
+}
+
+/**
+ * Small marks on the corner of the queue glyph saying which playback modes are
+ * on — shuffle, repeat (with a 1 for repeat-one) — so the state is visible
+ * without opening the queue. Nothing at all while both are off.
+ */
+@Composable
+private fun QueueModeBadges(
+    shuffleEnabled: Boolean,
+    repeatMode: Int,
+    visibility: Float,
+    modifier: Modifier = Modifier,
+) {
+    if (visibility <= 0.001f) return
+    val tint = LocalPlayerTint.current
+    Row(
+        modifier = modifier
+            .graphicsLayer {
+                alpha = visibility
+                scaleX = 0.6f + 0.4f * visibility
+                scaleY = 0.6f + 0.4f * visibility
+            }
+            .clip(CircleShape)
+            .background(tint.copy(alpha = 0.28f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Repeat one wins: shown alone, shuffle steps aside.
+        if (shuffleEnabled && repeatMode != RepeatModes.ONE) {
+            Icon(
+                imageVector = ZenithIcons.Shuffle,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(10.dp),
+            )
+        }
+        if (repeatMode != RepeatModes.OFF) {
+            Icon(
+                imageVector = if (repeatMode == RepeatModes.ONE) ZenithIcons.RepeatOne else ZenithIcons.Repeat,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(10.dp),
+            )
+        }
+    }
 }
 
 @Composable

@@ -19,6 +19,12 @@ import androidx.compose.ui.unit.dp
 val LocalShareIcon = staticCompositionLocalOf { ZenithIcons.Share }
 
 /**
+ * The close glyph for floating action bars. [ZenithIcons.Close] by default; the
+ * app provides its SF Symbol one so the bars match the rest of its icons.
+ */
+val LocalCloseIcon = staticCompositionLocalOf { ZenithIcons.Close }
+
+/**
  * Thick-stroke, round-capped icons in the spirit of Telegram's modern icon set.
  * Drawn as strokes so the 2.2px weight + round joins read as a single polished
  * family. Tint is applied by [androidx.compose.material3.Icon].
@@ -382,34 +388,64 @@ object ZenithIcons {
         }.build()
     }
 
-    val Repeat: ImageVector by lazy { repeatLoop("bc_repeat") }
+    val Repeat: ImageVector by lazy { repeatArrows("bc_repeat", one = false) }
+
+    /** [Repeat] with the 1 of repeat-one beside the top arrow, as Apple Music draws it. */
+    val RepeatOne: ImageVector by lazy { repeatArrows("bc_repeat_one", one = true) }
 
     /**
-     * Two straight runs joined by semicircles, with the arrow heads lying flat
-     * at the ends of the straights. Putting them on the curves instead — as a
-     * first pass did — makes the glyph read as a refresh/sync symbol.
+     * Apple Music's repeat glyph (SF Symbol "repeat"): two strands with rounded
+     * corners, a solid arrow head on each, the top one pointing right and the
+     * bottom one left. With [one] the top strand stops short to leave room for
+     * the 1.
      */
-    private fun repeatLoop(name: String): ImageVector =
+    private fun repeatArrows(name: String, one: Boolean): ImageVector =
         ImageVector.Builder(
             name = name,
             defaultWidth = 24.dp, defaultHeight = 24.dp,
             viewportWidth = 24f, viewportHeight = 24f,
         ).apply {
+            val topEnd = if (one) 12.0f else 16.0f
+            val headBase = if (one) 11.4f else 15.4f
+            val headTip = if (one) 15.4f else 19.4f
             path(
                 stroke = stroke,
                 strokeLineWidth = STROKE,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
             ) {
-                moveTo(8.6f, 7.6f)
-                lineTo(15.4f, 7.6f)
-                arcToRelative(4.4f, 4.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, 8.8f)
-                lineTo(8.6f, 16.4f)
-                arcToRelative(4.4f, 4.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, -8.8f)
-                close()
-                // Direction of travel: right along the top, left along the bottom.
-                moveTo(13.5f, 5.7f); lineTo(15.4f, 7.6f); lineTo(13.5f, 9.5f)
-                moveTo(10.5f, 14.5f); lineTo(8.6f, 16.4f); lineTo(10.5f, 18.3f)
+                // Top strand: up from the left, across to the right.
+                moveTo(4.6f, 12.4f)
+                lineTo(4.6f, 9.8f)
+                arcToRelative(2.4f, 2.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 2.4f, -2.4f)
+                lineTo(topEnd, 7.4f)
+                // Bottom strand: down from the right, back across to the left.
+                moveTo(19.4f, 11.6f)
+                lineTo(19.4f, 14.2f)
+                arcToRelative(2.4f, 2.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, -2.4f, 2.4f)
+                lineTo(8.0f, 16.6f)
+            }
+            path(
+                fill = stroke,
+                stroke = stroke,
+                strokeLineWidth = 1.2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // Top arrow head, pointing right.
+                moveTo(headBase, 4.9f); lineTo(headTip, 7.4f); lineTo(headBase, 9.9f); close()
+                // Bottom arrow head, pointing left.
+                moveTo(8.6f, 14.1f); lineTo(4.6f, 16.6f); lineTo(8.6f, 19.1f); close()
+            }
+            if (one) {
+                path(
+                    stroke = stroke,
+                    strokeLineWidth = 1.8f,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(17.4f, 5.4f); lineTo(19.2f, 4.2f); lineTo(19.2f, 9.6f)
+                }
             }
         }.build()
 
@@ -593,7 +629,7 @@ object ZenithIcons {
         ).apply {
             path(
                 stroke = stroke,
-                strokeLineWidth = STROKE,
+                strokeLineWidth = 1.6f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
                 fill = if (filled) stroke else null,
@@ -613,6 +649,25 @@ object ZenithIcons {
                 close()
             }
         }.build()
+
+    /** Dismissing or cancelling: an X on the same 14-unit span as [Plus]. */
+    val Close: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_close",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = stroke,
+                strokeLineWidth = STROKE,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(6f, 6f); lineTo(18f, 18f)
+                moveTo(18f, 6f); lineTo(6f, 18f)
+            }
+        }.build()
+    }
 
     /** Adding something — a new playlist, on the library shelf. */
     val Plus: ImageVector by lazy {

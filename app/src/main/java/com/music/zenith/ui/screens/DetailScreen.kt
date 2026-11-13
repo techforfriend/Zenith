@@ -1908,6 +1908,7 @@ private fun ActionRow(
                 onClick = { onToggleSubscription?.invoke() },
                 haptic = if (subscription.subscribed) Haptic.ToggleOff else Haptic.ToggleOn,
                 size = ARTIST_SIDE_BUTTON,
+                iconScale = 0.56f,
             )
         } else {
             CircleIconButton(
@@ -1916,6 +1917,7 @@ private fun ActionRow(
                 onClick = {},
                 size = ARTIST_SIDE_BUTTON,
                 enabled = false,
+                iconScale = 0.56f,
             )
         }
     }
@@ -2049,6 +2051,8 @@ private fun CircleIconButton(
      * Dimmed rather than dropped, so the row keeps its shape.
      */
     enabled: Boolean = true,
+    /** Glyph size as a fraction of the button; the star needs more than shuffle. */
+    iconScale: Float = 0.44f,
 ) {
     val haptics = rememberHaptics()
     Box(
@@ -2071,7 +2075,7 @@ private fun CircleIconButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(size * 0.44f),
+            modifier = Modifier.size(size * iconScale),
         )
     }
 }

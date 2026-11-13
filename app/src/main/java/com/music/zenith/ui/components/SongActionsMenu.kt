@@ -362,7 +362,12 @@ fun SongActionsMenu(
         // Names where each one leads under it, as a menu's "Go to" does.
         when (val id = song.albumId) {
             null -> if (resolvingLinks) {
-                LoadingActionRow(SfIcons.Album, stringResource(R.string.open_album), palette)
+                LoadingActionRow(
+                    SfIcons.Album,
+                    stringResource(R.string.open_album),
+                    palette,
+                    description = song.albumName,
+                )
             }
             else -> ActionRow(
                 SfIcons.Album,
@@ -373,7 +378,12 @@ fun SongActionsMenu(
         }
         when (val id = song.artistId) {
             null -> if (resolvingLinks) {
-                LoadingActionRow(SfIcons.Artist, stringResource(R.string.open_artist), palette)
+                LoadingActionRow(
+                    SfIcons.Artist,
+                    stringResource(R.string.open_artist),
+                    palette,
+                    description = song.artist.takeIf { it.isNotBlank() },
+                )
             }
             else -> ActionRow(
                 SfIcons.Artist,
@@ -1089,8 +1099,22 @@ internal fun ActionRow(
  * it doesn't read as decided against until it actually is.
  */
 @Composable
-private fun LoadingActionRow(icon: ImageVector, label: String, palette: ArtworkPalette) {
-    IosMenuRow(label = label, icon = icon, onClick = null, enabled = false) {
+private fun LoadingActionRow(
+    icon: ImageVector,
+    label: String,
+    palette: ArtworkPalette,
+    /** The name the loaded row will show under its label, when it is already known. */
+    description: String? = null,
+) {
+    // Holds the second line the loaded row has (a blank one if the name isn't known
+    // yet), so the menu keeps its height when the lookup comes back.
+    IosMenuRow(
+        label = label,
+        icon = icon,
+        onClick = null,
+        description = description ?: "\u00A0",
+        enabled = false,
+    ) {
         CircularProgressIndicator(
             color = palette.onBackgroundVariant,
             strokeWidth = 2.dp,

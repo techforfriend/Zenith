@@ -179,16 +179,7 @@ fun HomeLayoutDialog(
                 .width(ALERT_WIDTH)
                 .macOSPopupMotion(motion)
                 .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted = true, shape = shape)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },

@@ -227,6 +227,27 @@ object SfIcons {
     val RemoveFromPlaylist: ImageVector by lazy { bold(SfSymbols.Monochrome.SFTextBadgeMinus) }
     val Reorder: ImageVector by lazy { bold(SfSymbols.Monochrome.SFArrowUpArrowDown) }
     val Revert: ImageVector by lazy { bold(SfSymbols.Monochrome.SFArrowUturnBackward) }
+
+    /** A phone outline with a home bar, for "Make it a story". */
+    val Story: ImageVector by lazy {
+        androidx.compose.ui.graphics.vector.ImageVector.Builder(
+            name = "sf_story_phone",
+            defaultWidth = androidx.compose.ui.unit.Dp(24f),
+            defaultHeight = androidx.compose.ui.unit.Dp(24f),
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        ).addPath(
+            pathData = androidx.compose.ui.graphics.vector.addPathNodes(
+                "M9,2.75 H15 A2.5,2.5 0 0 1 17.5,5.25 V18.75 A2.5,2.5 0 0 1 15,21.25 " +
+                    "H9 A2.5,2.5 0 0 1 6.5,18.75 V5.25 A2.5,2.5 0 0 1 9,2.75 Z " +
+                    "M10.5,18 H13.5",
+            ),
+            stroke = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.Black),
+            strokeLineWidth = 2.2f,
+            strokeLineCap = androidx.compose.ui.graphics.StrokeCap.Round,
+            strokeLineJoin = androidx.compose.ui.graphics.StrokeJoin.Round,
+        ).build()
+    }
     val Shuffle: ImageVector by lazy { bold(SfSymbols.Monochrome.SFShuffle) }
     val SleepTimer: ImageVector by lazy { bold(SfSymbols.Monochrome.SFMoonZzz) }
     val Sliders: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSliderHorizontal3) }

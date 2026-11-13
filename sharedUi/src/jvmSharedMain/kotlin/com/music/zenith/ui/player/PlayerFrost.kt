@@ -92,7 +92,7 @@ internal fun FrostedPlayerFrame(
         }
     }
     CompositionLocalProvider(LocalPlayerTint provides tint) {
-        Box(modifier.fillMaxSize()) {
+        Box(modifier.fillMaxSize().recordPopupOrigin()) {
             val source = if (frost != null) with(frost) { Modifier.frostSource() } else Modifier
             Box(Modifier.fillMaxSize().then(source)) {
                 content()

@@ -543,6 +543,7 @@ internal fun MacOSInspiredPopup(
                 .macOSPopupMotion(state, cornerRadius)
                 .clip(shape)
                 .then(container(shape))
+                .touchGlow()
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },

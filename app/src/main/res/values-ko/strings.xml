@@ -462,6 +462,8 @@
     <string name="artist_signatures_test_failed">해당 URL의 API에 연결할 수 없어요</string>
     <string name="synced_lyrics">싱크 가사</string>
     <string name="synced_lyrics_subtitle">노래에 맞춰 플레이어에서 가사가 하이라이트돼요</string>
+    <string name="lyric_strip">제목 아래 가사 한 줄</string>
+    <string name="lyric_strip_subtitle">곡 제목과 아티스트 아래에 현재 가사를 보여줘요</string>
     <string name="lyrics_sources">가사 소스</string>
     <string name="song_cache_limit">곡 캐시 한도</string>
     <string name="cache_shrink_title">캐시 한도를 낮출까요?</string>

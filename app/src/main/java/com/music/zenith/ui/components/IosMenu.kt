@@ -7,6 +7,7 @@ import com.music.zenith.ui.components.backdrop.Backdrop
 import com.music.zenith.ui.components.backdrop.drawBackdrop
 import com.music.zenith.ui.components.backdrop.effects.blur
 import com.music.zenith.ui.components.backdrop.effects.colorControls
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -531,7 +532,8 @@ fun <T : Any> IosMenuPopover(
                         backdrop = backdrop,
                         hazeState = hazeState,
                         castsShadow = false,
-                    ),
+                    )
+                    .touchGlow(),
                 propagateMinConstraints = true,
             ) {
                 // The rows in a layer of their own. The frost under them is
@@ -543,6 +545,19 @@ fun <T : Any> IosMenuPopover(
                 // and only scaled.
                 Column(
                     Modifier
+                        // A row that changes height once its data arrives (a loading
+                        // row gaining its second line, a row dropping out) eases the
+                        // panel to its new size instead of snapping it.
+                        .animateContentSize(
+                            animationSpec = if (reduceMotion) {
+                                tween(durationMillis = 0)
+                            } else {
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                )
+                            },
+                        )
                         .graphicsLayer {
                             compositingStrategy = CompositingStrategy.Offscreen
                             // The rows fade in once the panel has grown, and out before it folds.

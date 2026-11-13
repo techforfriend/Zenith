@@ -142,10 +142,15 @@ internal suspend fun renderLyricsShareCard(
     // Under the panel, centred, where Apple Music puts its own mark.
     val brand = type.heading(36f, 0xB3FFFFFF.toInt())
     val brandBaseline = panelBottom + 88f
-    val brandWidth = BRAND_LOGO_W + LOGO_GAP + brand.measureText(BRAND)
+    // The mark is drawn at the word's own cap height and sits on its baseline,
+    // so the Z and "Zenith" read as one lockup.
+    val capBounds = android.graphics.Rect().also { brand.getTextBounds("Z", 0, 1, it) }
+    val logoH = capBounds.height().toFloat()
+    val logoW = logoH * LOGO_ASPECT
+    val brandWidth = logoW + LOGO_GAP + brand.measureText(BRAND)
     val brandLeft = (CARD_W - brandWidth) / 2f
-    drawLogo(canvas, context, brandLeft + BRAND_LOGO_W, brandBaseline)
-    canvas.drawText(BRAND, brandLeft + BRAND_LOGO_W + LOGO_GAP, brandBaseline, brand)
+    drawLogo(canvas, context, brandLeft + logoW, brandBaseline, logoW, logoH)
+    canvas.drawText(BRAND, brandLeft + logoW + LOGO_GAP, brandBaseline, brand)
 
     bitmap
 }
@@ -296,8 +301,8 @@ private const val PANEL_RADIUS = 56f
 private const val CARD_CONTENT_W = CARD_W - (CARD_MARGIN + PANEL_PAD) * 2
 
 private const val LOGO_GAP = 20f
-private const val BRAND = "Zenith"
-private const val BRAND_LOGO_W = 66f
+private const val BRAND = "Music"
+private const val LOGO_ASPECT = 730f / 484f
 
 /** Air above the panel, and the band under it that holds the brand. */
 private const val OUTER_TOP = 56f
