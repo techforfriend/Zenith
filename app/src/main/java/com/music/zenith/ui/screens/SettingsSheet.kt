@@ -2041,6 +2041,9 @@ fun SettingsScreen(
                     .padding(top = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
+                // A name, not a button: the fork's own mark. It opens
+                // nothing — the upstream donation link it used to carry is
+                // gone, and so is the tap that opened it.
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(percent = 50))
@@ -2050,81 +2053,30 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f),
                             shape = RoundedCornerShape(percent = 50),
                         )
-                        .clickable { context.openLink("https://saweria.co/Zeuxxi") }
                         .padding(horizontal = 14.dp, vertical = 7.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Favorite,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp),
-                    )
                     Text(
-                        text = "Support Zenith",
+                        text = "🖤 Raja ji 🖤",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+            // Only the version, under the name above: the upstream links
+            // (GitHub, Developer, Reddit, Telegram) and the "Made by" line
+            // are gone.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp, bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Zenith $version",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.footer_github),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable {
-                            context.openLink("https://github.com/rezapranata089-bit/Zenith")
-                        },
-                    )
-                    Text(
-                        text = stringResource(R.string.footer_developer),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable {
-                            context.openLink("https://github.com/rezapranata089-bit")
-                        },
-                    )
-                    Text(
-                        text = "Reddit",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable {
-                            context.openLink("https://www.reddit.com/r/ZenithMusic/s/gN6chb7onR")
-                        },
-                    )
-                    Text(
-                        text = "Telegram",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable {
-                            context.openLink("https://t.me/+8ECIhA8_kdkwZWU1")
-                        },
-                    )
-                }
                 Text(
-                    text = "Made by Zeuxxi",
+                    text = "Zenith $version",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 1.dp),
                 )
             }
         }
