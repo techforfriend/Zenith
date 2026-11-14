@@ -418,6 +418,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         manualLyricsJobs.values.forEach(Job::cancel)
         manualLyricsJobs.clear()
         lyricsProviderResults.clear()
+        manualSearchJob?.cancel()
+        _manualLyricsState.value = ManualLyricsSearchState.IDLE
         _lyricsProviderStates.value =
             LyricsSource.entries.associateWith { LyricsProviderState.NOT_FETCHED }
         _lyrics.value = null
@@ -506,12 +508,59 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 sources = setOf(source),
                 order = listOf(source),
                 prioritizeSyllableSync = false,
+                usePinned = false,
                 onSourceStarted = { provider -> providerStarted(generation, provider) },
                 onSourceResult = { provider, result ->
                     providerFinished(generation, provider, result)
                 },
                 onSourceCancelled = { provider -> providerCancelled(generation, provider) },
             )
+        }
+    }
+
+    /** Where the "search with another title" request for the current track stands. */
+    private val _manualLyricsState = MutableStateFlow(ManualLyricsSearchState.IDLE)
+    val manualLyricsState: StateFlow<ManualLyricsSearchState> = _manualLyricsState.asStateFlow()
+    private var manualSearchJob: Job? = null
+
+    /**
+     * Looks the playing track up again under a title and artist typed by the
+     * user, for songs a database only knows by another name. Asks every enabled
+     * source; no video id is passed, so nothing is cached under this track's id
+     * and no id-keyed source can answer for a different recording. A hit
+     * replaces the lyrics on screen until the track changes.
+     */
+    fun searchLyricsManually(title: String, artist: String) {
+        val request = currentLyricsRequest ?: return
+        val query = title.trim()
+        if (query.isEmpty()) return
+        val generation = lyricsGeneration
+        manualSearchJob?.cancel()
+        _manualLyricsState.value = ManualLyricsSearchState.SEARCHING
+        manualSearchJob = viewModelScope.launch {
+            val found = LyricsRepository.lyrics(
+                videoId = "",
+                title = query,
+                artist = artist.trim(),
+                durationMs = request.durationMs,
+                album = null,
+                sources = AppSettings.lyricsSources.value.ifEmpty { LyricsSource.offered.toSet() },
+                order = AppSettings.lyricsSourceOrder.value,
+                prioritizeSyllableSync = AppSettings.prioritizeSyllableSync.value,
+            )
+            if (generation != lyricsGeneration) return@launch
+            if (found == null) {
+                _manualLyricsState.value = ManualLyricsSearchState.NOT_FOUND
+                return@launch
+            }
+            // The automatic lookup must not land afterwards and overwrite this.
+            lyricsJob?.cancel()
+            manualLyricsJobs.values.forEach(Job::cancel)
+            manualLyricsJobs.clear()
+            selectedLyricsSource = null
+            LyricsRepository.pin(request.videoId, found)
+            showLyricsResult(found)
+            _manualLyricsState.value = ManualLyricsSearchState.FOUND
         }
     }
 

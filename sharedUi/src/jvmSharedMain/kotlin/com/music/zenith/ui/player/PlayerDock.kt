@@ -385,8 +385,7 @@ fun Modifier.playerMorph(dock: PlayerDock?): Modifier {
         }
 }
 
-/** How small the page behind the player gets while the player is fully up. */
-private const val PAGE_RECEDE_SCALE = 0.94f
+
 
 /**
  * Leaves the page undrawn while the portrait player fully covers it: its own
@@ -407,17 +406,9 @@ fun Modifier.skipDrawWhenPlayerCovers(dock: PlayerDock?): Modifier {
 }
 
 /**
- * The page shrinks a little as the player comes up over it, and grows back as
- * it goes. Read in the graphics layer only, so a frame of the player's travel
- * costs no recomposition and no layout.
+ * The page behind the player stays at full size while the player comes up over
+ * it; there is no zoom-out. Kept as a no-op so the call site in MainActivity
+ * does not have to change.
  */
-fun Modifier.recedeBehindPlayer(dock: PlayerDock?): Modifier {
-    if (dock == null) return this
-    return graphicsLayer {
-        if (dock.attached) {
-            val scale = 1f - (1f - PAGE_RECEDE_SCALE) * dock.openFraction()
-            scaleX = scale
-            scaleY = scale
-        }
-    }
-}
+@Suppress("UNUSED_PARAMETER")
+fun Modifier.recedeBehindPlayer(dock: PlayerDock?): Modifier = this

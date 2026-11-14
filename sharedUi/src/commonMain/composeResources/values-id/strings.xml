@@ -26,6 +26,13 @@
     <string name="cast_row_subtitle">Speaker Chromecast dan Google Cast</string>
     <string name="channel_count">%1$d kanal</string>
     <string name="choose_lyrics_provider">Pilih penyedia lirik</string>
+    <string name="lyrics_manual_search_title">Cari dengan judul lain</string>
+    <string name="lyrics_manual_search_hint">Coba judul atau artis yang dipakai database lain</string>
+    <string name="lyrics_manual_title_label">Judul</string>
+    <string name="lyrics_manual_artist_label">Artis</string>
+    <string name="lyrics_manual_search_action">Cari lirik</string>
+    <string name="lyrics_manual_searching">Mencari…</string>
+    <string name="lyrics_manual_not_found">Lirik tidak ditemukan. Coba judul yang lebih singkat atau alternatif.</string>
     <string name="clear">Hapus</string>
     <string name="close_lyrics">Tutup lirik</string>
     <string name="decrease_lyrics_offset">Kurangi offset lirik</string>

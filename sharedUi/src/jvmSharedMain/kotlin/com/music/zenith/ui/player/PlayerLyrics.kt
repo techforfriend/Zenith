@@ -15,8 +15,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -54,6 +57,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.SortByAlpha
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -93,6 +98,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -102,6 +108,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -130,6 +137,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.music.zenith.ui.components.optimizedHazeEffect
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.zenith.playback.PlaybackPosition
 import com.music.zenith.sharedui.resources.*
@@ -600,6 +611,44 @@ internal fun LyricsStatusWithChange(
                         Modifier
                     },
                 ),
+        )
+    }
+}
+
+/**
+ * The credit at the very end of the lyrics, as Apple Music sets it: small, dim
+ * and part of the scroll, not a line parked over the controls. Tapping it opens
+ * the provider chooser.
+ */
+@Composable
+private fun LyricsProviderFooter(
+    text: String,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = rememberHaptics()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = GLOW_ROOM, end = GLOW_ROOM, top = 28.dp, bottom = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = LocalPlayerTint.current.copy(alpha = 0.45f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (onClick != null) {
+                Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) {
+                    haptics.play(Haptic.Select)
+                    onClick()
+                }
+            } else {
+                Modifier
+            },
         )
     }
 }
@@ -1519,6 +1568,118 @@ private fun ContentDrawScope.sweepTo(
 }
 
 /**
+ * iOS 26 style liquid glass disc for the lyrics controls: live blur of whatever
+ * is behind it (through [hazeState], the player's own Haze source), a
+ * translucent body, a specular bloom on top, a light-catching rim and a soft
+ * drop shadow. Presses squash it slightly, like the glass on iOS.
+ *
+ * Without a [hazeState], or under "Reduce dynamic blur", the blur is skipped and
+ * the disc keeps the translucent body, rim and shadow.
+ */
+@Composable
+internal fun Modifier.lyricsGlassDisc(
+    active: Boolean,
+    interaction: MutableInteractionSource,
+    hazeState: HazeState? = null,
+): Modifier {
+    val pressed by interaction.collectIsPressedAsState()
+    val reduceBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val blurred = hazeState != null && !reduceBlur
+    val press by animateFloatAsState(
+        targetValue = if (pressed) 0.9f else 1f,
+        animationSpec = tween(durationMillis = 140),
+        label = "lyricGlassPress",
+    )
+    val lift by animateFloatAsState(
+        targetValue = if (active) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "lyricGlassActive",
+    )
+    val hazeStyle = remember(active) {
+        HazeStyle(
+            backgroundColor = Color(0xFF1C1C1E),
+            tints = listOf(HazeTint(Color.White.copy(alpha = if (active) 0.20f else 0.10f))),
+            blurRadius = 12.dp,
+            noiseFactor = 0f,
+            fallbackTint = HazeTint(Color.White.copy(alpha = 0.22f)),
+        )
+    }
+    return this
+        .graphicsLayer {
+            scaleX = press
+            scaleY = press
+        }
+        .shadow(
+            elevation = 6.dp,
+            shape = CircleShape,
+            clip = false,
+            ambientColor = Color.Black.copy(alpha = 0.18f),
+            spotColor = Color.Black.copy(alpha = 0.28f),
+        )
+        .clip(CircleShape)
+        .then(
+            if (blurred && hazeState != null) {
+                Modifier.optimizedHazeEffect(state = hazeState, style = hazeStyle)
+            } else {
+                Modifier
+            },
+        )
+        .drawBehind {
+            val w = size.width
+            val h = size.height
+            val r = size.minDimension / 2f
+            val rim = 1.dp.toPx()
+            // Body: lighter at the top, clearer at the bottom. Thinner when the
+            // live blur is already doing the work behind it.
+            val bodyTop = if (blurred) 0.14f else 0.26f
+            val bodyBottom = if (blurred) 0.03f else 0.08f
+            drawCircle(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = bodyTop + 0.12f * lift),
+                        Color.White.copy(alpha = bodyBottom + 0.10f * lift),
+                    ),
+                ),
+            )
+            // Specular bloom near the top-left, where the light lands.
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.40f), Color.Transparent),
+                    center = Offset(w * 0.34f, h * 0.16f),
+                    radius = r * 1.05f,
+                ),
+            )
+            // Faint bounce light along the bottom edge.
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
+                    center = Offset(w * 0.72f, h * 0.98f),
+                    radius = r * 0.9f,
+                ),
+            )
+            // Inner ring that reads as the thickness of the glass.
+            drawCircle(
+                color = Color.White.copy(alpha = 0.08f),
+                radius = r - rim * 2.5f,
+                style = Stroke(width = rim * 1.6f),
+            )
+            // Rim: bright on the lit corners, nearly gone in between.
+            drawCircle(
+                brush = Brush.linearGradient(
+                    0f to Color.White.copy(alpha = 0.90f),
+                    0.35f to Color.White.copy(alpha = 0.20f),
+                    0.65f to Color.White.copy(alpha = 0.10f),
+                    1f to Color.White.copy(alpha = 0.60f),
+                    start = Offset.Zero,
+                    end = Offset(w, h),
+                ),
+                radius = r - rim / 2f,
+                style = Stroke(width = rim),
+            )
+        }
+}
+
+/**
  * The translate control, sized and lit like every other disc in the player —
  * see [CircleGlyph]. Its own composable rather than a [CircleGlyph] call
  * because it has a fourth state the others do not: a request in flight, which
@@ -1530,6 +1691,7 @@ internal fun TranslationToggleButton(
     showingTranslation: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
+    hazeState: HazeState? = null,
 ) {
     val active = showingTranslation || state is LyricsTranslationUiState.Loading
     val tint = when {
@@ -1537,18 +1699,14 @@ internal fun TranslationToggleButton(
         active -> LocalPlayerTint.current
         else -> LocalPlayerTint.current.copy(alpha = 0.78f)
     }
-    val discAlpha by animateFloatAsState(
-        targetValue = if (active) 0.34f else 0.18f,
-        label = "translateDisc",
-    )
+    val glassInteraction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(34.dp)
-            .clip(CircleShape)
-            .background(LocalPlayerTint.current.copy(alpha = discAlpha))
+            .lyricsGlassDisc(active = active, interaction = glassInteraction, hazeState = hazeState)
             .clickable(
                 enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = glassInteraction,
                 indication = null,
                 onClick = onClick,
             ),
@@ -1581,46 +1739,122 @@ internal fun RomanizationToggleButton(
     showingRomanization: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
+    hazeState: HazeState? = null,
+    onProviders: () -> Unit = {},
+    menuEnabled: Boolean = true,
 ) {
-    val active = showingRomanization || state is LyricsTranslationUiState.Loading
-    val tint = when {
+    // The globe is a menu now: one tap fans two glass discs out beside it —
+    // romanize, and change the lyrics provider. It folds back after a choice,
+    // a second tap on the globe, or a few idle seconds.
+    var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded, menuEnabled) {
+        if (!menuEnabled) {
+            expanded = false
+        } else if (expanded) {
+            delay(4_000)
+            expanded = false
+        }
+    }
+    val loading = state is LyricsTranslationUiState.Loading
+    val romanizeActive = showingRomanization || loading
+    val globeActive = expanded || romanizeActive
+    val globeTint = if (globeActive) LocalPlayerTint.current else LocalPlayerTint.current.copy(alpha = 0.78f)
+    val romanizeTint = when {
         !enabled || state is LyricsTranslationUiState.SameLanguage -> LocalPlayerTint.current.copy(alpha = 0.42f)
-        active -> LocalPlayerTint.current
+        romanizeActive -> LocalPlayerTint.current
         else -> LocalPlayerTint.current.copy(alpha = 0.78f)
     }
-    val discAlpha by animateFloatAsState(
-        targetValue = if (active) 0.34f else 0.18f,
-        label = "romanizeDisc",
-    )
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .clip(CircleShape)
-            .background(LocalPlayerTint.current.copy(alpha = discAlpha))
-            .clickable(
-                enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (state is LyricsTranslationUiState.Loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                color = tint,
-                strokeWidth = 1.7.dp,
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Rounded.Language,
-                contentDescription = stringResource(
-                    if (showingRomanization) Res.string.show_original_lyrics
-                    else Res.string.romanize_lyrics,
-                ),
-                tint = tint,
-                modifier = Modifier.size(19.dp),
-            )
+    val globeInteraction = remember { MutableInteractionSource() }
+    val romanizeInteraction = remember { MutableInteractionSource() }
+    val providerInteraction = remember { MutableInteractionSource() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .lyricsGlassDisc(active = globeActive, interaction = globeInteraction, hazeState = hazeState)
+                .clickable(
+                    enabled = menuEnabled,
+                    interactionSource = globeInteraction,
+                    indication = null,
+                ) { expanded = !expanded },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (loading && !expanded) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = globeTint,
+                    strokeWidth = 1.7.dp,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.Language,
+                    contentDescription = null,
+                    tint = globeTint,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(160)) + expandHorizontally(tween(200)),
+            exit = fadeOut(tween(120)) + shrinkHorizontally(tween(160)),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .lyricsGlassDisc(active = romanizeActive, interaction = romanizeInteraction, hazeState = hazeState)
+                        .clickable(
+                            enabled = enabled,
+                            interactionSource = romanizeInteraction,
+                            indication = null,
+                        ) {
+                            expanded = false
+                            onClick()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = romanizeTint,
+                            strokeWidth = 1.7.dp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.SortByAlpha,
+                            contentDescription = stringResource(
+                                if (showingRomanization) Res.string.show_original_lyrics
+                                else Res.string.romanize_lyrics,
+                            ),
+                            tint = romanizeTint,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .lyricsGlassDisc(active = false, interaction = providerInteraction, hazeState = hazeState)
+                        .clickable(
+                            interactionSource = providerInteraction,
+                            indication = null,
+                        ) {
+                            expanded = false
+                            onProviders()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SwapHoriz,
+                        contentDescription = stringResource(Res.string.lyrics_provider_current),
+                        tint = LocalPlayerTint.current.copy(alpha = 0.78f),
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -1867,6 +2101,9 @@ private fun LyricsPanelList(
     browsingState: MutableState<Boolean>,
     /** The line the panel follows, or -1 while there is none. */
     followLine: MutableIntState,
+    /** Credit shown after the last line, e.g. "Lyrics by KuGou". Null for none. */
+    providerFooter: String? = null,
+    onProviderFooterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val panelPlaying = isPlaying && active
@@ -2612,6 +2849,14 @@ private fun LyricsPanelList(
                 }
             }
         }
+        if (providerFooter != null) {
+            item {
+                LyricsProviderFooter(
+                    text = providerFooter,
+                    onClick = onProviderFooterClick,
+                )
+            }
+        }
     }
 }
 
@@ -2640,6 +2885,9 @@ internal fun LyricsPanel(
     onPickLine: (Int) -> Unit = {},
     onTogglePick: (Int) -> Unit = {},
     centerFocus: Boolean = false,
+    hazeState: HazeState? = null,
+    providerFooter: String? = null,
+    onProviderFooterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -2662,6 +2910,7 @@ internal fun LyricsPanel(
         label = "lyricReturn",
     )
     val returnDescription = stringResource(Res.string.now_playing)
+    val returnInteraction = remember { MutableInteractionSource() }
     Box(modifier) {
         LyricsPanelList(
             lines = lines,
@@ -2686,6 +2935,8 @@ internal fun LyricsPanel(
             listState = listState,
             browsingState = browsingState,
             followLine = followLine,
+            providerFooter = providerFooter,
+            onProviderFooterClick = onProviderFooterClick,
             modifier = Modifier.fillMaxSize(),
         )
         if (returnShown > 0.01f) {
@@ -2700,9 +2951,15 @@ internal fun LyricsPanel(
                         scaleY = pop
                     }
                     .size(46.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.22f))
-                    .clickable { browsingState.value = false }
+                    .lyricsGlassDisc(
+                        active = false,
+                        interaction = returnInteraction,
+                        hazeState = hazeState,
+                    )
+                    .clickable(
+                        interactionSource = returnInteraction,
+                        indication = null,
+                    ) { browsingState.value = false }
                     .semantics { contentDescription = returnDescription }
                     .drawBehind {
                         // A chevron pointing the way the line is: up when it has

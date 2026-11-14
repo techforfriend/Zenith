@@ -4942,20 +4942,39 @@ class PlaybackService : MediaLibraryService() {
                 )
             }
 
+            // Fade the old stream out before the cut, so the sink flush is not heard
+            // as a click. The fade suspends, so everything that could have changed
+            // meanwhile (queue, crossfade, parked stream) is checked again after it,
+            // and the swap position is read fresh.
+            val priorVolume = player.volume
+            rampVolume(player, priorVolume, 0f, UPGRADE_FADE_OUT_MS)
+            val landing = swapPointFor(mediaId)
+            if (landing == null || crossfade?.isTransitioning() == true) {
+                player.volume = priorVolume
+                QualityUpgrade.shelve(mediaId, stream)
+                TrackLog.d("Zenith", "upgrade for $mediaId shelved: the queue or a crossfade moved while fading out")
+                return@withContext
+            }
+            if (QualityUpgrade.forcedStream(Uri.parse(upgradedUri)) == null) {
+                player.volume = priorVolume
+                TrackLog.d("Zenith", "upgrade abandoned: its stream was dropped while fading out")
+                return@withContext
+            }
+
             // Read before the swap overwrites it — see [watchUpgrade]'s
             // NerdStats cleanup for why the pre-upgrade claim has to be
             // captured here rather than looked up again on revert.
             val previousFormat = NerdStats.declaredFormat(mediaId)
             swappingMediaId = mediaId
             swapCutAt = SystemClock.elapsedRealtime()
-            val upgradedMetadata = now.item.mediaMetadata.buildUpon()
-                .setExtras(Bundle(now.item.mediaMetadata.extras ?: Bundle()).apply {
+            val upgradedMetadata = landing.item.mediaMetadata.buildUpon()
+                .setExtras(Bundle(landing.item.mediaMetadata.extras ?: Bundle()).apply {
                     putBoolean(EXTRA_QUALITY_UPGRADED, true)
                 })
                 .build()
             player.replaceMediaItem(
                 player.currentMediaItemIndex,
-                now.item.buildUpon()
+                landing.item.buildUpon()
                     .setUri(upgradedUri)
                     .setMediaMetadata(upgradedMetadata)
                     .withResolvedStreamType(stream.url)
@@ -4965,11 +4984,12 @@ class PlaybackService : MediaLibraryService() {
                 ?: "Upgrade"
             NerdStats.onSourceStream(mediaId, stream.format, upgradedSourceName)
             NerdStats.recordSource(mediaId, upgradedSourceName)
-            player.seekTo(player.currentMediaItemIndex, now.position)
+            player.seekTo(player.currentMediaItemIndex, landing.position)
             player.prepare()
+            fadeInAfterSwap(player, priorVolume)
             QualityUpgrade.unshelve(mediaId)
-            TrackLog.d("Zenith", "upgraded to ${stream.format.summary} at ${now.position}ms ($upgradedSourceName)")
-            watchUpgrade(mediaId, now.uri, now.position, now.duration, previousFormat)
+            TrackLog.d("Zenith", "upgraded to ${stream.format.summary} at ${landing.position}ms ($upgradedSourceName)")
+            watchUpgrade(mediaId, landing.uri, landing.position, landing.duration, previousFormat)
             if (QualityUpgrade.continueAfterLossySwap(mediaId)) {
                 // The immediate JioSaavn improvement stays audible while a
                 // slower lossless source is checked against its higher-quality
@@ -5009,6 +5029,45 @@ class PlaybackService : MediaLibraryService() {
                 launch(Dispatchers.IO) {
                     AudioCache.warmRange(Uri.parse(upgradedUri), 0, ANALYSIS_HEAD_BYTES)
                 }
+            }
+        }
+    }
+
+    /**
+     * Linear volume ramp on the main thread, in steps short enough to read as smooth.
+     * Used around a quality swap, where the rebuild's flush and restart would
+     * otherwise be heard as a click and a jump.
+     */
+    private suspend fun rampVolume(player: ExoPlayer, from: Float, to: Float, durationMs: Long) {
+        val steps = (durationMs / UPGRADE_FADE_STEP_MS).toInt().coerceAtLeast(1)
+        for (i in 1..steps) {
+            player.volume = from + (to - from) * i / steps
+            delay(UPGRADE_FADE_STEP_MS)
+        }
+        player.volume = to
+    }
+
+    /**
+     * Brings the volume back up once the swapped-in stream is audible again.
+     * Waits for playback to resume (bounded, so a paused or failed swap cannot
+     * leave the player muted) and always restores [to] when it finishes.
+     */
+    private fun fadeInAfterSwap(player: ExoPlayer, to: Float) {
+        scope.launch(Dispatchers.Main) {
+            var handedOver = false
+            try {
+                delay(UPGRADE_FADE_STEP_MS * 2)
+                withTimeoutOrNull(UPGRADE_FADE_IN_WAIT_MS) {
+                    while (!player.isPlaying) delay(UPGRADE_FADE_STEP_MS)
+                }
+                if (crossfade?.isTransitioning() == true) {
+                    // A blend owns the volumes now; leave them to it.
+                    handedOver = true
+                } else {
+                    rampVolume(player, 0f, to, UPGRADE_FADE_IN_MS)
+                }
+            } finally {
+                if (!handedOver) runCatching { player.volume = to }
             }
         }
     }
@@ -9555,6 +9614,14 @@ class PlaybackService : MediaLibraryService() {
          * ordinary swap, minutes from any blend, is as immediate as it was.
          */
         const val UPGRADE_AFTER_CROSSFADE_MS = 5_000L
+
+        /** Fade-out before a quality swap's cut, and fade-in once the new stream plays. */
+        const val UPGRADE_FADE_OUT_MS = 90L
+        const val UPGRADE_FADE_IN_MS = 220L
+        const val UPGRADE_FADE_STEP_MS = 10L
+
+        /** How long the fade-in waits for playback to resume before restoring volume anyway. */
+        const val UPGRADE_FADE_IN_WAIT_MS = 4_000L
 
         /**
          * How long a replacement gets to report a length before it is

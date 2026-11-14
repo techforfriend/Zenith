@@ -28,6 +28,13 @@
     <string name="watch_output_subtitle">Play on your watch’s speaker or headphones</string>
     <string name="channel_count">%1$d ch</string>
     <string name="choose_lyrics_provider">Choose lyrics provider</string>
+    <string name="lyrics_manual_search_title">Search with another title</string>
+    <string name="lyrics_manual_search_hint">Try the title or artist another database uses</string>
+    <string name="lyrics_manual_title_label">Title</string>
+    <string name="lyrics_manual_artist_label">Artist</string>
+    <string name="lyrics_manual_search_action">Search lyrics</string>
+    <string name="lyrics_manual_searching">Searching…</string>
+    <string name="lyrics_manual_not_found">No lyrics found. Try a shorter or alternate title.</string>
     <string name="clear">Clear</string>
     <string name="close_lyrics">Close lyrics</string>
     <string name="decrease_lyrics_offset">Decrease lyrics offset</string>

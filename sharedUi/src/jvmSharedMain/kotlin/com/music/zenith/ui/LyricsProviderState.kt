@@ -7,3 +7,11 @@ enum class LyricsProviderState {
     FOUND,
     NOT_FOUND,
 }
+
+/** Where a manual "search with another title" request stands for the current track. */
+enum class ManualLyricsSearchState {
+    IDLE,
+    SEARCHING,
+    FOUND,
+    NOT_FOUND,
+}

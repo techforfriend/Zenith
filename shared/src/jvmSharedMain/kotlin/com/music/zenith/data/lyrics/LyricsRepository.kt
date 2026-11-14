@@ -97,7 +97,20 @@ object LyricsRepository {
         onSourceStarted: ((LyricsSource) -> Unit)? = null,
         onSourceResult: ((LyricsSource, Result?) -> Unit)? = null,
         onSourceCancelled: ((LyricsSource) -> Unit)? = null,
+        /** False for a request aimed at one named source, which must not be answered by a pin. */
+        usePinned: Boolean = true,
     ): Result? {
+        // Lirik yang dipilih sendiri pengguna lewat pencarian manual menang atas
+        // semua sumber. Ditulis ulang saat dibaca supaya umurnya mulai lagi: ia
+        // baru lapuk bila lagunya tak diputar selama masa hidup cache.
+        if (usePinned && videoId.isNotBlank()) {
+            LyricsDiskCache.read(pinKey(videoId))?.let { pinned ->
+                LyricsDiskCache.write(pinKey(videoId), pinned)
+                onSourceStarted?.invoke(pinned.source)
+                onSourceResult?.invoke(pinned.source, pinned)
+                return pinned
+            }
+        }
         // Cache disk: lagu yang liriknya pernah ketemu tidak menanyai sumber lagi
         // dan tetap berlirik saat offline. Kunci memuat sumber + urutan pilihan.
         val sequence = (order + LyricsSource.offered).distinct().filter { it in sources && !it.hidden }
@@ -116,6 +129,19 @@ object LyricsRepository {
         )
         if (cacheable && found != null) LyricsDiskCache.write(key, found)
         return found
+    }
+
+    private fun pinKey(videoId: String) = "manual|$videoId"
+
+    /**
+     * Keeps [result] as this track's lyrics from now on: the answer to a manual
+     * "search with another title". Independent of the sources and order in
+     * Settings, so changing those does not lose it. Searching again with a new
+     * title replaces it.
+     */
+    fun pin(videoId: String, result: Result) {
+        if (videoId.isBlank()) return
+        LyricsDiskCache.write(pinKey(videoId), result)
     }
 
     private suspend fun lyricsNetwork(

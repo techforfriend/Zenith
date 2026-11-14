@@ -160,6 +160,7 @@ import com.music.zenith.ui.theme.stableStatusBarInsets
 import com.music.zenith.ui.theme.rememberArtworkTopBandLuminance
 import com.music.zenith.ui.theme.topBandScrimAlpha
 import com.music.zenith.ui.LyricsProviderState
+import com.music.zenith.ui.ManualLyricsSearchState
 import com.music.zenith.ui.haptics.Haptic
 import com.music.zenith.ui.haptics.rememberHaptics
 import com.music.zenith.ui.icons.ZenithIcons
@@ -313,6 +314,9 @@ private const val SPOTIFY_CANVAS_RESUME_DELAY_MS = 1_000L
 
 /** Tinggi dek kaca Spotify Canvas sebagai bagian dari layar; sama dengan lapisan kaca hidupnya. */
 private const val SPOTIFY_DECK_HEIGHT_FRACTION = 0.56f
+
+/** Height of the seek bar that stays on screen once Spotify Canvas' control deck is hidden. */
+private val SPOTIFY_MINI_SCRUBBER_HEIGHT = 48.dp
 
 /** [image] selebar scope, rata atas, rasio aslinya tanpa crop; yang melewati tepi bawah terpotong. */
 private fun DrawScope.drawFrameTopAligned(image: ImageBitmap) {
@@ -1001,6 +1005,8 @@ fun NowPlayingScreen(
     lyricsSource: LyricsSource?,
     lyricsProviderStates: Map<LyricsSource, LyricsProviderState>,
     onSelectLyricsProvider: (LyricsSource) -> Unit,
+    manualLyricsState: ManualLyricsSearchState,
+    onSearchLyricsManually: (title: String, artist: String) -> Unit,
     lyricsUnavailable: Boolean,
     lyricsOffsetOpen: Boolean,
     onDismissLyricsOffset: () -> Unit,
@@ -2058,6 +2064,10 @@ fun NowPlayingScreen(
                 states = lyricsProviderStates,
                 onSelect = onSelectLyricsProvider,
                 onDismiss = { showLyricsProviders = false },
+                songTitle = song.title,
+                songArtist = song.artist,
+                manualState = manualLyricsState,
+                onManualSearch = onSearchLyricsManually,
             )
         }
         if (showAudioPipeline) {
@@ -2132,8 +2142,14 @@ fun NowPlayingScreen(
     val currentFullArtworkBlurImage = rememberUpdatedState(fullArtworkBlurImage)
     // Where the full-bleed banner stops, so the blur can be cropped to match it. Only
     // the portrait phone player has one; everywhere else the plain crop is kept.
-    val blurSeamPx = rememberUpdatedState(
-        if (heroMode && !landscape && !tabletArtworkBackdrop) with(density) { heroHeight.toPx() } else 0f,
+    // Zero while lyrics or queue cover the banner: the sharp banner is gone there, so
+    // the blur must span the whole screen instead of ending in a flat strip at the seam.
+    val blurSeamPx = animateFloatAsState(
+        targetValue = if (heroMode && !landscape && !tabletArtworkBackdrop && !lyricsOpen && !queueOpen) {
+            with(density) { heroHeight.toPx() }
+        } else 0f,
+        animationSpec = tween(300),
+        label = "blurSeam",
     )
     val fullArtworkBlurContent = remember {
         movableContentOf<Modifier> { backdropModifier ->
@@ -2740,14 +2756,17 @@ fun NowPlayingScreen(
                             },
                             romanizationToggle = {
                                 RomanizationToggleButton(
+                                    hazeState = playerHaze,
                                     state = lyricsTranslation.romanizationState,
                                     showingRomanization = lyricsTranslation.showingRomanization,
                                     enabled = !lyrics.isNullOrEmpty(),
                                     onClick = lyricsTranslation.toggleRomanization,
+                                    onProviders = { showLyricsProviders = true },
                                 )
                             },
                             translationToggle = {
                                 TranslationToggleButton(
+                                    hazeState = playerHaze,
                                     state = lyricsTranslation.translationState,
                                     showingTranslation = lyricsTranslation.showingTranslation,
                                     enabled = !lyrics.isNullOrEmpty(),
@@ -2784,6 +2803,7 @@ fun NowPlayingScreen(
                                     onPickLine = lyricPicker.pick,
                                     onTogglePick = lyricPicker.toggle,
                                     centerFocus = true,
+                                    hazeState = playerHaze,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -3538,7 +3558,8 @@ fun NowPlayingScreen(
                                 .takeIf { it > 0.dp }
                                 ?: maxHeight
                             val collapsedTitleTop = (
-                                expandedTopHeight + spotifyCanvasDeckHeight - HEADER_HEIGHT
+                                expandedTopHeight + spotifyCanvasDeckHeight - HEADER_HEIGHT -
+                                    SPOTIFY_MINI_SCRUBBER_HEIGHT
                             ).coerceAtLeast(0.dp)
                             collapsedTitleTop
                         } else {
@@ -4813,6 +4834,9 @@ Spacer(Modifier.width(12.dp))
                                         isPlaying = isPlaying && position.advancing,
                                         active = lyricsPanelVisible,
                                         onSeekToLine = seekToLyric,
+                                        providerFooter = lyricsTranslation.status
+                                            .takeIf { it.isNotBlank() && !lyrics.isNullOrEmpty() },
+                                        onProviderFooterClick = { showLyricsProviders = true },
                                         controlsOpen = lyricsControlsOpen,
                                         onRevealControls = { lyricsControlsOpen = true },
                                         onHideControls = { lyricsControlsOpen = false },
@@ -4823,6 +4847,7 @@ Spacer(Modifier.width(12.dp))
                                         picked = lyricPicker.picks,
                                         onPickLine = lyricPicker.pick,
                                         onTogglePick = lyricPicker.toggle,
+                                        hazeState = playerHaze,
                                         modifier = Modifier.fillMaxSize(),
                                     )
                                 }
@@ -4852,10 +4877,14 @@ Spacer(Modifier.width(12.dp))
                                         .graphicsLayer { alpha = translateFade },
                                 ) {
                                     RomanizationToggleButton(
+                                        hazeState = playerHaze,
                                         state = lyricsTranslation.romanizationState,
                                         showingRomanization = lyricsTranslation.showingRomanization,
                                         enabled = translateShown && !lyrics.isNullOrEmpty(),
                                         onClick = lyricsTranslation.toggleRomanization,
+                                        onProviders = { showLyricsProviders = true },
+                                        // Not tappable on the way out, like the translate disc.
+                                        menuEnabled = translateShown,
                                     )
                                 }
                                 Box(
@@ -4864,6 +4893,7 @@ Spacer(Modifier.width(12.dp))
                                         .graphicsLayer { alpha = translateFade },
                                 ) {
                                     TranslationToggleButton(
+                                        hazeState = playerHaze,
                                         state = lyricsTranslation.translationState,
                                         showingTranslation = lyricsTranslation.showingTranslation,
                                         // Not tappable on the way out: a disc at 20%
@@ -4960,6 +4990,50 @@ Spacer(Modifier.width(12.dp))
                         }
                     }
 
+                    // Spotify Canvas with its control deck hidden: keep only a seek bar
+                    // (elapsed, quality, remaining) under the title, so the song can be
+                    // skipped forward or back without opening the deck again. Its slot
+                    // grows as the deck leaves, so the two trade the same height.
+                    if (spotifyCanvasPresentation && !spotifyCanvasControlsOpen && !lyricsOpen && !queueOpen) {
+                        val miniTransitionWindow by PlayerSettings.smartTransitionWindow.collectAsStateWithLifecycle()
+                        Box(
+                            modifier = Modifier
+                                .widthIn(max = PLAYER_MAX_WIDTH)
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp)
+                                .layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints)
+                                    val slot = (placeable.height * (1f - playerDeckReveal.value)).toInt()
+                                    layout(placeable.width, slot) {
+                                        placeable.place(0, slot - placeable.height)
+                                    }
+                                }
+                                .height(SPOTIFY_MINI_SCRUBBER_HEIGHT)
+                                .graphicsLayer { alpha = 1f - playerDeckReveal.value },
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            PlayerScrubber(
+                                shown = shown,
+                                durationMs = durationMs,
+                                loading = versionSwitching,
+                                mixing = mixing && !scrub.scrubbing,
+                                transitionWindow = miniTransitionWindow
+                                    ?.takeIf { !scrub.scrubbing && it.end > it.start }
+                                    ?.let { it.start..it.end },
+                                onScrub = onScrub,
+                                onScrubFinished = onScrubFinished,
+                            ) {
+                                PlaybackQualityLabel(
+                                    song = song,
+                                    isLoading = isLoading,
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .padding(horizontal = 8.dp),
+                                )
+                            }
+                        }
+                    }
+
                     // ---- Bottom: lyric strip, scrubber, transport, volume, toggles ----
                     // One block, measured at its natural height and pinned to the foot
                     // of the player. Whatever is left over above it is the artwork's,
@@ -5039,9 +5113,12 @@ Spacer(Modifier.width(12.dp))
                         )
                     }
                     if (lyricsOpen) {
-                        LyricsStatusWithChange(
-                            status = lyricsTranslation.status,
-                            onStatusClick = { showLyricsProviders = true },
+                        // The provider credit moved to the foot of the lyrics. The
+                        // slot stays, invisibly, so the controls keep their place.
+                        Text(
+                            text = "\u00A0",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .offset(y = 6.dp)
