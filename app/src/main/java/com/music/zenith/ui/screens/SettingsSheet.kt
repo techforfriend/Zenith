@@ -277,6 +277,7 @@ fun SettingsScreen(
     val signatureApiEnabled by AppSettings.signatureApiEnabled.collectAsStateWithLifecycle()
     val signatureApiUrl by AppSettings.signatureApiUrl.collectAsStateWithLifecycle()
     val fullBleedArtwork by AppSettings.fullBleedArtwork.collectAsStateWithLifecycle()
+    val canvasLiveBlurPanels by AppSettings.canvasLiveBlurPanels.collectAsStateWithLifecycle()
     val legacyMeshGradient by AppSettings.legacyMeshGradient.collectAsStateWithLifecycle()
     val syncedLyrics by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricStrip by AppSettings.lyricStrip.collectAsStateWithLifecycle()
@@ -1283,6 +1284,21 @@ fun SettingsScreen(
                         onClick = { AppSettings.setFullBleedArtwork(!fullBleedArtwork) },
                     )
                 }
+            }
+            val canvasLiveBlurTitle = stringResource(R.string.canvas_live_blur_panels)
+            row(canvasLiveBlurTitle, "canvas", "blur", "lyrics", "queue", "player") {
+                SettingsRow(
+                    icon = SfIcons.Fullscreen,
+                    title = canvasLiveBlurTitle,
+                    subtitle = stringResource(R.string.canvas_live_blur_panels_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = canvasLiveBlurPanels,
+                            onCheckedChange = AppSettings::setCanvasLiveBlurPanels,
+                        )
+                    },
+                    onClick = { AppSettings.setCanvasLiveBlurPanels(!canvasLiveBlurPanels) },
+                )
             }
             val legacyMeshGradientTitle = stringResource(R.string.legacy_mesh_gradient)
             row(legacyMeshGradientTitle, "background", "player") {

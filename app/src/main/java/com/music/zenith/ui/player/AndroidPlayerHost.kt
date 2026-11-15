@@ -85,6 +85,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         override val coverFluidAnimation get() = AppSettings.coverFluidAnimation
         override val coverMixOnlyEffects get() = AppSettings.coverMixOnlyEffects
         override val reduceDynamicBlur get() = AppSettings.reduceDynamicBlur
+        override val canvasLiveBlurPanels get() = AppSettings.canvasLiveBlurPanels
         override val dolbyAtmosActive: StateFlow<Boolean> =
             combine(AppSettings.dolbyAtmos, BitPerfectOutput.ready) { enabled, bitPerfect ->
                 DeviceCodecs.playsDolbyAtmos && enabled && !bitPerfect

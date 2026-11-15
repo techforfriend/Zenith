@@ -942,6 +942,9 @@ object AppSettings {
      */
     val fullBleedArtwork = MutableStateFlow(true)
 
+    /** Keeps a full-screen Spotify Canvas playing, blurred live, behind the lyrics and queue. */
+    val canvasLiveBlurPanels = MutableStateFlow(false)
+
     /**
      * Puts v1.5's backdrop back on the player: four quantised blobs drifting
      * behind the whole screen, rather than the artwork's own colours hung off
@@ -1589,6 +1592,7 @@ object AppSettings {
         signatureApiEnabled.value = prefs.getBoolean(KEY_SIGNATURE_API_ENABLED, false)
         signatureApiUrl.value = normalizeSignatureApiUrl(prefs.getString(KEY_SIGNATURE_API_URL, "").orEmpty())
         fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
+        canvasLiveBlurPanels.value = prefs.getBoolean(KEY_CANVAS_LIVE_BLUR_PANELS, false)
         legacyMeshGradient.value = prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, false)
         lastPlayerScreen.value = runCatching {
             LastPlayerScreen.valueOf(
@@ -2466,6 +2470,11 @@ object AppSettings {
         prefs.edit().putString(KEY_SIGNATURE_API_URL, normalized).apply()
     }
 
+    fun setCanvasLiveBlurPanels(value: Boolean) {
+        canvasLiveBlurPanels.value = value
+        prefs.edit().putBoolean(KEY_CANVAS_LIVE_BLUR_PANELS, value).apply()
+    }
+
     fun setFullBleedArtwork(value: Boolean) {
         fullBleedArtwork.value = value
         prefs.edit().putBoolean(KEY_FULL_BLEED_ARTWORK, value).apply()
@@ -3202,6 +3211,7 @@ object AppSettings {
     private const val KEY_SIGNATURE_API_ENABLED = "signature_api_enabled"
     private const val KEY_SIGNATURE_API_URL = "signature_api_url"
     private const val KEY_FULL_BLEED_ARTWORK = "full_bleed_artwork"
+    private const val KEY_CANVAS_LIVE_BLUR_PANELS = "canvas_live_blur_panels"
     private const val KEY_LEGACY_MESH_GRADIENT = "legacy_mesh_gradient"
     private const val KEY_LAST_PLAYER_SCREEN = "last_player_screen"
     private const val KEY_SYNCED_LYRICS = "synced_lyrics"

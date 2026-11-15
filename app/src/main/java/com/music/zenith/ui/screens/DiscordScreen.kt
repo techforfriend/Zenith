@@ -188,7 +188,9 @@ fun DiscordScreen(
     // failure is left to stand rather than clearing the cache: the usual reason
     // for one is being offline, and blanking the name every time the phone loses
     // signal would read as having been signed out.
+    val authRejected by com.my.kizzy.gateway.DiscordGatewayState.authRejected.collectAsStateWithLifecycle()
     LaunchedEffect(token) {
+        com.my.kizzy.gateway.DiscordGatewayState.authRejected.value = false
         if (token.isEmpty()) {
             AppSettings.setDiscordAccount("", "", null)
             return@LaunchedEffect
@@ -233,6 +235,13 @@ fun DiscordScreen(
                     onClick = { onOpenDialog(DiscordDialog.TOKEN) },
                 )
             }
+        }
+
+        AnimatedVisibility(visible = connected && rpcEnabled && authRejected) {
+            NoticeCard(
+                text = stringResource(R.string.discord_login_rejected),
+                onDismiss = { com.my.kizzy.gateway.DiscordGatewayState.authRejected.value = false },
+            )
         }
 
         AnimatedVisibility(visible = !infoDismissed) {

@@ -92,7 +92,7 @@ fun ReorderPlaylistPage(
     BackHandler(onBack = onClose)
     val original = (entries as? UiState.Success)?.data.orEmpty()
     val order = remember(original) { mutableStateListOf<Song>().apply { addAll(original) } }
-    val changed = order.map { it.setVideoId } != original.map { it.setVideoId }
+    val changed = order.map { it.setVideoId ?: it.videoId } != original.map { it.setVideoId ?: it.videoId }
 
     Column(modifier.fillMaxSize().padding(top = topBarContentPadding())) {
         Row(

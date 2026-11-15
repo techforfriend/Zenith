@@ -109,6 +109,16 @@ object LocalPlaylistStore {
         replace(current.id) { it.copy(songs = it.songs.filterNot { song -> song.videoId == videoId }) }
     }
 
+    /** Puts the playlist's tracks in the order of [orderedVideoIds]; unlisted tracks keep their place at the end. */
+    fun reorder(id: String, orderedVideoIds: List<String>) {
+        val current = getPlaylist(id) ?: return
+        val rank = HashMap<String, Int>()
+        orderedVideoIds.forEachIndexed { index, videoId -> rank.putIfAbsent(videoId, index) }
+        replace(current.id) { playlist ->
+            playlist.copy(songs = playlist.songs.sortedBy { rank[it.videoId] ?: Int.MAX_VALUE })
+        }
+    }
+
     /** Sets the custom cover; null goes back to the first track's artwork. */
     fun setCover(id: String, coverUrl: String?) {
         val current = getPlaylist(id) ?: return

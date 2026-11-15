@@ -210,6 +210,8 @@ internal fun AndroidCanvasArtworkPlayer(
     bottomFade: Float = 0f,
     /** Optional end of the fade in view pixels; defaults to the view's bottom edge. */
     bottomFadeEndPx: Float? = null,
+    /** Blur radius in px, applied as a RenderEffect on the TextureView's own node (API 31+). */
+    blurPx: () -> Float = { 0f },
     /**
      * Halts decoding for the length of a caller-driven transition — the sleeve
      * collapsing into the queue or lyrics panel and back — rather than only at
@@ -652,8 +654,10 @@ internal fun AndroidCanvasArtworkPlayer(
                 view.applyContentTransform(clipAspect, contentMode, alignPortraitTop)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (applied.fadeDiffers(bottomFade, bounds, bottomFadeEndPx)) {
-                    view.setBottomFade(bottomFade, bounds, bottomFadeEndPx)
+                // Read here so the blur follows the panel's progress every frame.
+                val blur = blurPx().let { if (it < 0.5f) 0f else it }
+                if (applied.fadeDiffers(bottomFade, bounds, bottomFadeEndPx, blur)) {
+                    view.setBottomFade(bottomFade, bounds, bottomFadeEndPx, blur)
                 }
             } else {
                 frame.fadeFraction = bottomFade
@@ -881,10 +885,23 @@ private fun shownFrame(
  * the older way, with a saveLayer and a Porter-Duff mask.
  */
 @RequiresApi(Build.VERSION_CODES.S)
-private fun TextureView.setBottomFade(fraction: Float, bounds: IntSize, endPx: Float?) {
+private fun TextureView.setBottomFade(
+    fraction: Float,
+    bounds: IntSize,
+    endPx: Float?,
+    blurPx: Float = 0f,
+) {
     val endY = endPx?.coerceIn(0f, bounds.height.toFloat()) ?: bounds.height.toFloat()
+    // The blur lives on the view's own RenderNode, like the fade: a Compose
+    // blur layer around a TextureView leaves its frames sharp. Blur first,
+    // then the fade mask, so the edge dissolves the blurred picture.
+    val content = if (blurPx > 0.5f) {
+        RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
+    } else {
+        RenderEffect.createOffsetEffect(0f, 0f)
+    }
     if (fraction <= 0.001f || endY <= 0f) {
-        setRenderEffect(null)
+        setRenderEffect(if (blurPx > 0.5f) content else null)
         return
     }
     // Along smootherstep, as the still sleeve's banner dissolves, so the clip
@@ -905,7 +922,7 @@ private fun TextureView.setBottomFade(fraction: Float, bounds: IntSize, endPx: F
     // destination of a blend.
     setRenderEffect(
         RenderEffect.createBlendModeEffect(
-            RenderEffect.createOffsetEffect(0f, 0f),
+            content,
             RenderEffect.createShaderEffect(gradient),
             BlendMode.DST_IN,
         ),
@@ -941,6 +958,7 @@ private class AppliedLook {
     private var fade = Float.NaN
     private var fadeBounds = IntSize(-1, -1)
     private var fadeEnd: Float? = Float.NaN
+    private var fadeBlur = Float.NaN
 
     fun transformDiffers(
         clipAspect: Float,
@@ -960,11 +978,12 @@ private class AppliedLook {
         return true
     }
 
-    fun fadeDiffers(fraction: Float, bounds: IntSize, endPx: Float?): Boolean {
-        if (fraction == fade && bounds == fadeBounds && endPx == fadeEnd) return false
+    fun fadeDiffers(fraction: Float, bounds: IntSize, endPx: Float?, blur: Float = 0f): Boolean {
+        if (fraction == fade && bounds == fadeBounds && endPx == fadeEnd && blur == fadeBlur) return false
         fade = fraction
         fadeBounds = bounds
         fadeEnd = endPx
+        fadeBlur = blur
         return true
     }
 }
@@ -1067,6 +1086,7 @@ internal fun AndroidCanvasVideo(spec: CanvasVideoSpec, modifier: Modifier) {
         onCoverChanged = spec.onCoverChanged,
         bottomFade = spec.bottomFade,
         bottomFadeEndPx = spec.bottomFadeEndPx,
+        blurPx = spec.blurPx,
         pausedForTransition = spec.pausedForTransition,
         resumeDelayMs = spec.resumeDelayMs,
         startPositionMs = spec.startPositionMs,

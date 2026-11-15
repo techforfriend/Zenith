@@ -3624,7 +3624,15 @@ private fun ZenithApp(
                                             onSave = { reordered ->
                                                 val original = (reorderEntries as? UiState.Success)?.data.orEmpty()
                                                 reorderSaving = true
-                                                viewModel.reorderPlaylist(reordering, original, reordered) { saved ->
+                                                if (reordering.playlistId.startsWith("local:playlist:")) {
+                                                    com.music.zenith.data.spotify.LocalPlaylistStore.reorder(
+                                                        reordering.playlistId,
+                                                        reordered.map { it.videoId },
+                                                    )
+                                                    reorderSaving = false
+                                                    showQueueNotice(context.getString(R.string.playlist_reordered))
+                                                    reorderTarget = null
+                                                } else viewModel.reorderPlaylist(reordering, original, reordered) { saved ->
                                                     reorderSaving = false
                                                     showQueueNotice(
                                                         context.getString(
@@ -5769,6 +5777,28 @@ private fun ZenithApp(
                                 onFailure = { UiState.Error(context.getString(R.string.failed)) },
                             )
                         }
+                    }
+                } ?: localEditable?.let { p ->
+                    {
+                        browseActions = null
+                        if (detail?.browseId != p.browseId) {
+                            viewModel.openDetail(
+                                browseId = p.browseId,
+                                title = p.title,
+                                subtitle = "",
+                                thumbnailUrl = p.coverUrl ?: p.songs.firstNotNullOfOrNull { s -> s.thumbnailUrl },
+                                type = BrowseType.PLAYLIST,
+                            )
+                        }
+                        detailSearching = false
+                        reorderTarget = UserPlaylist(
+                            playlistId = p.browseId,
+                            title = p.title,
+                            subtitle = "",
+                            thumbnailUrl = p.coverUrl,
+                        )
+                        reorderSaving = false
+                        reorderEntries = UiState.Success(p.songs)
                     }
                 },
                 onDelete = playlist?.let { p ->

@@ -207,6 +207,7 @@ open class DiscordWebSocket(
             // reaching for it here can't strand us on a dead one.
             val url = resumeGatewayUrl ?: gatewayUrl
             var connected = false
+            var stopForAuth = false
             try {
                 logger.info("Connecting to Discord Gateway at $url")
                 val session = client.webSocketSession(url) {
@@ -236,6 +237,12 @@ open class DiscordWebSocket(
                 logger.warning(
                     "Gateway closed with code: ${reason?.code}, reason: ${reason?.message}",
                 )
+                // A refused token will be refused again: stop hammering the gateway
+                // and tell the UI. The next track push (or a new token) starts a fresh loop.
+                if (reason?.code?.toInt() == AUTH_FAILED_CODE) {
+                    DiscordGatewayState.authRejected.value = true
+                    stopForAuth = true
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: Exception) {
@@ -244,7 +251,7 @@ open class DiscordWebSocket(
                 teardownSocket()
             }
 
-            if (closed) break
+            if (closed || stopForAuth) break
 
             // An attempt that died before it ever opened is evidence the resume
             // URL is stale as often as it is evidence the network is down, and
@@ -350,6 +357,7 @@ open class DiscordWebSocket(
      */
     private fun onSessionReady() {
         lastAckAt = elapsedRealtimeMs()
+        DiscordGatewayState.authRejected.value = false
         sessionReady.value = true
         val presence = lastPresence ?: return
         launch {
@@ -587,6 +595,9 @@ open class DiscordWebSocket(
         private val SESSION_WAIT_TIMEOUT = 20.seconds
 
         private val CLOSE_TIMEOUT = 2.seconds
+
+        /** Gateway close code for "authentication failed". */
+        private const val AUTH_FAILED_CODE = 4004
     }
 }
 
