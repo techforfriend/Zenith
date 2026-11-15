@@ -36,6 +36,8 @@ import com.music.zenith.ui.graphics.toImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.music.zenith.ui.graphics.ColorUtils
+import com.music.zenith.ui.graphics.argbPixels
+import com.music.zenith.ui.graphics.imageBitmapOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
@@ -183,11 +185,13 @@ fun MeshGradientBackground(
             .background(baseColor)
             .blur(blurRadius),
     ) {
+        // Most populous colours first, so they sit low where the cover fades into
+        // the backdrop; the minor ones hide behind the artwork at the top.
         val anchors = listOf(
-            Offset(0.20f, 0.25f),
+            Offset(0.25f, 0.80f),
+            Offset(0.75f, 0.75f),
             Offset(0.80f, 0.20f),
-            Offset(0.75f, 0.80f),
-            Offset(0.25f, 0.75f),
+            Offset(0.20f, 0.25f),
         )
         val speeds = listOf(1f, -0.7f, 0.85f, -1.15f)
         val drift = phase.value
@@ -294,7 +298,12 @@ fun cyclingMeshPalette(
 @Composable
 fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): MeshPalette {
     val context = LocalPlatformContext.current
-    var palette by remember(imageUrl) { mutableStateOf(MeshPalette(FallbackColors)) }
+    // Carried over from the last cover instead of reset to the stock colours, so a
+    // track change fades from one real palette to the next rather than flashing
+    // through the fallback purple and orange first.
+    val heldPalette = remember { mutableStateOf(MeshPalette(FallbackColors)) }
+    var palette by remember(imageUrl) { mutableStateOf(heldPalette.value) }
+    LaunchedEffect(palette) { heldPalette.value = palette }
 
     LaunchedEffect(imageUrl) {
         if (imageUrl == null) return@LaunchedEffect
@@ -344,11 +353,18 @@ fun artworkMeshColors(bitmap: ImageBitmap): List<Color> = paletteOf(bitmap)
  * purple. So the whole swatch list is read instead, and any shortfall is
  * derived from the art's own colours rather than borrowed.
  */
-private fun paletteOf(bitmap: ImageBitmap): List<Color> {
-    fun swatchesOf(clearFilters: Boolean): List<Color> =
-        paletteSwatches(bitmap, 24, clearFilters)
+private fun paletteOf(source: ImageBitmap): List<Color> {
+    val bitmap = source.bottomWeighted()
+    fun swatchesOf(clearFilters: Boolean): List<Color> {
+        val all = paletteSwatches(bitmap, 24, clearFilters)
             .sortedByDescending { it.population }
-            .map { Color(it.rgb) }
+        val total = all.sumOf { it.population }.coerceAtLeast(1)
+        // A colour covering only a sliver of the sleeve (a dress, a logo) must not
+        // get a whole blob; the backdrop follows what dominates the picture.
+        val minorShare = 0.10f
+        val major = all.filter { it.population >= total * minorShare }
+        return major.ifEmpty { all }.map { Color(it.rgb) }
+    }
 
     val found = swatchesOf(clearFilters = false).ifEmpty {
         // The default filter discards near-black and near-white, which on a
@@ -383,10 +399,35 @@ private fun List<Color>.expandedToFour(): List<Color> {
     val out = toMutableList()
     var step = 1
     while (out.size < 4) {
-        out += this[(out.size - size) % size].shifted(24f * step, 0.12f * step)
+        out += this[(out.size - size) % size].shifted(12f * step, 0.08f * step)
         step++
     }
     return out
+}
+
+/** The share of the sleeve, from its foot, that the palette leans on. */
+private const val BOTTOM_PALETTE_SHARE = 0.4f
+
+/** How many extra times that foot is counted, so the colours track where the cover meets the backdrop. */
+private const val BOTTOM_PALETTE_COPIES = 2
+
+/**
+ * The same picture with its bottom rows repeated, so the quantiser sees more of
+ * them. The backdrop meets the cover at its foot, so those are the colours that
+ * should join up; the rest of the sleeve still counts, just for less.
+ */
+private fun ImageBitmap.bottomWeighted(): ImageBitmap {
+    val w = width
+    val h = height
+    if (w < 2 || h < 8) return this
+    val pixels = argbPixels()
+    if (pixels.size != w * h) return this
+    val rows = (h * BOTTOM_PALETTE_SHARE).toInt().coerceIn(1, h)
+    val tail = pixels.copyOfRange((h - rows) * w, pixels.size)
+    val out = IntArray(pixels.size + tail.size * BOTTOM_PALETTE_COPIES)
+    pixels.copyInto(out)
+    repeat(BOTTOM_PALETTE_COPIES) { tail.copyInto(out, pixels.size + it * tail.size) }
+    return imageBitmapOf(out, w, h + rows * BOTTOM_PALETTE_COPIES)
 }
 
 private fun Color.shifted(hue: Float, lightness: Float): Color {
@@ -403,7 +444,7 @@ private fun Color.hsl(): FloatArray =
 private fun Color.tuned(): Color {
     val hsl = FloatArray(3)
     ColorUtils.colorToHSL(toArgb(), hsl)
-    hsl[1] = (hsl[1] * 1.35f).coerceAtMost(1f)
+    hsl[1] = (hsl[1] * 1.12f).coerceAtMost(1f)
     hsl[2] = hsl[2].coerceIn(0.28f, 0.58f)
     return Color(ColorUtils.HSLToColor(hsl))
 }

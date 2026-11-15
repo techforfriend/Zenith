@@ -100,6 +100,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -115,7 +116,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
@@ -1604,6 +1608,17 @@ internal fun Modifier.lyricsGlassDisc(
             fallbackTint = HazeTint(Color.White.copy(alpha = 0.22f)),
         )
     }
+    // Liquid Glass app (sama dengan tombol back melayang) bila tersedia;
+    // null berarti kaca mati / Reduce dynamic blur, jadi disc Haze di bawah dipakai.
+    val appGlass = LocalLyricsGlassDisc.current?.invoke(active)
+    if (appGlass != null) {
+        return this
+            .graphicsLayer {
+                scaleX = press
+                scaleY = press
+            }
+            .then(appGlass)
+    }
     return this
         .graphicsLayer {
             scaleX = press
@@ -1726,7 +1741,7 @@ internal fun TranslationToggleButton(
                     else Res.string.translate_lyrics,
                 ),
                 tint = tint,
-                modifier = Modifier.size(19.dp),
+                modifier = Modifier.size(22.dp),
             )
         }
     }
@@ -1742,11 +1757,15 @@ internal fun RomanizationToggleButton(
     hazeState: HazeState? = null,
     onProviders: () -> Unit = {},
     menuEnabled: Boolean = true,
+    /** Bila diisi dan app menyediakan popover, globe membuka popover, bukan kipas disc. */
+    menu: LyricsGlobeMenu? = null,
 ) {
     // The globe is a menu now: one tap fans two glass discs out beside it —
     // romanize, and change the lyrics provider. It folds back after a choice,
     // a second tap on the globe, or a few idle seconds.
     var expanded by remember { mutableStateOf(false) }
+    val popoverMode = menu != null
+    LaunchedEffect(menuEnabled) { if (!menuEnabled) menu?.open = false }
     LaunchedEffect(expanded, menuEnabled) {
         if (!menuEnabled) {
             expanded = false
@@ -1757,7 +1776,7 @@ internal fun RomanizationToggleButton(
     }
     val loading = state is LyricsTranslationUiState.Loading
     val romanizeActive = showingRomanization || loading
-    val globeActive = expanded || romanizeActive
+    val globeActive = expanded || romanizeActive || (popoverMode && menu?.open == true)
     val globeTint = if (globeActive) LocalPlayerTint.current else LocalPlayerTint.current.copy(alpha = 0.78f)
     val romanizeTint = when {
         !enabled || state is LyricsTranslationUiState.SameLanguage -> LocalPlayerTint.current.copy(alpha = 0.42f)
@@ -1771,12 +1790,15 @@ internal fun RomanizationToggleButton(
         Box(
             modifier = Modifier
                 .size(34.dp)
+                .onGloballyPositioned { menu?.anchor = it.boundsInWindow() }
                 .lyricsGlassDisc(active = globeActive, interaction = globeInteraction, hazeState = hazeState)
                 .clickable(
                     enabled = menuEnabled,
                     interactionSource = globeInteraction,
                     indication = null,
-                ) { expanded = !expanded },
+                ) {
+                    if (popoverMode && menu != null) menu.open = !menu.open else expanded = !expanded
+                },
             contentAlignment = Alignment.Center,
         ) {
             if (loading && !expanded) {
@@ -1790,7 +1812,7 @@ internal fun RomanizationToggleButton(
                     imageVector = Icons.Rounded.Language,
                     contentDescription = null,
                     tint = globeTint,
-                    modifier = Modifier.size(19.dp),
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -1853,6 +1875,138 @@ internal fun RomanizationToggleButton(
                         tint = LocalPlayerTint.current.copy(alpha = 0.78f),
                         modifier = Modifier.size(19.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+/** State popover menu globe: terbuka atau tidak, dan bounds tombol globe di window. */
+@Stable
+internal class LyricsGlobeMenu {
+    var open by mutableStateOf(false)
+    var anchor by mutableStateOf<Rect?>(null)
+}
+
+/**
+ * Menggambar popover menu globe lewat [LocalLyricsMenuPopover]. Dipasang di
+ * container yang cukup besar (sibling tombol), bukan di dalam slot tombol.
+ * Tanpa pengait (desktop) tidak menggambar apa pun.
+ */
+@Composable
+internal fun LyricsGlobeMenuHost(
+    menu: LyricsGlobeMenu,
+    state: LyricsTranslationUiState,
+    showingRomanization: Boolean,
+    enabled: Boolean,
+    onRomanize: () -> Unit,
+    onProviders: () -> Unit,
+    hazeState: dev.chrisbanes.haze.HazeState? = null,
+) {
+    val popover = LocalLyricsMenuPopover.current
+    val romanizeLabel = stringResource(
+        if (showingRomanization) Res.string.show_original_lyrics else Res.string.romanize_lyrics,
+    )
+    val providerLabel = stringResource(Res.string.lyrics_provider_current)
+    val romanizeEnabled = enabled && state !is LyricsTranslationUiState.SameLanguage
+    val entries = listOf(
+        LyricsMenuEntry(romanizeLabel, Icons.Rounded.SortByAlpha, romanizeEnabled) {
+            menu.open = false
+            onRomanize()
+        },
+        LyricsMenuEntry(providerLabel, Icons.Rounded.SwapHoriz, true) {
+            menu.open = false
+            onProviders()
+        },
+    )
+    if (popover != null) {
+        popover(menu.open, menu.anchor, { menu.open = false }, entries, hazeState)
+    } else {
+        LyricsGlobeMenuFallback(menu, entries)
+    }
+}
+
+/**
+ * Popover bawaan bila app tidak menyediakan [LocalLyricsMenuPopover] (desktop):
+ * tumbuh dari tombol globe dengan pegas, lalu menyusut kembali saat ditutup.
+ */
+@Composable
+private fun LyricsGlobeMenuFallback(menu: LyricsGlobeMenu, entries: List<LyricsMenuEntry>) {
+    var rootOrigin by remember { mutableStateOf(Offset.Zero) }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
+    val origin = androidx.compose.ui.graphics.TransformOrigin(0.12f, 1f)
+    Box(Modifier.fillMaxSize().onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
+        if (menu.open) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { menu.open = false },
+            )
+        }
+        val anchor = menu.anchor
+        if (anchor != null) {
+            AnimatedVisibility(
+                visible = menu.open,
+                enter = fadeIn(tween(140)) + androidx.compose.animation.scaleIn(
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = 0.62f,
+                        stiffness = 380f,
+                    ),
+                    initialScale = 0.6f,
+                    transformOrigin = origin,
+                ),
+                exit = fadeOut(tween(110)) + androidx.compose.animation.scaleOut(
+                    animationSpec = tween(140),
+                    targetScale = 0.7f,
+                    transformOrigin = origin,
+                ),
+                modifier = Modifier.layout { measurable, constraints ->
+                    val p = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                    layout(p.width, p.height) {
+                        p.place(
+                            (anchor.left - rootOrigin.x).toInt(),
+                            (anchor.top - rootOrigin.y - 10.dp.toPx()).toInt() - p.height,
+                        )
+                    }
+                },
+            ) {
+                Column(
+                    Modifier
+                        .width(240.dp)
+                        .background(Color(0xCC1C1C1E), shape)
+                        .padding(vertical = 6.dp),
+                ) {
+                    entries.forEach { entry ->
+                        val alpha = if (entry.enabled) 1f else 0.4f
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    enabled = entry.enabled,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = entry.onClick,
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = entry.icon,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = alpha),
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = entry.label,
+                                color = Color.White.copy(alpha = alpha),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -2937,7 +3091,10 @@ internal fun LyricsPanel(
             followLine = followLine,
             providerFooter = providerFooter,
             onProviderFooterClick = onProviderFooterClick,
-            modifier = Modifier.fillMaxSize(),
+            // Daftar ini direkam sebagai sumber kaca; tombol bulat (sibling)
+            // membiaskannya. Tombol tidak boleh jadi anak yang direkam.
+            modifier = LocalLyricsGlassSource.current?.invoke(Modifier.fillMaxSize())
+                ?: Modifier.fillMaxSize(),
         )
         if (returnShown > 0.01f) {
             Box(

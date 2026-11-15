@@ -130,5 +130,47 @@
     "block": 2,
     "layer": "not_found_in_project",
     "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/icons/ZenithIcons.kt"
+  },
+  {
+    "timestamp": "2026-11-14 18:00:37",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/MotionLyricsHook.kt"
+  },
+  {
+    "timestamp": "2026-11-14 18:00:40",
+    "block": 2,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/ui/components/LyricsGlassDisc.kt"
+  },
+  {
+    "timestamp": "2026-11-14 18:00:41",
+    "block": 3,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/ui/components/LyricsGlassDisc.kt"
+  },
+  {
+    "timestamp": "2026-11-14 18:00:41",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/MainActivity.kt"
+  },
+  {
+    "timestamp": "2026-11-14 18:00:42",
+    "block": 3,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/MainActivity.kt"
+  },
+  {
+    "timestamp": "2026-11-15 05:05:46",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/NowPlayingScreen.kt"
+  },
+  {
+    "timestamp": "2026-11-15 05:22:26",
+    "block": 1,
+    "layer": "hapus_file_not_found",
+    "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/ArtworkDissolve.kt"
   }
 ]

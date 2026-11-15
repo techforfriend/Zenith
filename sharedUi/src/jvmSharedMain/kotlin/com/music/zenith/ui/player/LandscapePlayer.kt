@@ -751,10 +751,13 @@ internal fun LandscapeLyricsPane(
     pickBar: @Composable () -> Unit = {},
     romanizationToggle: @Composable () -> Unit,
     translationToggle: @Composable () -> Unit,
+    /** Digambar di atas seluruh pane, untuk popover menu globe. */
+    overlay: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
     panel: @Composable (Modifier) -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -806,5 +809,7 @@ internal fun LandscapeLyricsPane(
             Box(Modifier.size(34.dp)) { if (hasLyrics) translationToggle() }
         }
         }
+    }
+    overlay()
     }
 }

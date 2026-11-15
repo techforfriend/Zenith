@@ -962,7 +962,6 @@ private val BOTTOM_ICON_SIZE = 26.dp
  * little over half strength so the artwork still colours it.
  */
 private val BOTTOM_ACTIVE_TILE_SIZE = 35.dp
-private val BOTTOM_ACTIVE_TILE_CORNER = 7.dp
 private const val BOTTOM_ACTIVE_TILE_ALPHA = 0.62f
 
 /**
@@ -1385,7 +1384,7 @@ private fun BottomGlyph(
                         .drawWithContent {
                             drawContent()
                             val side = BOTTOM_ACTIVE_TILE_SIZE.toPx()
-                            val corner = BOTTOM_ACTIVE_TILE_CORNER.toPx()
+                            val corner = side / 2f
                             drawRoundRect(
                                 color = tileColor,
                                 topLeft = Offset((size.width - side) / 2f, (size.height - side) / 2f),

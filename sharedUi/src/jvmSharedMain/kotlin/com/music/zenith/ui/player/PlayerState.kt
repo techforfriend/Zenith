@@ -248,6 +248,12 @@ internal class ArtworkDissolve(first: PlayerArtwork) {
      */
     internal var lastClipShowing = false
 
+    /**
+     * Mix/crossfade dimulai selagi klip canvas masih tampil: klip itu sendiri yang
+     * memudar ke cover tujuan, bukan lewat thumbnail lagunya sendiri dulu.
+     */
+    internal var fromClip by mutableStateOf(false)
+
     /** Indeks antrean pada komposisi terakhir. Dibaca saat [retarget]. */
     internal var lastQueueIndex = -1
 
@@ -397,6 +403,7 @@ internal class ArtworkDissolve(first: PlayerArtwork) {
     }
 
     internal fun finish() {
+        fromClip = false
         cutHold = false
         progress = 1f
         outgoing = null
@@ -492,6 +499,9 @@ internal fun rememberArtworkDissolve(
         // (fullFrame) dan memudarkannya ke layar lagu baru. Sleeve tidak boleh
         // ikut menyapu thumbnail lagu lama di bawahnya, kalau tidak thumbnail
         // lagu 1 muncul di lagu 2 alih-alih gambar terakhir canvas.
+        if (mixing && dissolve.lastClipShowing && dissolve.frame == null && dissolve.fullFrame == null) {
+            dissolve.fromClip = true
+        }
         dissolve.retarget(
             art,
             // Saat mix mulai, cover sudah menuju lagu tujuan padahal clip canvas

@@ -26,6 +26,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.zenith.data.settings.AppSettings
+import com.music.zenith.data.settings.GlassClarity
+import com.music.zenith.data.settings.GlassCustom
 import com.music.zenith.ui.components.backdrop.Backdrop
 import com.music.zenith.ui.components.backdrop.backdrops.LayerBackdrop
 import com.music.zenith.ui.components.backdrop.drawBackdrop
@@ -224,18 +226,29 @@ fun Modifier.liquidGlass(
     surfaceTint: Color? = null,
     /** False keeps the blur, tint and rim but skips the lens that bends what is behind. */
     refract: Boolean = true,
+    /** Sampled in place of [LocalAppBackdrop], for glass over something the page behind is not. */
+    source: Backdrop? = null,
+    /** Replaces the app-wide glass clarity for this surface only, when set. */
+    clarityOverride: GlassClarity? = null,
+    /** Replaces the app-wide custom glass values for this surface only, when set. */
+    customOverride: GlassCustom? = null,
+    /** Replaces the app-wide frosted setting for this surface only, when set. */
+    frostedOverride: Boolean? = null,
 ): Modifier {
     if (!isGlassSupported()) return this
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
-    val frosted by AppSettings.frostedGlass.collectAsStateWithLifecycle()
-    val clarity by AppSettings.glassClarity.collectAsStateWithLifecycle()
-    val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
+    val appFrosted by AppSettings.frostedGlass.collectAsStateWithLifecycle()
+    val appClarity by AppSettings.glassClarity.collectAsStateWithLifecycle()
+    val appCustom by AppSettings.glassCustom.collectAsStateWithLifecycle()
+    val frosted = frostedOverride ?: appFrosted
+    val clarity = clarityOverride ?: appClarity
+    val custom = customOverride ?: appCustom
     if (reduceDynamicBlur) {
         return background(MaterialTheme.colorScheme.surface, shape)
             .border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, shape)
     }
-    val backdrop = LocalAppBackdrop.current
-    val exportedBackdrop = LocalGlassExport.current
+    val backdrop = source ?: LocalAppBackdrop.current
+    val exportedBackdrop = if (source == null) LocalGlassExport.current else null
     val density = LocalDensity.current
     val resolution = (clarity.resolutionScale * custom.quality).coerceIn(0.2f, 1f)
     val blurPx = with(density) { BLUR_RADIUS_DP.dp.toPx() } * resolution * clarity.blurScale * custom.blur

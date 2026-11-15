@@ -22,8 +22,11 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.LocalPlatformContext
@@ -100,9 +103,19 @@ fun rememberFullArtworkBlurImage(
     imageUrl: String?,
     artPx: Int = CARD_ART_PX,
     prepare: Boolean = true,
+    /** A frame off the playing clip; when set, the backdrop is its blur instead of the still's. */
+    liveFrame: ImageBitmap? = null,
 ): ImageBitmap? {
     val context = LocalPlatformContext.current
     var image by remember { mutableStateOf(imageUrl?.let(fullBlurCache::get)) }
+
+    // The clip's own colours, so the light under the cover follows the clip. Small
+    // frame, blurred off the main thread; the Crossfade in the backdrop eases it in.
+    LaunchedEffect(liveFrame) {
+        val frame = liveFrame ?: return@LaunchedEffect
+        if (isLikelyBlackFrame(frame)) return@LaunchedEffect
+        image = withContext(Dispatchers.Default) { frame.boxBlurred(FULL_BLUR_PASSES) }
+    }
 
     LaunchedEffect(imageUrl, artPx, prepare) {
         imageUrl?.let(fullBlurCache::get)?.let {
@@ -180,27 +193,69 @@ fun FullArtworkBlurBackdrop(
         ) {
             // Blur baru yang baru selesai di tengah dissolve ikut dilebur di sini,
             // bukan ditukar mendadak di atas lapisan yang sedang naik.
-            Crossfade(
-                targetState = image,
-                animationSpec = tween(320, easing = FastOutSlowInEasing),
-                label = "preparedBackdropImage",
-            ) { bitmap ->
-                if (bitmap != null) {
-                    val painter = remember(bitmap, seam) { SeamAlignedBlurPainter(bitmap, seam) }
-                    Image(
-                        painter = painter,
-                        contentDescription = null,
-                        contentScale = ContentScale.FillBounds,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+            // The new blur is laid over the last one at rising alpha while the last
+            // one stays opaque beneath. A Crossfade fades both out and in together, so
+            // midway neither fully covers the dark backdrop and every refresh dipped
+            // the light: a dark pulse each second while a clip plays.
+            var base by remember { mutableStateOf(image) }
+            var incoming by remember { mutableStateOf<ImageBitmap?>(null) }
+            val incomingAlpha = remember { Animatable(0f) }
+            LaunchedEffect(image) {
+                val next = image ?: return@LaunchedEffect
+                if (next === base || next === incoming) return@LaunchedEffect
+                if (base == null) {
+                    base = next
+                    return@LaunchedEffect
                 }
+                incoming?.let { base = it }
+                incoming = next
+                incomingAlpha.snapTo(0f)
+                incomingAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+                base = next
+                incoming = null
+            }
+            base?.let { bitmap ->
+                val painter = remember(bitmap, seam) { SeamAlignedBlurPainter(bitmap, seam) }
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            incoming?.let { bitmap ->
+                val painter = remember(bitmap, seam) { SeamAlignedBlurPainter(bitmap, seam) }
+                Image(
+                    painter = painter,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize().graphicsLayer { alpha = incomingAlpha.value },
+                )
             }
         }
 
         // Everything on this is white: the lyrics, the queue and the main
         // player's controls. Preserve the cover's colour and layout, but keep
         // bright sleeves from lowering contrast.
-        Canvas(Modifier.fillMaxSize()) { drawRect(brush = FullArtworkScrim) }
+        Canvas(Modifier.fillMaxSize()) {
+            val seamY = seam().coerceIn(0f, size.height)
+            if (seamY > 1f && seamY < size.height - 1f) {
+                // Clear around the seam so the sharp banner dissolves into an
+                // undarkened blur; the shade only deepens below it.
+                val f = seamY / size.height
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0f),
+                        f * 0.6f to Color.Black.copy(alpha = 0f),
+                        f to Color.Black.copy(alpha = 0.10f),
+                        (f + 1f) / 2f to Color.Black.copy(alpha = 0.28f),
+                        1f to Color.Black.copy(alpha = 0.44f),
+                    ),
+                )
+            } else {
+                drawRect(brush = FullArtworkScrim)
+            }
+        }
     }
 }
 
@@ -507,6 +562,23 @@ private class SeamAlignedBlurPainter(
                 dstSize = IntSize(w.roundToInt(), (h - seamY).roundToInt().coerceAtLeast(1)),
                 filterQuality = FilterQuality.Low,
             )
+            // Mirror: the blurred cover is reflected across the seam, so the area
+            // below it continues the picture instead of a stretched colour band.
+            // Still the same live-blurred bitmap, so it follows the clip.
+            val mirrorH = minOf(h - seamY, coverH)
+            val mirrorSrcH = (mirrorH / scale).roundToInt().coerceIn(1, srcH)
+            clipRect(top = seamY) {
+                withTransform({ scale(1f, -1f, Offset(0f, seamY)) }) {
+                    drawImage(
+                        image = image,
+                        srcOffset = IntOffset(srcX, srcY + srcH - mirrorSrcH),
+                        srcSize = IntSize(srcW, mirrorSrcH),
+                        dstOffset = IntOffset(0, (seamY - mirrorH).roundToInt()),
+                        dstSize = IntSize(w.roundToInt(), mirrorH.roundToInt().coerceAtLeast(1)),
+                        filterQuality = FilterQuality.Low,
+                    )
+                }
+            }
         }
     }
 }
@@ -562,7 +634,10 @@ private fun boxBlurPass(
         var green = 0
         var blue = 0
         fun pixel(at: Int): Int {
-            val position = at.coerceIn(0, major - 1)
+            // Mirror at the edges instead of clamping, so the blur does not
+            // smear the outermost row/column of the cover.
+            val reflected = if (at < 0) -at - 1 else if (at >= major) 2 * major - 1 - at else at
+            val position = reflected.coerceIn(0, major - 1)
             return if (horizontal) source[fixed * width + position]
             else source[position * width + fixed]
         }
