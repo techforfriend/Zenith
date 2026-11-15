@@ -1844,6 +1844,10 @@ fun NowPlayingScreen(
     }
     val clipFullscreen = spotifyCanvasOnPhone &&
         heroClipMounted?.source == CanvasSource.SPOTIFY
+    // A full-screen Spotify clip stays on screen, blurred live, for the whole of a
+    // panel's opening and closing; its cover only fades in at the header and out
+    // again as the panel leaves.
+    val clipHeldForPanels = clipFullscreen && liveCanvasPanels && collapseStarted
     val clipPortrait = !clipFullscreen &&
         heroClipMounted != null && canvasAspect > 0f && canvasAspect < 1f
 
@@ -3018,7 +3022,7 @@ fun NowPlayingScreen(
                                     (dockMoving && !clipFullscreen && !(liveCanvasPanels && (lyricsOpen || queueOpen)))
                                 ) 0f
                                 else (
-                                    if (liveCanvasPanels && (lyricsOpen || queueOpen)) 1f
+                                    if (liveCanvasPanels && (lyricsOpen || queueOpen || clipHeldForPanels)) 1f
                                     else if (clipFullscreen) {
                                         // Spotify layar penuh: frame melebur lebih awal langsung
                                         // ke backdrop, tanpa bercampur dengan cover statis.
@@ -4106,10 +4110,15 @@ fun NowPlayingScreen(
                                     // again by the time it unmounts.
                                     // Whole while the clip's still is standing in for it.
                                     alpha = (
-                                        if (liveCanvasPanels && (lyricsOpen || queueOpen)) {
-                                            // The clip is blurred live behind the panel; the sleeve
-                                            // is whole from the first frame and shrinks into the header.
-                                            1f
+                                        if (liveCanvasPanels && (lyricsOpen || queueOpen || clipHeldForPanels)) {
+                                            // The clip is blurred live behind the panel, both ways. A
+                                            // full-screen Spotify clip's cover does not fly: it fades in
+                                            // at the header on the way in and out again on the way back.
+                                            if (clipFullscreen) {
+                                                smootherStep(((p() - 0.75f) / 0.25f).coerceIn(0f, 1f))
+                                            } else {
+                                                1f
+                                            }
                                         } else if (stillTakesOver()) 1f
                                         else if (heroClip != null) {
                                             if (clipFullscreen && canvasRendered && !clipDimmed) {
