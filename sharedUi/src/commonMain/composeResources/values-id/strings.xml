@@ -25,7 +25,7 @@
     <string name="queue_info_autoplay_title">AutoPlay</string>
     <string name="queue_info_autoplay_body">Terus memutar musik serupa saat antrean habis.</string>
     <string name="queue_info_automix_title">Automix (Beta)</string>
-    <string name="queue_info_automix_body">Menyatukan lagu dengan transisi ala DJ yang diselaraskan beat, bukan jeda biasa.</string>
+    <string name="queue_info_automix_body">Menyatukan lagu dengan transisi ala DJ.</string>
 
     <string name="autoplay_queue_description">Musik serupa, dipilih untuk diputar berikutnya</string>
     <string name="bit_depth">%1$d-bit</string>

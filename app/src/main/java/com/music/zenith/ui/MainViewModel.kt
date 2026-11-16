@@ -168,6 +168,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val topPicksLoading: StateFlow<Boolean> = _topPicksLoading.asStateFlow()
     private var topPicksJob: Job? = null
 
+    /** Top Picks has been built during this app session; the first open of a session always rebuilds it. */
+    private var topPicksBuiltThisSession = false
+
     private val _explore = MutableStateFlow<UiState<List<MoodGenreSection>>>(UiState.Loading)
     val explore: StateFlow<UiState<List<MoodGenreSection>>> = _explore.asStateFlow()
 
@@ -2032,7 +2035,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } else if (!rebuild) {
                 _topPicks.value = null
             }
-            if (!rebuild && stored?.day == slot) {
+            if (!rebuild && topPicksBuiltThisSession && stored?.day == slot) {
                 _topPicksLoading.value = false
                 return@launch
             }
@@ -2046,6 +2049,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             _topPicks.value = picks
             topPicksSlotShown = slot
+            topPicksBuiltThisSession = true
             withContext(Dispatchers.IO) {
                 runCatching {
                     file.writeText(TopPicks.encode(TopPicks.Stored(identity, slot, picks, AppleArtistPhotos.snapshot())))
@@ -2123,15 +2127,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Speed dial built from what this device has played most, best first. Needs
      * a few songs with a YouTube id and a cover to fill a grid; null before that.
      */
+    /** How far down the most-played chart Speed dial draws from. */
+    private val SPEED_DIAL_POOL = 80
+
+    /**
+     * [count] of [ranked] at random, the higher a song sits the likelier it is,
+     * returned in shuffled order so Speed dial differs on every build.
+     */
+    private fun <T> weightedPick(ranked: List<T>, count: Int): List<T> {
+        if (ranked.size <= count) return ranked.shuffled()
+        val pool = ranked.withIndex().toMutableList()
+        val picked = mutableListOf<T>()
+        while (picked.size < count && pool.isNotEmpty()) {
+            val weights = pool.map { (ranked.size - it.index).toDouble() }
+            var roll = kotlin.random.Random.nextDouble() * weights.sum()
+            val index = weights.indexOfFirst { roll -= it; roll <= 0 }.coerceAtLeast(0)
+            picked += pool.removeAt(index).value
+        }
+        return picked.shuffled()
+    }
+
     private suspend fun localSpeedDialShelf(): HomeShelf? {
         val youtubeId = Regex("^[A-Za-z0-9_-]{11}$")
-        val songs = runCatching { ListeningStats.summary(ReplayPeriod.ALL_TIME) }
+        val pool = runCatching { ListeningStats.summary(ReplayPeriod.ALL_TIME) }
             .getOrNull()?.songs.orEmpty()
             .map { it.song }
             .filter { !it.thumbnailUrl.isNullOrBlank() && youtubeId.matches(it.videoId) }
             .distinctBy { it.videoId }
-            .take((19..26).random())
-        if (songs.size < 3) return null
+            .take(SPEED_DIAL_POOL)
+        if (pool.size < 3) return null
+        val songs = weightedPick(pool, (19..26).random())
         return HomeShelf(
             title = com.music.zenith.data.model.LOCAL_SPEED_DIAL_TITLE,
             items = songs.map { song ->

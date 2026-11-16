@@ -2950,10 +2950,15 @@ fun NowPlayingScreen(
                     (lyricsOpen || queueOpen) && !liveCanvasPanels &&
                     !(legacyMesh && canvas.source != CanvasSource.SPOTIFY)
                 // Blur statis dari frame terakhir canvas: tetap tampil selama panel terbuka.
-                val canvasPanelFrameBlur = rememberFullArtworkBlurImage(
-                    imageUrl = null,
-                    liveFrame = canvasPanelFrame,
-                )
+                // Di-key per frame beku: tanpa key, blur dari pembukaan panel sebelumnya
+                // masih tersimpan dan tampil dulu (frame basi), lalu dilebur ke blur baru.
+                // Itu yang terlihat sebagai perubahan kecerahan dan lompatan.
+                val canvasPanelFrameBlur = androidx.compose.runtime.key(canvasPanelFrame) {
+                    rememberFullArtworkBlurImage(
+                        imageUrl = null,
+                        liveFrame = canvasPanelFrame,
+                    )
+                }
                 // Spotify layar penuh, live blur off: alas panel HANYA blur frame beku
                 // klipnya sendiri. Cover lagu tidak boleh tampil sama sekali, juga bukan
                 // sebagai cadangan selagi blur frame belum siap.
@@ -2977,6 +2982,20 @@ fun NowPlayingScreen(
                         )
                     },
                     label = "canvasPanelMesh",
+                )
+                // Live blur off: begitu blur frame beku siap, klip melebur ke sana dengan
+                // jamnya sendiri, bukan mengikuti progres panel (yang bisa sudah jauh dan
+                // membuat klip hilang mendadak). Saat panel menutup, p() yang memimpin.
+                val spotifyFrameHandoff by animateFloatAsState(
+                    targetValue = if (
+                        spotifyFrameOnly && (lyricsOpen || queueOpen) && canvasPanelFrameBlur != null
+                    ) 0f else 1f,
+                    animationSpec = if (spotifyFrameOnly && (lyricsOpen || queueOpen)) {
+                        tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                    } else {
+                        snap()
+                    },
+                    label = "spotifyFrameHandoff",
                 )
                 val legacyMeshBackdrop = !tabletArtworkBackdrop && !spotifyCanvasPresentation &&
                     legacyMesh && !canvasPanelMesh
@@ -3088,9 +3107,7 @@ fun NowPlayingScreen(
                                         // ke backdrop, tanpa bercampur dengan cover statis.
                                         // Live blur off: klip bertahan utuh sampai blur
                                         // frame beku-nya siap, lalu melebur ke sana.
-                                        if (spotifyFrameOnly && (lyricsOpen || queueOpen) &&
-                                            canvasPanelFrameBlur == null
-                                        ) 1f
+                                        if (spotifyFrameOnly && (lyricsOpen || queueOpen)) spotifyFrameHandoff
                                         else 1f - smootherStep(((p() - 0.05f) / 0.3f).coerceIn(0f, 1f))
                                     } else (1f - 2f * p()).coerceIn(0f, 1f)
                                     ) * dockFade() * clipMixFade.value
@@ -3147,7 +3164,15 @@ fun NowPlayingScreen(
                                 )
                                 .drawWithContent {
                                     drawContent()
-                                    val dimAmount = panelBlur()
+                                    // Live blur off: klip beku menggelap ke tingkat backdrop selagi
+                                    // melebur, jadi tidak ada lonjakan kecerahan saat bertukar.
+                                    val dimAmount = if (liveCanvasPanels) {
+                                        panelBlur()
+                                    } else if (spotifyFrameOnly && (lyricsOpen || queueOpen)) {
+                                        1f - spotifyFrameHandoff
+                                    } else {
+                                        0f
+                                    }
                                     if (dimAmount > 0f) {
                                         drawRect(Color.Black.copy(alpha = CANVAS_PANEL_DIM * dimAmount))
                                     }
@@ -3448,7 +3473,13 @@ fun NowPlayingScreen(
                         androidx.compose.foundation.Canvas(
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha * headerReveal.value }
+                                .graphicsLayer {
+                                    alpha = (1f - p()) * spotifyChromeAlpha * headerReveal.value
+                                    // Alpha per-draw tanpa layer offscreen: ujung bawah chevron
+                                    // melewati tinggi strip, dan layer offscreen memotongnya
+                                    // selama fade in.
+                                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                                }
                                 // Padding setelah clickable: area ketuknya melebar melewati
                                 // gambar chevron, tapi tetap di dalam tinggi strip.
                                 .clickable(
@@ -3460,26 +3491,27 @@ fun NowPlayingScreen(
                                     indication = null,
                                     onClick = onDismissPlayer,
                                 )
-                                .padding(start = PLAYER_GUTTER, end = 24.dp, top = 10.dp, bottom = 4.dp)
+                                .padding(start = PLAYER_GUTTER, end = 24.dp, top = 28.dp, bottom = 4.dp)
                                 .size(width = 20.dp, height = 11.dp),
                         ) {
-                            val stroke = 2.2.dp.toPx()
-                            // Sudut siku 90 derajat: lengan sama panjang secara horizontal dan vertikal.
-                            val arm = 8.dp.toPx()
-                            val cx = arm + stroke / 2f
-                            val top = stroke / 2f
+                            val stroke = 2.6.dp.toPx()
+                            // Sudut lebih tumpul (lengan lebar, tinggi pendek) supaya tidak lancip.
+                            val armX = 8.dp.toPx()
+                            val armY = 5.dp.toPx()
+                            val cx = size.width / 2f
+                            val top = stroke / 2f + 1.dp.toPx()
                             val chevron = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(cx - arm, top)
-                                lineTo(cx, top + arm)
-                                lineTo(cx + arm, top)
+                                moveTo(cx - armX, top)
+                                lineTo(cx, top + armY)
+                                lineTo(cx + armX, top)
                             }
                             drawPath(
                                 path = chevron,
                                 color = Color.White.copy(alpha = 0.92f),
                                 style = androidx.compose.ui.graphics.drawscope.Stroke(
                                     width = stroke,
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Butt,
-                                    join = androidx.compose.ui.graphics.StrokeJoin.Miter,
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                    join = androidx.compose.ui.graphics.StrokeJoin.Round,
                                 ),
                             )
                         }
@@ -3879,8 +3911,19 @@ fun NowPlayingScreen(
                             val thumb = Rect(Offset(fromStart(0f, thumbW), 0f), Size(thumbW, thumbH))
                             lerp(video, thumb, p())
                         }
+                        // Spotify layar penuh: cover tidak bergerak/terbang ke header, ia
+                        // langsung diam di posisi header dan hanya fade in/out di tempat.
+                        fun spotifyCoverInPlace(): Boolean =
+                            clipFullscreen && (lyricsOpen || queueOpen || collapseStarted)
                         fun sleeveRect(): Rect {
                             val card = cardRect()
+                            if (spotifyCoverInPlace()) {
+                                val inPlaceSide = with(density) { THUMB_SIZE.roundToPx().toFloat() }
+                                return Rect(
+                                    Offset(fromStart(0f, inPlaceSide), 0f),
+                                    Size(inPlaceSide, inPlaceSide),
+                                )
+                            }
                             val share = bannerShare()
                             if (share == 0f) return card
                             val banner = with(density) {
@@ -4192,10 +4235,11 @@ fun NowPlayingScreen(
                                     val idle = cardScale()
                                     val t = dockT()
                                     val open = idle + (1f - idle) * share
-                                    val scale = if (t >= 1f) open else 1f + (open - 1f) * t
+                                    val inPlace = spotifyCoverInPlace()
+                                    val scale = if (inPlace) 1f else if (t >= 1f) open else 1f + (open - 1f) * t
                                     scaleX = scale
                                     scaleY = scale
-                                    translationX = swipeSettle.value * (1f - p()) * (1f - share) * t
+                                    translationX = if (inPlace) 0f else swipeSettle.value * (1f - p()) * (1f - share) * t
                                 }
                                 // Haze must observe the drawable layer itself, the
                                 // banner included — a source on the surrounding layout
@@ -4214,7 +4258,7 @@ fun NowPlayingScreen(
                                             // full-screen Spotify clip's cover does not fly: it fades in
                                             // at the header on the way in and out again on the way back.
                                             if (clipFullscreen) {
-                                                smootherStep(((p() - 0.75f) / 0.25f).coerceIn(0f, 1f))
+                                                smootherStep(((p() - 0.4f) / 0.6f).coerceIn(0f, 1f))
                                             } else {
                                                 1f
                                             }
@@ -4222,17 +4266,9 @@ fun NowPlayingScreen(
                                             // Live blur off: the cover behaves the same as with
                                             // live blur on. It does not fly with the panel, it only
                                             // fades in at the header and out again on the way back.
-                                            smootherStep(((p() - 0.75f) / 0.25f).coerceIn(0f, 1f))
+                                            smootherStep(((p() - 0.4f) / 0.6f).coerceIn(0f, 1f))
                                         } else if (stillTakesOver()) 1f
-                                        else if (heroClip != null) {
-                                            if (clipFullscreen && canvasRendered && !clipDimmed) {
-                                                // Cover statis baru muncul setelah frame klip
-                                                // melebur, saat ia sudah menyusut ke header.
-                                                smootherStep(((p() - 0.3f) / 0.2f).coerceIn(0f, 1f))
-                                            } else {
-                                                1f - canvasCover.floatValue
-                                            }
-                                        }
+                                        else if (heroClip != null) 1f - canvasCover.floatValue
                                         else 1f
                                         ) *
                                         // Selama frame Spotify Canvas lama masih menutup

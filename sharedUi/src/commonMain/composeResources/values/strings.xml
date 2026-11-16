@@ -25,7 +25,7 @@
     <string name="queue_info_autoplay_title">AutoPlay</string>
     <string name="queue_info_autoplay_body">Keeps similar music playing when your queue runs out.</string>
     <string name="queue_info_automix_title">Automix (Beta)</string>
-    <string name="queue_info_automix_body">Blends songs with DJ-style, beat-matched transitions instead of a plain gap.</string>
+    <string name="queue_info_automix_body">Blends songs with beat-matched DJ transitions.</string>
 
     <string name="autoplay_queue_description">Similar music, selected to play next</string>
     <string name="bit_depth">%1$d-bit</string>

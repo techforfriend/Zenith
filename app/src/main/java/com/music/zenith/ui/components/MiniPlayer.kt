@@ -33,9 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +69,8 @@ import com.music.zenith.playback.MusicOnlyPlayback
 import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.sharedui.resources.Res as SharedRes
 import com.music.zenith.sharedui.resources.ic_player_next
+import com.music.zenith.sharedui.resources.ic_player_pause
+import com.music.zenith.sharedui.resources.ic_player_play
 import com.music.zenith.ui.components.thumbnailBorder
 import com.music.zenith.ui.haptics.Haptic
 import com.music.zenith.ui.haptics.rememberHaptics
@@ -481,6 +481,13 @@ fun MiniPlayer(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
+    // Solid cover over the frost while the player is up; it fades out after the
+    // player closes so the bar's colour eases in instead of popping.
+    val surfaceCover by animateFloatAsState(
+        targetValue = if (dock?.panelShown == true) 1f else 0f,
+        animationSpec = tween(durationMillis = 450),
+        label = "miniSurfaceCover",
+    )
     // percent rather than a dp figure, so the corner stays exactly half the
     // height if the row's contents ever change it — which is what keeps a pill
     // a pill instead of a rounded rectangle. Same idiom as [FloatingBottomBar]
@@ -523,6 +530,12 @@ fun MiniPlayer(
             // its own confirmation. The glyphs on it still buzz.
             .clickable(onClick = onExpand),
     ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer { alpha = surfaceCover }
+                .background(MaterialTheme.colorScheme.surface),
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -625,6 +638,13 @@ fun MiniPlayer(
 private val NEXT_GLYPH_SIZE = 25.dp
 
 /**
+ * The full player's play/pause drawables sit in a 960 viewport with generous
+ * padding, so they are drawn a little larger than the old Material glyph to
+ * keep the same visible size in the bar.
+ */
+private const val MINI_PLAY_PAUSE_SCALE = 1.15f
+
+/**
  * The mini players' play/pause button, with the full player's feel: the glyph
  * shrinks under the finger and springs back, and play and pause morph into
  * each other (scale + fade) instead of swapping in one frame. Shared by the
@@ -686,11 +706,13 @@ internal fun MiniPlayerPlayPauseButton(
             label = "miniPlayPause",
         ) { playing ->
             Icon(
-                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                painter = painterResource(
+                    if (playing) SharedRes.drawable.ic_player_pause else SharedRes.drawable.ic_player_play,
+                ),
                 contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
                 tint = tint,
                 modifier = Modifier
-                    .size(glyphSize)
+                    .requiredSize(glyphSize * MINI_PLAY_PAUSE_SCALE)
                     .graphicsLayer {
                         scaleX = pressScale.value
                         scaleY = pressScale.value

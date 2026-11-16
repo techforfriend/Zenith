@@ -41,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -355,6 +357,53 @@ fun FloatingBottomBar(
                 )
             }
         }
+
+        // Lapisan ikon aktif: baris yang sama persis, berwarna aktif, tetapi hanya
+        // terlihat di dalam bentuk indikator yang bergerak. Ikon berubah warna
+        // tepat bagian yang disentuh indikator, bukan saat selectedIndex berganti.
+        if (tabWidthPx > 0f) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .drawWithContent {
+                        val sx = 1f + lag * STRETCH
+                        val sy = 1f - lag * STRETCH * SQUASH
+                        val w = tabWidthPx * sx
+                        val h = size.height * sy
+                        val l = animatedPillOffset + tabWidthPx / 2f - w / 2f
+                        val t = (size.height - h) / 2f
+                        val maskPath = androidx.compose.ui.graphics.Path().apply {
+                            addRoundRect(
+                                androidx.compose.ui.geometry.RoundRect(
+                                    left = l,
+                                    top = t,
+                                    right = l + w,
+                                    bottom = t + h,
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(h / 2f),
+                                ),
+                            )
+                        }
+                        clipPath(maskPath) {
+                            this@drawWithContent.drawContent()
+                        }
+                    },
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                tabs.forEachIndexed { index, tab ->
+                    BottomBarItem(
+                        tab = tab,
+                        selected = index == selectedIndex,
+                        glassSpec = glassSpec,
+                        selectedTint = MaterialTheme.colorScheme.primary,
+                        unselectedTint = null,
+                        maskLayer = true,
+                        onClick = {},
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -368,6 +417,8 @@ private fun BottomBarItem(
     /** Overrides the theme's primary/onSurfaceVariant tint — see the glass branch above. */
     selectedTint: Color? = null,
     unselectedTint: Color? = null,
+    /** Lapisan mask: selalu berwarna aktif dan tidak menerima ketukan. */
+    maskLayer: Boolean = false,
 ) {
     // The same spring the indicator rides, so the glyph arriving and the glass
     // arriving are one movement rather than two that nearly agree.
@@ -378,7 +429,7 @@ private fun BottomBarItem(
     )
     val haptics = rememberHaptics()
     val tint by animateColorAsState(
-        targetValue = if (selected) {
+        targetValue = if (maskLayer) {
             selectedTint ?: MaterialTheme.colorScheme.primary
         } else {
             unselectedTint ?: MaterialTheme.colorScheme.onSurfaceVariant
@@ -391,13 +442,19 @@ private fun BottomBarItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clip(RoundedCornerShape(percent = 50))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-            ) {
-                if (!selected) haptics.play(Haptic.Select)
-                onClick()
-            }
+            .then(
+                if (maskLayer) {
+                    Modifier
+                } else {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) {
+                        if (!selected) haptics.play(Haptic.Select)
+                        onClick()
+                    }
+                },
+            )
             .padding(vertical = TAB_VERTICAL_PADDING),
     ) {
         Icon(

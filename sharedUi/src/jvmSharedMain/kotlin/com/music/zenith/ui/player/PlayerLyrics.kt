@@ -244,14 +244,14 @@ private const val UNSUNG_ALPHA_STRIP = 0.55f
  * — so a line of quick syllables has no glow at all and a carried note lights
  * up letter by letter, which is where the light was always meant to come from.
  */
-private const val GLOW_ALPHA = 0.62f
+private const val GLOW_ALPHA = 0.32f
 
 /**
  * How far the bloom spreads off a letter. Tight, because it is a letter's worth
  * of light now rather than a word's: a wide radius on something this small is
  * a smudge behind the text instead of a glow coming off it.
  */
-private val GLOW_RADIUS = 6.dp
+private val GLOW_RADIUS = 4.dp
 
 /**
  * Room reserved inside each copy of a line for the halo to spread into.
@@ -1624,74 +1624,8 @@ internal fun Modifier.lyricsGlassDisc(
             scaleX = press
             scaleY = press
         }
-        .shadow(
-            elevation = 6.dp,
-            shape = CircleShape,
-            clip = false,
-            ambientColor = Color.Black.copy(alpha = 0.18f),
-            spotColor = Color.Black.copy(alpha = 0.28f),
-        )
         .clip(CircleShape)
-        .then(
-            if (blurred && hazeState != null) {
-                Modifier.optimizedHazeEffect(state = hazeState, style = hazeStyle)
-            } else {
-                Modifier
-            },
-        )
-        .drawBehind {
-            val w = size.width
-            val h = size.height
-            val r = size.minDimension / 2f
-            val rim = 1.dp.toPx()
-            // Body: lighter at the top, clearer at the bottom. Thinner when the
-            // live blur is already doing the work behind it.
-            val bodyTop = if (blurred) 0.14f else 0.26f
-            val bodyBottom = if (blurred) 0.03f else 0.08f
-            drawCircle(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = bodyTop + 0.12f * lift),
-                        Color.White.copy(alpha = bodyBottom + 0.10f * lift),
-                    ),
-                ),
-            )
-            // Specular bloom near the top-left, where the light lands.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.40f), Color.Transparent),
-                    center = Offset(w * 0.34f, h * 0.16f),
-                    radius = r * 1.05f,
-                ),
-            )
-            // Faint bounce light along the bottom edge.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
-                    center = Offset(w * 0.72f, h * 0.98f),
-                    radius = r * 0.9f,
-                ),
-            )
-            // Inner ring that reads as the thickness of the glass.
-            drawCircle(
-                color = Color.White.copy(alpha = 0.08f),
-                radius = r - rim * 2.5f,
-                style = Stroke(width = rim * 1.6f),
-            )
-            // Rim: bright on the lit corners, nearly gone in between.
-            drawCircle(
-                brush = Brush.linearGradient(
-                    0f to Color.White.copy(alpha = 0.90f),
-                    0.35f to Color.White.copy(alpha = 0.20f),
-                    0.65f to Color.White.copy(alpha = 0.10f),
-                    1f to Color.White.copy(alpha = 0.60f),
-                    start = Offset.Zero,
-                    end = Offset(w, h),
-                ),
-                radius = r - rim / 2f,
-                style = Stroke(width = rim),
-            )
-        }
+        .background(Color.White.copy(alpha = 0.14f + 0.10f * lift))
 }
 
 /**
