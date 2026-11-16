@@ -33,7 +33,6 @@ import com.music.zenith.data.canvas.CanvasArtwork
 import com.music.zenith.data.model.Song
 import com.music.zenith.data.model.artworkAt
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

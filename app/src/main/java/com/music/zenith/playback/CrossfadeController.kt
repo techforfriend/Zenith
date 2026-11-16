@@ -46,7 +46,6 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
-import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.round
 import kotlin.math.roundToInt
@@ -1004,7 +1003,10 @@ class CrossfadeController(
      * playing is left for the playing path to decide.
      */
     private fun refreshMarkerWhilePaused(player: ExoPlayer) {
-        if (!AppSettings.smartFadeEnabled.value) return
+        if (!AppSettings.smartFadeEnabled.value) {
+            AppSettings.smartTransitionWindow.value = null
+            return
+        }
         val now = SystemClock.elapsedRealtime()
         if (now - pausedMarkerAt < PAUSED_MARKER_STEP_MS) return
         pausedMarkerAt = now
@@ -1116,6 +1118,8 @@ class CrossfadeController(
             return
         }
 
+        // Automix mati: penanda jendelanya tidak boleh tersisa di bar progres.
+        AppSettings.smartTransitionWindow.value = null
         if (configuredFadeMs() <= 0L) return
         val fade = fadeFor(duration)
         if (fade <= 0L) return

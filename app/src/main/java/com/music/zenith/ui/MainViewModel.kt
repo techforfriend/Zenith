@@ -24,7 +24,6 @@ import com.music.zenith.data.stats.ListeningStats
 import com.music.zenith.data.stats.ReplayPeriod
 import android.util.Log
 import java.io.File
-import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
@@ -79,7 +78,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,7 +96,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import com.music.zenith.data.sources.AddonSource
-import com.music.zenith.data.sources.SourceKind
 import com.music.zenith.data.sources.SourceRegistry
 import com.music.zenith.data.sources.SourceResolver
 import com.music.zenith.data.sources.TrackMatcher
@@ -2811,55 +2808,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         is SearchResult.TopTrack -> "v:${row.song.videoId}"
         is SearchResult.Track -> "v:${row.song.videoId}"
         is SearchResult.Browse -> "b:${row.item.browseId}"
-    }
-
-    /**
-     * The enabled non-YouTube sources, asked at the same time and returned
-     * split at YouTube's own place in the order.
-     *
-     * The split is what makes the Sources screen's ordering visible where it
-     * matters most. A library server ranked above YouTube puts its own copies
-     * at the top of the results — which is the whole point of ranking it there —
-     * and one ranked below appears under them instead.
-     *
-     * Only the Songs filter fans out: albums, artists and playlists are
-     * browse-shaped, and [MusicSource] deliberately answers for tracks only.
-     *
-     * Asked of the playback list rather than every enabled source, so a result
-     * offered here is one this connection's ceiling would actually let play —
-     * a row that can only be tapped into a YouTube stream is a lie about where
-     * the track is coming from.
-     */
-    private suspend fun sourceResults(
-        query: String,
-        filter: SearchFilter,
-    ): Pair<List<SearchResult>, List<SearchResult>> = coroutineScope {
-        if (filter != SearchFilter.SONGS) return@coroutineScope emptyList<SearchResult>() to emptyList()
-        val active = SourceRegistry.activeForPlayback()
-        val youtubeRank = active.indexOfFirst { it.kind == SourceKind.YOUTUBE }
-            .let { if (it < 0) active.size else it }
-
-        val answers = active
-            .filter { it.kind != SourceKind.YOUTUBE }
-            .map { source ->
-                source to async {
-                    // Per-source, so one slow or unreachable server delays the
-                    // results by at most this much rather than for as long as
-                    // its socket takes to give up.
-                    runCatching {
-                        withTimeout(SOURCE_SEARCH_TIMEOUT_MS) { source.search(query, SOURCE_SEARCH_LIMIT) }
-                    }.getOrDefault(emptyList())
-                }
-            }
-
-        val above = mutableListOf<SearchResult>()
-        val below = mutableListOf<SearchResult>()
-        answers.forEach { (source, job) ->
-            val rows = job.await().map { SearchResult.Track(it) }
-            val rank = active.indexOfFirst { it.configId == source.configId }
-            if (rank in 0 until youtubeRank) above += rows else below += rows
-        }
-        above to below
     }
 
     /**

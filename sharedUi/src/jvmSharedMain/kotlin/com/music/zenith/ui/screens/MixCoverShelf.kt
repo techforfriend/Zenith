@@ -173,7 +173,7 @@ private fun MixCoverCard(
 }
 
 /** "Chill Mix" -> ("Chill", "Mix"); "My Mix 1" -> ("My Mix", "1"); lainnya apa adanya. */
-internal fun splitMixTitle(title: String): Pair<String, String?> {
+fun splitMixTitle(title: String): Pair<String, String?> {
     val words = title.trim().split(' ').filter { it.isNotEmpty() }
     if (words.size >= 2) {
         val last = words.last()

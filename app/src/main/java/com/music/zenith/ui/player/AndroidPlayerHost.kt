@@ -228,6 +228,15 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
     // The ⋯ menu's own material: the player recorded live, blurred under each
     // panel exactly as [menuBackdropFrost] blurs it under the menu. Below
     // Android 12 there is no RenderEffect to blur it with.
+    override fun toggleAutomix() {
+        when {
+            AppSettings.smartFadeEnabled.value -> AppSettings.setSmartFadeEnabled(false)
+            com.music.zenith.playback.smart.AutomixModels.downloading.value ->
+                com.music.zenith.playback.smart.AutomixModels.cancel()
+            else -> com.music.zenith.playback.smart.AutomixModels.start(app)
+        }
+    }
+
     @Composable
     override fun rememberPlayerFrost(): PlayerFrost? {
         if (!isGlassSupported()) return null

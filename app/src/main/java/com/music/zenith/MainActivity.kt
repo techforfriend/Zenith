@@ -1,5 +1,7 @@
 package com.music.zenith
 
+import androidx.compose.ui.unit.sp
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -290,6 +292,7 @@ import com.music.zenith.ui.components.lyricsGlassDiscSurface
 import com.music.zenith.ui.components.lyricsGlassSource
 import com.music.zenith.ui.player.LocalLyricsGlassSource
 import com.music.zenith.ui.player.LocalLyricsMenuPopover
+import com.music.zenith.ui.player.LocalQueueInfoPopover
 import com.motion.lyrics.MotionLyricLine
 import com.motion.lyrics.toMotionWords
 import com.music.zenith.ui.screens.LocalMixCoverBackground
@@ -503,6 +506,50 @@ class MainActivity : AppCompatActivity() {
                                     icon = entry.icon,
                                     onClick = entry.onClick,
                                     enabled = entry.enabled,
+                                )
+                            }
+                        }
+                    },
+                    LocalQueueInfoPopover provides { open, anchor, atStart, onDismiss, title, body, haze ->
+                        // Sama seperti popover globe: still player supaya frost benar-benar blur.
+                        val playerFrost = LocalPlayerMenuBackdrop.current
+                        val reduceBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+                        var captured by remember { mutableStateOf(false) }
+                        LaunchedEffect(open, reduceBlur, playerFrost) {
+                            val still = playerFrost as? SnapshotBackdrop ?: return@LaunchedEffect
+                            if (open && !reduceBlur) {
+                                still.capture()
+                                captured = true
+                            } else if (captured) {
+                                delay(SNAPSHOT_RELEASE_DELAY_MS)
+                                still.release()
+                                captured = false
+                            }
+                        }
+                        IosMenuPopover(
+                            item = if (open) Unit else null,
+                            anchor = anchor,
+                            onDismiss = onDismiss,
+                            backdrop = playerFrost ?: lyricsBackdrop,
+                            hazeState = haze,
+                            placement = if (atStart) IosMenuPlacement.BelowStart else IosMenuPlacement.BelowEnd,
+                            dimBackground = false,
+                            glassRim = true,
+                            frostAlpha = 0.3f,
+                        ) {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                                Text(
+                                    text = title,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = body,
+                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f),
+                                    fontSize = 14.sp,
+                                    lineHeight = 18.sp,
                                 )
                             }
                         }

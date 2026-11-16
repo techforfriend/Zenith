@@ -6,7 +6,6 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import com.music.zenith.playback.audio.AudioBlock
-import com.music.zenith.playback.audio.FloatAudioProcessor
 import com.music.zenith.playback.audio.PcmBoundary
 import java.nio.ByteOrder
 import kotlin.math.exp

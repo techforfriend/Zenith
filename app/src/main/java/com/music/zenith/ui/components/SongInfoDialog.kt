@@ -3,7 +3,6 @@ package com.music.zenith.ui.components
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -30,8 +29,6 @@ import com.music.zenith.data.SongInfoRepository
 import com.music.zenith.data.compactCount
 import com.music.zenith.data.innertube.Innertube
 import com.music.zenith.data.model.Song
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Refresh
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle

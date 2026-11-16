@@ -3,7 +3,6 @@ package com.music.zenith.download
 import android.content.Context
 import android.net.Uri
 import com.music.zenith.data.Http
-import com.music.zenith.data.lyrics.WORD_LYRICS_FIELD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext

@@ -16,6 +16,16 @@
     <string name="add_songs_suggested">Disarankan untukmu</string>
     <string name="autoplay_off">AutoPlay nonaktif</string>
     <string name="autoplay_on">AutoPlay aktif</string>
+    <string name="automix_off">Automix nonaktif</string>
+    <string name="automix_on">Automix aktif</string>
+    <string name="queue_info_shuffle_title">Acak</string>
+    <string name="queue_info_shuffle_body">Memutar lagu berikutnya dalam urutan acak.</string>
+    <string name="queue_info_repeat_title">Ulangi</string>
+    <string name="queue_info_repeat_body">Berganti antara mati, ulangi semua, dan ulangi satu lagu.</string>
+    <string name="queue_info_autoplay_title">AutoPlay</string>
+    <string name="queue_info_autoplay_body">Terus memutar musik serupa saat antrean habis.</string>
+    <string name="queue_info_automix_title">Automix (Beta)</string>
+    <string name="queue_info_automix_body">Menyatukan lagu dengan transisi ala DJ yang diselaraskan beat, bukan jeda biasa.</string>
 
     <string name="autoplay_queue_description">Musik serupa, dipilih untuk diputar berikutnya</string>
     <string name="bit_depth">%1$d-bit</string>

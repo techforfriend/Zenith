@@ -50,7 +50,6 @@ import com.music.zenith.data.lyrics.translationLanguageName
 import com.music.zenith.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import java.util.Locale
 
 /** How much of the screen the list may take before it scrolls inside the card. */

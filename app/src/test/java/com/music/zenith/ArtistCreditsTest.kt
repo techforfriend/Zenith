@@ -3,7 +3,6 @@ package com.music.zenith
 import com.music.zenith.data.model.ArtistCredit
 import com.music.zenith.data.model.ArtistNameIndex
 import com.music.zenith.data.model.ArtistRef
-import com.music.zenith.data.model.completeArtistCredits
 import com.music.zenith.data.model.creditSegments
 import com.music.zenith.data.scrobbling.primaryArtist
 import com.music.zenith.ui.player.artistCredits

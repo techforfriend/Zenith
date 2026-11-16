@@ -1,7 +1,6 @@
 package com.music.zenith.ui.screens
 
 import com.music.zenith.ui.components.trackArtSize
-import com.music.zenith.ui.components.OrganicFluidBackground
 import android.os.Build
 import android.content.Context
 import android.os.SystemClock
@@ -46,7 +45,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -63,7 +61,6 @@ import com.music.zenith.data.model.LibraryState
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
@@ -71,13 +68,10 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,7 +91,6 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.unit.IntSize
@@ -119,7 +112,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -132,7 +124,6 @@ import androidx.compose.foundation.border
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.music.zenith.ui.components.coverFlightSource
-import androidx.compose.runtime.CompositionLocalProvider
 import com.music.zenith.ui.components.LocalSettledMosaic
 import com.music.zenith.ui.graphics.forPixelAccess
 import com.music.zenith.ui.graphics.paletteSwatches
@@ -174,8 +165,6 @@ import com.music.zenith.data.canvas.ArtistSignature
 import com.music.zenith.data.canvas.ArtistSignatureRepository
 import com.music.zenith.data.canvas.SignatureInkTransformation
 import com.music.zenith.data.canvas.keyColors
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import com.music.zenith.data.canvas.CanvasArtwork
 import com.music.zenith.data.canvas.CanvasRepository
 import com.music.zenith.data.model.BrowseType
@@ -217,17 +206,10 @@ import com.music.zenith.ui.player.CanvasArtworkPlayer
 import com.music.zenith.ui.theme.ArtworkPalette
 import com.music.zenith.ui.theme.rememberArtworkPalette
 import kotlin.math.roundToInt
-import kotlin.random.Random
 import java.util.Locale
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
 import com.music.zenith.data.YtMusicRepository
 
 private const val MAX_ARTIST_SONGS = 20
@@ -269,8 +251,6 @@ private val RELEASE_ACTION_GAP = 14.dp
  * tepi layar 360dp, seperti Apple Music.
  */
 private val RELEASE_ACTIONS_MAX_WIDTH = 336.dp
-private val PILL_SHAPE = RoundedCornerShape(12.dp)
-
 /**
  * Where the search field sits once it is open — directly under the header,
  * which is item zero. The one place that has to know, so that opening the
@@ -3400,6 +3380,45 @@ private fun MixHero(
                     ),
                 ),
         )
+
+        // Nama mix di tengah area hero yang terlihat: di bawah bar, di atas blok judul
+        // yang menimpa kaki hero. Muncul setelah cover mendarat.
+        val (mixName, mixTail) = remember(mixTitle) { splitMixTitle(mixTitle) }
+        val mixTitleStyle = MaterialTheme.typography.headlineMedium.copy(
+            fontSize = 38.sp,
+            lineHeight = 40.sp,
+            letterSpacing = (-0.5).sp,
+            shadow = androidx.compose.ui.graphics.Shadow(Color(0x45000000), Offset(0f, 2f), 12f),
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(bottom = LIKED_HERO_OVERLAP, start = 24.dp, end = 24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier = Modifier.flightReveal(delayMs = 0, rise = 0.dp, afterFlight = true),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = mixName,
+                    color = Color.White,
+                    style = mixTitleStyle.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (mixTail != null) {
+                    Text(
+                        text = mixTail,
+                        color = Color.White.copy(alpha = 0.92f),
+                        style = mixTitleStyle.copy(fontWeight = FontWeight.Normal),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
     }
 }
 

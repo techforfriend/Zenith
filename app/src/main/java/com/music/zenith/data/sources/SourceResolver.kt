@@ -1,7 +1,6 @@
 package com.music.zenith.data.sources
 
 import android.net.Uri
-import android.util.Log
 import com.music.zenith.data.TrackLog
 import com.music.zenith.data.model.Song
 import com.music.zenith.data.settings.AppSettings

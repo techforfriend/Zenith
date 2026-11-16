@@ -11,11 +11,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
@@ -301,7 +301,9 @@ private fun DrawScope.drawMotion(
             translate(0f, dy)
             scale(s, s, pivot)
         }) {
-            drawText(g, color = inactive, topLeft = tl)
+            // Plus (plusLighter di Apple Music): huruf yang belum dinyanyikan menambah
+            // cahaya ke latar, jadi warnanya ikut cover dan bukan abu-abu datar.
+            drawText(g, color = inactive, topLeft = tl, blendMode = BlendMode.Plus)
             val feather = (rt.fontPx * MotionTuning.SweepFeatherEm).coerceAtLeast(1f)
             val rtl = lay.rtl[i]
             // Posisi kepala karaoke di ruang lokal huruf (0..w); bisa di luar rentang
@@ -316,9 +318,14 @@ private fun DrawScope.drawMotion(
             } else if (reached) {
                 val x0 = if (rtl) hx + back else hx - back
                 val x1 = if (rtl) hx - front else hx + front
+                // Pudaran bertahap (mendekati kurva smoothstep) supaya tepi sapuan
+                // mengalir mulus mengikuti vokal, tanpa tepi yang terasa tegas.
                 val sweepBrush = Brush.horizontalGradient(
                     0f to active,
-                    0.72f to active,
+                    0.30f to active.copy(alpha = 0.96f),
+                    0.55f to active.copy(alpha = 0.72f),
+                    0.78f to active.copy(alpha = 0.30f),
+                    0.92f to active.copy(alpha = 0.07f),
                     1f to active.copy(alpha = 0f),
                     startX = x0, endX = x1
                 )

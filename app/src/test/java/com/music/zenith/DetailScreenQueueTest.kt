@@ -5,7 +5,6 @@ import com.music.zenith.data.model.PlaybackSourceType
 import com.music.zenith.data.model.QueueTier
 import com.music.zenith.data.model.Song
 import com.music.zenith.playback.QueueCoordinator
-import com.music.zenith.playback.QueueCoordinator.asQueueEntry
 import com.music.zenith.playback.QueueSource
 import com.music.zenith.ui.screens.matching
 import org.junit.Assert.assertEquals

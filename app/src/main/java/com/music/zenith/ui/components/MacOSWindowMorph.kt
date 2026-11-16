@@ -118,14 +118,6 @@ internal class PopupAnchor {
     internal var bounds by mutableStateOf<Rect?>(null)
 }
 
-@Composable
-internal fun rememberPopupAnchor(): PopupAnchor = remember { PopupAnchor() }
-
-/** Marks this element as the origin of a popup; bounds are kept in screen coordinates. */
-internal fun Modifier.popupAnchor(anchor: PopupAnchor): Modifier = onGloballyPositioned { c ->
-    if (c.isAttached) anchor.bounds = Rect(c.localToScreen(Offset.Zero), c.size.toSize())
-}
-
 /**
  * Where the last touch landed, for popups whose trigger registered no
  * [PopupAnchor]. Only a fresh touch counts: a popup opened by a timer or a

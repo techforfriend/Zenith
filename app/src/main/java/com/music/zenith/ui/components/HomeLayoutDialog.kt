@@ -1,6 +1,5 @@
 package com.music.zenith.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -66,8 +65,6 @@ import com.music.zenith.ui.screens.homeFeedShelves
 import com.music.zenith.ui.screens.homeShelfLabel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
-
 /**
  * The listener's own arrangement of Home: drag a row by its handle to move it,
  * tick or untick it to show or hide it. Same frosted alert as

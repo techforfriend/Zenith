@@ -40,8 +40,6 @@ import com.music.zenith.data.AppUpdateChecker
 import com.music.zenith.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
-
 /** UIAlertController's own metrics: fixed narrow width, 14pt corner, 44pt rows. */
 internal val ALERT_WIDTH = 270.dp
 internal val ALERT_CORNER = 14.dp

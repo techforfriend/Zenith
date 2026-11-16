@@ -17,7 +17,6 @@ import android.os.SystemClock
 import com.music.zenith.data.TelemetryProvenance
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.DeviceInfo
@@ -51,7 +50,6 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
-import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
@@ -67,7 +65,6 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
@@ -94,7 +91,6 @@ import com.music.zenith.playback.audio.bitperfect.BitPerfectRoutingSink
 import com.music.zenith.playback.audio.bitperfect.DacVolume
 import com.music.zenith.playback.audio.bitperfect.usb.UsbDirectDevices
 import com.music.zenith.playback.audio.bluetooth.BluetoothAudioTracker
-import com.music.zenith.playback.audio.bluetooth.BluetoothTelemetry
 import com.music.zenith.MainActivity
 import com.music.zenith.data.listentogether.ListenTogether
 import com.music.zenith.data.listentogether.partyQueueIndexOf
@@ -108,7 +104,6 @@ import com.music.zenith.data.lyrics.EmbeddedLyrics
 import com.music.zenith.data.lyrics.LyricLine
 import com.music.zenith.data.lyrics.LyricsRepository
 import com.music.zenith.data.model.NOTIFICATION_ART_PX
-import com.music.zenith.data.model.PlaybackSourceType
 import com.music.zenith.data.model.SearchFilter
 import com.music.zenith.data.model.SearchResult
 import com.music.zenith.data.model.BrowseItem
@@ -142,7 +137,6 @@ import com.music.zenith.data.settings.AudioQuality
 import com.music.zenith.data.settings.BitPerfectMode
 import com.music.zenith.data.settings.permits
 import com.music.zenith.data.settings.EqualizerMode
-import com.music.zenith.data.settings.OutputPcmMode
 import com.music.zenith.data.sources.SourceKind
 import com.music.zenith.data.sources.SourceResolver
 import com.music.zenith.data.sources.SourceStream

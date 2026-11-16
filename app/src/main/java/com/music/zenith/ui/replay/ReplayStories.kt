@@ -39,7 +39,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -2365,9 +2364,6 @@ private val CHROME_HEIGHT = 68.dp
 
 /** How far down a chart a card goes. */
 private const val STORY_ROWS = 5
-
-/** The shape of a story card, everywhere. */
-private const val STORY_ASPECT = 9f / 16f
 
 /** How long a card holds before moving on, unless a finger is on the screen. */
 private const val PAGE_MILLIS = 14_000f

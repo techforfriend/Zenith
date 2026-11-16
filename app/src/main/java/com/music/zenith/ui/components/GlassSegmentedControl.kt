@@ -1,54 +1,19 @@
 package com.music.zenith.ui.components
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.music.zenith.data.settings.AppSettings
-import com.music.zenith.ui.components.backdrop.backdrops.layerBackdrop
-import com.music.zenith.ui.components.backdrop.backdrops.rememberLayerBackdrop
-import kotlinx.coroutines.launch
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * Segmented control dengan pill kaca ala iOS 26.
@@ -127,47 +92,5 @@ object AppSegmentedControlStyle : SegmentedControlStyle {
     ) = GlassSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
 }
 
-@Composable
-private fun GlassLabels(
-    options: List<String>,
-    style: TextStyle,
-    color: Color,
-    modifier: Modifier = Modifier,
-    onClick: ((Int) -> Unit)? = null,
-) {
-    Row(modifier) {
-        options.forEachIndexed { index, label ->
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .then(
-                        if (onClick != null) {
-                            Modifier.clickable(interactionSource = null, indication = null) { onClick(index) }
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .padding(vertical = GLASS_LABEL_VERTICAL_PADDING),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label,
-                    style = style,
-                    color = color,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
-        }
-    }
-}
-
-private val GlassTrackShape = SquirclePillShape()
-private val LiquidTrackShape = RoundedCornerShape(percent = 50)
-private val GLASS_TRACK_FILL = Color(0xFF767680)
-private val GLASS_DARK_PILL = Color(0xFF636366)
 private val GLASS_TRACK_PADDING = 4.dp
 private val GLASS_LABEL_PADDING = 18.dp
-private val GLASS_LABEL_VERTICAL_PADDING = 9.dp
-private const val GLASS_PILL_DAMPING = 0.8f
-private const val LIQUID_REST_GLASS = 0.8f

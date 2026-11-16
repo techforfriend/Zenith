@@ -19,7 +19,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -134,23 +133,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 import androidx.compose.runtime.rememberCoroutineScope
-
-/**
- * How long the shuffle glyph ignores further taps after one lands.
- *
- * Toggling shuffle replaces the upcoming stretch of the live queue. A second
- * tap while that command is crossing the session boundary could otherwise ask
- * to undo work that has not landed yet. One tap is all a toggle can usefully
- * mean in that window, so the rest are dropped rather than queued behind it.
- */
-private const val SHUFFLE_TAP_WINDOW_MS = 400L
-/**
- * The same gate for AutoPlay, held longer because its work is heavier: the
- * toggle crosses to the playback service, tears down the in-flight suggestion
- * load, and then either strips AutoPlay's tracks out of the queue or goes back
- * to the network for a fresh set of them.
- */
-private const val AUTOPLAY_TAP_WINDOW_MS = 700L
 
 /**
  * "Playing from …", "Played by …" or the radio station — what the player is

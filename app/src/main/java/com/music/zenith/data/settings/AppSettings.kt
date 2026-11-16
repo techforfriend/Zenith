@@ -1843,6 +1843,11 @@ object AppSettings {
 
     fun setSmartFadeEnabled(value: Boolean) {
         smartFadeEnabled.value = value
+        // Penanda jendela transisi di bar progres milik Automix: hilang bersama saklarnya.
+        if (!value) {
+            smartTransitionWindow.value = null
+            smartMixInProgress.value = false
+        }
         prefs.edit().putBoolean(KEY_SMART_FADE, value).apply()
     }
 

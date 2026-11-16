@@ -148,6 +148,12 @@ interface PlayerHost {
     fun rememberPlayerFrost(): PlayerFrost? = null
 
     /**
+     * Flips the Automix (beta) switch, the same one Settings has. Where the
+     * models are not on the device yet, this starts fetching them instead.
+     */
+    fun toggleAutomix() = Unit
+
+    /**
      * Whether lines can be put on a share card here. False hides the pick mode
      * altogether rather than offering a mode with nowhere to put its result.
      */

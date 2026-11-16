@@ -105,51 +105,6 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
         return file.absolutePath
     }
 
-    private val modelBaseUrl =
-        "https://github.com/rezapranata089-bit/Zenith/raw/main/app/src/main/assets/"
-
-    @Volatile
-    private var modelDownloadFailedAt = 0L
-
-    /**
-     * Fetches a model that is not bundled in the APK. Written to a temp file and renamed
-     * only when complete, so an interrupted download never leaves a truncated model behind.
-     * After a failure it is not retried for ten minutes, so analysis does not hammer the
-     * network on every track.
-     */
-    private fun downloadModel(name: String, target: java.io.File) {
-        val failedAt = modelDownloadFailedAt
-        if (failedAt != 0L && SystemClock.elapsedRealtime() - failedAt < 10 * 60 * 1000L) {
-            error("Model $name belum bisa diunduh, mencoba lagi nanti")
-        }
-        val temp = java.io.File(target.parentFile, "$name.part")
-        try {
-            val connection = java.net.URL(modelBaseUrl + name).openConnection()
-                as java.net.HttpURLConnection
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 30_000
-            connection.instanceFollowRedirects = true
-            try {
-                if (connection.responseCode != 200) {
-                    error("Unduh $name gagal: HTTP ${connection.responseCode}")
-                }
-                connection.inputStream.use { input ->
-                    temp.outputStream().use { output -> input.copyTo(output) }
-                }
-            } finally {
-                connection.disconnect()
-            }
-            if (temp.length() == 0L) error("Unduh $name menghasilkan file kosong")
-            if (!temp.renameTo(target)) error("Gagal menyimpan model $name")
-            modelDownloadFailedAt = 0L
-            Log.i(TAG, "Model $name diunduh (${target.length()} byte)")
-        } catch (e: Exception) {
-            temp.delete()
-            modelDownloadFailedAt = SystemClock.elapsedRealtime()
-            throw e
-        }
-    }
-
     /**
      * Whether analysis is switched off entirely right now.
      *

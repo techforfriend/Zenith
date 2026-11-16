@@ -11,7 +11,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Request
 import okio.Buffer
 import java.net.URLEncoder
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 

@@ -2,7 +2,6 @@ package com.music.zenith.data.sources.addon
 
 import com.music.zenith.data.Http
 import com.music.zenith.data.TrackLog
-import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.data.sources.DeviceCodecs
 import com.music.zenith.data.sources.module.SharedCalls
 import kotlinx.coroutines.CancellationException

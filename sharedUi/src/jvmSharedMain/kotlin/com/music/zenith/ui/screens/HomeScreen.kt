@@ -7,11 +7,9 @@ import com.music.zenith.data.model.homeShelfKey
 import com.music.zenith.ui.components.VideoThumbnails
 import com.music.zenith.ui.components.trackArtSize
 import com.music.zenith.ui.components.contextClick
-import com.music.zenith.ui.AppUi
 import com.music.zenith.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
-import androidx.compose.foundation.Image
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -20,8 +18,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.border
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -36,9 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
 import com.music.zenith.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,7 +54,6 @@ import com.music.zenith.ui.components.ShelfRow
 import com.music.zenith.ui.components.shelfStagger
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,7 +63,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Text
 import com.music.zenith.ui.components.ElasticRefreshState
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -93,7 +85,6 @@ import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Storage
 import com.music.zenith.ui.icons.ZenithIcons
 import com.music.zenith.data.YtMusicRepository
@@ -122,8 +113,6 @@ import com.music.zenith.ui.components.SignInBanner
 import com.music.zenith.ui.components.coverFlightSource
 import com.music.zenith.ui.components.hideDuringCoverFlight
 import com.music.zenith.ui.components.rememberCoverFlightTap
-import com.music.zenith.ui.components.markCoverTapped
-import com.music.zenith.ui.components.rememberCoverTap
 import com.music.zenith.ui.components.feedMoreSkeleton
 import com.music.zenith.ui.components.feedSkeleton
 import com.music.zenith.ui.components.recentlyPlayedSkeleton
@@ -1165,9 +1154,6 @@ private const val LOGO_TO_FONT = 0.70f
 
 /** The "Music" word's size against the heading's font size. */
 private const val MUSIC_TO_FONT = 0.88f
-
-/** ic_logo's viewport, 730 x 484. */
-private const val LOGO_ASPECT = 730f / 484f
 
 /**
  * Shared by the home feed, Explore and Library so headings line up across tabs.

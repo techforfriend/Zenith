@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.offset
-import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.Constraints
 import com.music.zenith.ui.graphics.FADE_CURVE_STOPS
 import com.music.zenith.ui.graphics.smootherStep
@@ -142,7 +141,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -2272,6 +2270,14 @@ fun NowPlayingScreen(
     // the trip, as for the collapse into the lyrics or the queue; a paused
     // clip keeps its last frame, so nothing blinks.
     val dockMoving by remember { derivedStateOf { docking() } }
+    // Chevron dan teks "Playing from" baru muncul setelah sheet 100% terbuka:
+    // hilang cepat begitu di-drag, lalu fade in halus saat sudah menetap.
+    // Dibaca di graphicsLayer (State), bukan di komposisi, supaya tidak recompose per frame.
+    val headerReveal = animateFloatAsState(
+        targetValue = if (dockMoving) 0f else 1f,
+        animationSpec = if (dockMoving) tween(90) else tween(durationMillis = 280, delayMillis = 40),
+        label = "playerHeaderReveal",
+    )
     // The rest of the player gets out of the way a little ahead of the artwork,
     // so the cover lands on the bar rather than on a ghost of the player.
     val dockFade: () -> Float = { ((dockT() - DOCK_FADE_LEAD) / (DOCK_FADE_FULL - DOCK_FADE_LEAD)).coerceIn(0f, 1f) }
@@ -2910,6 +2916,7 @@ fun NowPlayingScreen(
                             onToggleShuffle = onToggleShuffle,
                             onCycleRepeat = onCycleRepeat,
                             onToggleAutoplay = onToggleAutoplay,
+                            hazeState = playerHaze,
                             modifier = Modifier.fillMaxSize(),
                         )
                     },
@@ -2937,8 +2944,11 @@ fun NowPlayingScreen(
                 // full-screen Spotify Canvas is its own backdrop until a panel opens.
                 // Live blur off: lyrics/queue show a static blur of the clip's last frame,
                 // not the legacy mesh. Live blur on: the clip itself stays playing instead.
+                // Legacy mesh aktif + canvas non-Spotify (Apple Music): panel lirik/queue
+                // memakai mesh legacy, bukan blur cover/frame. Spotify tetap seperti semula.
                 val canvasPanelMesh = !tabletArtworkBackdrop && canvas != null && heroMode &&
-                    (lyricsOpen || queueOpen) && !liveCanvasPanels
+                    (lyricsOpen || queueOpen) && !liveCanvasPanels &&
+                    !(legacyMesh && canvas.source != CanvasSource.SPOTIFY)
                 // Blur statis dari frame terakhir canvas: tetap tampil selama panel terbuka.
                 val canvasPanelFrameBlur = rememberFullArtworkBlurImage(
                     imageUrl = null,
@@ -3438,7 +3448,7 @@ fun NowPlayingScreen(
                         androidx.compose.foundation.Canvas(
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha }
+                                .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha * headerReveal.value }
                                 // Padding setelah clickable: area ketuknya melebar melewati
                                 // gambar chevron, tapi tetap di dalam tinggi strip.
                                 .clickable(
@@ -3450,22 +3460,26 @@ fun NowPlayingScreen(
                                     indication = null,
                                     onClick = onDismissPlayer,
                                 )
-                                .padding(start = PLAYER_GUTTER, end = 24.dp, top = 14.dp, bottom = 4.dp)
-                                .size(width = 20.dp, height = 10.dp),
+                                .padding(start = PLAYER_GUTTER, end = 24.dp, top = 10.dp, bottom = 4.dp)
+                                .size(width = 20.dp, height = 11.dp),
                         ) {
                             val stroke = 2.2.dp.toPx()
+                            // Sudut siku 90 derajat: lengan sama panjang secara horizontal dan vertikal.
+                            val arm = 8.dp.toPx()
+                            val cx = arm + stroke / 2f
+                            val top = stroke / 2f
                             val chevron = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(stroke / 2f, stroke / 2f)
-                                lineTo(size.width / 2f, size.height - stroke / 2f)
-                                lineTo(size.width - stroke / 2f, stroke / 2f)
+                                moveTo(cx - arm, top)
+                                lineTo(cx, top + arm)
+                                lineTo(cx + arm, top)
                             }
                             drawPath(
                                 path = chevron,
                                 color = Color.White.copy(alpha = 0.92f),
                                 style = androidx.compose.ui.graphics.drawscope.Stroke(
                                     width = stroke,
-                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                                    join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Butt,
+                                    join = androidx.compose.ui.graphics.StrokeJoin.Miter,
                                 ),
                             )
                         }
@@ -3486,8 +3500,8 @@ fun NowPlayingScreen(
                                     ),
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
-                                        .offset(y = 2.dp)
-                                        .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha },
+                                        .offset(y = 10.dp)
+                                        .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha * headerReveal.value },
                                 )
                             }
                         }
@@ -5303,6 +5317,7 @@ Spacer(Modifier.width(12.dp))
                                     onToggleShuffle = onToggleShuffle,
                                     onCycleRepeat = onCycleRepeat,
                                     onToggleAutoplay = onToggleAutoplay,
+                                    hazeState = playerHaze,
                                     collapsePlayerOnScroll = true,
                                     onRevealPlayer = { queueControlsOpen = true },
                                     onHidePlayer = { queueControlsOpen = false },

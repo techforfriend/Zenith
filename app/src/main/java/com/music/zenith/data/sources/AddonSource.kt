@@ -2,7 +2,6 @@ package com.music.zenith.data.sources
 
 import com.music.zenith.data.TrackLog
 import com.music.zenith.data.model.Song
-import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.data.sources.addon.AddonClient
 import com.music.zenith.data.sources.addon.AddonException
 import com.music.zenith.data.sources.addon.AddonManifest

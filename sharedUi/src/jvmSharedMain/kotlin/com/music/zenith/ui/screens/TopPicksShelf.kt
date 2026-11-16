@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
@@ -85,7 +84,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import com.music.zenith.ui.components.SHELF_CARD_WIDTH
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -133,9 +131,6 @@ import com.music.zenith.ui.components.coverFlightSource
 import com.music.zenith.ui.components.hideDuringCoverFlight
 import com.music.zenith.ui.components.revealAfterCoverLanding
 import com.music.zenith.ui.components.rememberCoverFlightTap
-import com.music.zenith.ui.components.markCoverTapped
-import com.music.zenith.ui.components.rememberCoverTap
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.PI
 import kotlin.math.abs

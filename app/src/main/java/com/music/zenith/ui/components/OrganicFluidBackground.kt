@@ -35,7 +35,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.random.Random
 import kotlinx.coroutines.flow.collectLatest
 import org.intellij.lang.annotations.Language
 

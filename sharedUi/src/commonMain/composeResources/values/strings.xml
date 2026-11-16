@@ -16,6 +16,16 @@
     <string name="add_songs_suggested">Suggested for you</string>
     <string name="autoplay_off">AutoPlay off</string>
     <string name="autoplay_on">AutoPlay on</string>
+    <string name="automix_off">Automix off</string>
+    <string name="automix_on">Automix on</string>
+    <string name="queue_info_shuffle_title">Shuffle</string>
+    <string name="queue_info_shuffle_body">Plays your upcoming songs in a random order.</string>
+    <string name="queue_info_repeat_title">Repeat</string>
+    <string name="queue_info_repeat_body">Cycles between off, repeat all and repeat one.</string>
+    <string name="queue_info_autoplay_title">AutoPlay</string>
+    <string name="queue_info_autoplay_body">Keeps similar music playing when your queue runs out.</string>
+    <string name="queue_info_automix_title">Automix (Beta)</string>
+    <string name="queue_info_automix_body">Blends songs with DJ-style, beat-matched transitions instead of a plain gap.</string>
 
     <string name="autoplay_queue_description">Similar music, selected to play next</string>
     <string name="bit_depth">%1$d-bit</string>

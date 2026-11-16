@@ -40,7 +40,6 @@ import com.music.zenith.R
 import com.music.zenith.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
 import java.util.Locale
 
 /** Language tag paired with its display-name string.

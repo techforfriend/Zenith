@@ -449,6 +449,40 @@ object ZenithIcons {
             }
         }.build()
 
+    /** Automix: a ring beside a record disc with a centre hole. */
+    val Automix: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_automix",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            // Left ring, a little softer than the disc beside it. An open arc that
+            // stops where it meets the disc's edge, with the same outer radius as the disc.
+            path(
+                stroke = SolidColor(Color.Black.copy(alpha = 0.7f)),
+                strokeLineWidth = 1.9f,
+                strokeLineCap = StrokeCap.Round,
+            ) {
+                moveTo(11.16f, 8.27f)
+                arcTo(4.83f, 4.83f, 0f, isMoreThanHalf = true, isPositiveArc = false, 11.16f, 15.73f)
+            }
+            // Right disc with its centre hole cut out.
+            path(
+                fill = SolidColor(Color.Black),
+                pathFillType = androidx.compose.ui.graphics.PathFillType.EvenOdd,
+            ) {
+                moveTo(9.79f, 12f)
+                arcToRelative(5.78f, 5.78f, 0f, isMoreThanHalf = true, isPositiveArc = true, 11.56f, 0f)
+                arcToRelative(5.78f, 5.78f, 0f, isMoreThanHalf = true, isPositiveArc = true, -11.56f, 0f)
+                close()
+                moveTo(13.36f, 12f)
+                arcToRelative(2.21f, 2.21f, 0f, isMoreThanHalf = true, isPositiveArc = false, 4.42f, 0f)
+                arcToRelative(2.21f, 2.21f, 0f, isMoreThanHalf = true, isPositiveArc = false, -4.42f, 0f)
+                close()
+            }
+        }.build()
+    }
+
     /** AutoPlay's lemniscate. */
     val Infinity: ImageVector by lazy {
         ImageVector.Builder(

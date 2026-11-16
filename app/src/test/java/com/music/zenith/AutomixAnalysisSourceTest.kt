@@ -2,7 +2,6 @@ package com.music.zenith
 
 import com.music.zenith.playback.smart.AutomixAnalysisSource
 import com.music.zenith.playback.QualityUpgrade
-import com.music.zenith.data.sources.StreamFormat
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertFalse
 import org.junit.Test

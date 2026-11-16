@@ -55,8 +55,6 @@ import com.music.zenith.data.settings.AppSettings
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
-
 /**
  * Same UIAlertController shape as [UpdateAvailableDialog] — frosted card,
  * hairline rules, full-width stacked actions — but with a text field for the

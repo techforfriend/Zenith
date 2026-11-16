@@ -57,7 +57,6 @@ import com.music.zenith.ui.components.backdrop.effects.blur
 import com.music.zenith.ui.components.backdrop.effects.colorControls
 import com.music.zenith.ui.components.backdrop.Backdrop
 import com.music.zenith.ui.components.backdrop.backdrops.LayerBackdrop
-import com.music.zenith.ui.components.backdrop.backdrops.emptyBackdrop
 import com.music.zenith.ui.components.backdrop.drawBackdrop
 import com.music.zenith.ui.components.backdrop.effects.lens
 import com.music.zenith.ui.components.backdrop.highlight.Highlight
@@ -807,9 +806,6 @@ private fun rimOf(presence: Float): Float = ((presence - 0.45f) / 0.55f).coerceI
 
 /** [rest] at `live` 0, up to 1 at `live` 1. */
 private fun restBlend(rest: Float, live: Float): Float = (rest + (1f - rest) * live).coerceIn(0f, 1f)
-
-private val LENS_HEIGHT = 20.dp
-private val LENS_AMOUNT = 28.dp
 
 /** The bar's own edge, drawn into what the lens refracts so the lens bends it too. */
 private val BAR_RIM_WIDTH = 1.dp

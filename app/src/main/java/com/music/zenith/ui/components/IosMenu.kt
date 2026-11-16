@@ -60,7 +60,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -75,7 +74,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.ui.components.backdrop.backdrops.SnapshotBackdrop
@@ -235,6 +233,12 @@ enum class IosMenuPlacement {
 
     /** Leading edge on the anchor's, sitting just above it. */
     AboveStart,
+
+    /** Leading edge on the anchor's, hanging just below it. */
+    BelowStart,
+
+    /** Trailing edge on the anchor's, hanging just below it. */
+    BelowEnd,
 }
 
 /** The break between groups: a hairline inset from the panel's edges, with air either side. */
@@ -619,23 +623,26 @@ fun <T : Any> IosMenuPopover(
         val shadowPlate = measurables[1].measure(Constraints.fixed(panel.width, panel.height))
         val anchorBounds = menuAnchor?.translate(-overlayOffset)
         val above = placement == IosMenuPlacement.AboveStart && anchorBounds != null
+        val below = (placement == IosMenuPlacement.BelowStart || placement == IosMenuPlacement.BelowEnd) &&
+            anchorBounds != null
         val right = anchorBounds?.right?.roundToInt() ?: (width - margin)
-        val startX = if (above && anchorBounds != null) {
-            anchorBounds.left.roundToInt() + startOffset.roundToPx()
-        } else {
-            right - panel.width
+        val startX = when {
+            above && anchorBounds != null -> anchorBounds.left.roundToInt() + startOffset.roundToPx()
+            below && placement == IosMenuPlacement.BelowStart -> anchorBounds!!.left.roundToInt()
+            else -> right - panel.width
         }
         // Menu di atas tombol (AboveStart): batas kiri dihitung di ruang window, bukan
         // di ruang overlay. Overlay yang sudah mepet tombol membuat margin 14dp
         // mendorong menu ke kanan dari tepi kiri tombol.
-        val minX = if (above) margin - overlayOffset.x.roundToInt() else margin
+        val minX = if (above || below) margin - overlayOffset.x.roundToInt() else margin
         val panelX = startX
             .coerceIn(minX, (width - margin - panel.width).coerceAtLeast(minX))
         val lowest = (bottom - panel.height).coerceAtLeast(top)
-        val hangsDown = !above && anchorBounds != null && anchorBounds.center.y < height / 2f
+        val hangsDown = !above && !below && anchorBounds != null && anchorBounds.center.y < height / 2f
         val panelY = when {
             above && anchorBounds != null ->
                 (anchorBounds.top.roundToInt() - 10.dp.roundToPx() - panel.height).coerceIn(top, lowest)
+            below -> (anchorBounds!!.bottom.roundToInt() + 10.dp.roundToPx()).coerceIn(top, lowest)
             hangsDown -> anchorBounds!!.top.roundToInt().coerceIn(top, lowest)
             else -> lowest
         }

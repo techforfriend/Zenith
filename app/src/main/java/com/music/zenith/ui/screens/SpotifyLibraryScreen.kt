@@ -35,7 +35,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,8 +54,6 @@ import com.music.zenith.R
 import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.data.spotify.SpotifyLibrary
 import com.music.zenith.data.spotify.SpotifyPlaylist
-import com.music.zenith.data.spotify.SpotifyTrack
-
 /** Hijau merek Spotify: satu-satunya aksen warna di halaman ini. */
 private val SpotifyGreen = Color(0xFF1DB954)
 

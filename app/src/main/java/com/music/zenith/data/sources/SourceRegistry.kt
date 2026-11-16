@@ -3,7 +3,6 @@ package com.music.zenith.data.sources
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
-import android.util.Log
 import com.music.zenith.auth.EncryptedPrefs
 import com.music.zenith.data.TrackLog
 import com.music.zenith.data.settings.AppSettings

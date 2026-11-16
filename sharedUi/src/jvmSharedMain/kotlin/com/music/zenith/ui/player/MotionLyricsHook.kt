@@ -57,3 +57,12 @@ class LyricsMenuEntry(
 val LocalLyricsMenuPopover = staticCompositionLocalOf<
     (@Composable (Boolean, Rect?, () -> Unit, List<LyricsMenuEntry>, dev.chrisbanes.haze.HazeState?) -> Unit)?
 > { null }
+
+/**
+ * Kartu info long-press tombol mode antrean, digambar app sebagai popover
+ * melayang. Argumen: terbuka, bounds tombol di window, rata kiri (true) atau
+ * kanan, aksi tutup, judul, isi, haze.
+ */
+val LocalQueueInfoPopover = staticCompositionLocalOf<
+    (@Composable (Boolean, Rect?, Boolean, () -> Unit, String, String, dev.chrisbanes.haze.HazeState?) -> Unit)?
+> { null }
