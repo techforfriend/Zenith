@@ -488,6 +488,10 @@
     <string name="stop_music_on_close_subtitle">최근 앱 목록에서 밀어서 닫으면 재생을 멈춰요</string>
     <string name="hide_volume_bar">볼륨 바 숨기기</string>
     <string name="hide_volume_bar_subtitle">메인 플레이어에서 볼륨 슬라이더를 없애요</string>
+    <string name="smooth_pause">부드러운 일시정지</string>
+    <string name="smooth_pause_subtitle">일시정지할 때 소리를 서서히 줄여요</string>
+    <string name="pause_on_zero_volume">볼륨이 0이면 일시정지</string>
+    <string name="pause_on_zero_volume_subtitle">미디어 볼륨을 0으로 내리면 재생을 자동으로 일시정지해요</string>
     <string name="hide_status_bar_in_player">플레이어에서 상태 표시줄 숨기기</string>
     <string name="hide_status_bar_in_player_subtitle">메인 플레이어가 열려 있는 동안 시계, 배터리, 알림 아이콘을 숨겨요</string>
     <string name="hide_song_status">곡 상태 숨기기</string>

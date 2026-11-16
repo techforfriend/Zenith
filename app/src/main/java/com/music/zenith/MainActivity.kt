@@ -475,7 +475,9 @@ class MainActivity : AppCompatActivity() {
                         LaunchedEffect(open, reduceBlur, playerFrost) {
                             val still = playerFrost as? SnapshotBackdrop ?: return@LaunchedEffect
                             if (open && !reduceBlur) {
-                                if (!still.hasStill) still.capture()
+                                // Always a fresh still, so a stale one without the
+                                // lyrics on screen now never stands in for it.
+                                still.capture()
                                 captured = true
                             } else if (captured) {
                                 delay(SNAPSHOT_RELEASE_DELAY_MS)
@@ -491,7 +493,9 @@ class MainActivity : AppCompatActivity() {
                             hazeState = haze,
                             placement = IosMenuPlacement.AboveStart,
                             dimBackground = false,
-                            frostAlpha = 0.5f,
+                            glassRim = true,
+                            frostAlpha = 0.3f,
+                            startOffset = (-32).dp,
                         ) {
                             entries.forEach { entry ->
                                 IosMenuRow(
@@ -2774,6 +2778,7 @@ private fun ZenithApp(
             // the parameter.
             menuOpen = { songActions != null && menuFromPlayer && songMenuOrigin == null },
             onLiveCanvasChanged = { playerLiveCanvas = it },
+            onDismissPlayer = dismissPlayer,
             isPlaying = player.isPlaying,
             isLoading = playPauseBusy,
             position = player.position,

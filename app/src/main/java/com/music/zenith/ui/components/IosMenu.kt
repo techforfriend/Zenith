@@ -72,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -161,6 +162,8 @@ fun Modifier.iosMenuPanel(
     castsShadow: Boolean = true,
     /** Opasitas slab di atas frost (0..1); null memakai bawaan menu. */
     frostAlpha: Float? = null,
+    /** Menambah rim Liquid Glass app di tepi panel. */
+    glassRim: Boolean = false,
 ): Modifier {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val blurs = translucent && !reduceDynamicBlur
@@ -180,9 +183,13 @@ fun Modifier.iosMenuPanel(
     } else {
         shadowed.clip(IosMenuShape).background(fill)
     }
-    return surface
-        .clip(IosMenuShape)
-        .border(0.5.dp, rimOverride ?: colors.rim, IosMenuShape)
+    val clipped = surface.clip(IosMenuShape)
+    val rimmed = if (glassRim) {
+        clipped.liquidGlassRim(RoundedCornerShape(30.dp).continuous())
+    } else {
+        clipped
+    }
+    return rimmed.border(0.5.dp, rimOverride ?: colors.rim, IosMenuShape)
 }
 
 /** The shadow the menu panel casts. */
@@ -434,7 +441,11 @@ fun <T : Any> IosMenuPopover(
     hazeState: HazeState? = null,
     placement: IosMenuPlacement = IosMenuPlacement.Auto,
     dimBackground: Boolean = true,
+    /** Menambah rim Liquid Glass app di tepi panel. */
+    glassRim: Boolean = false,
     frostAlpha: Float? = null,
+    /** Shifts an [IosMenuPlacement.AboveStart] panel sideways from the anchor's leading edge; negative is left. */
+    startOffset: Dp = 0.dp,
     content: @Composable (T) -> Unit,
 ) {
     var last by remember { mutableStateOf<Pair<T, Rect?>?>(null) }
@@ -547,6 +558,7 @@ fun <T : Any> IosMenuPopover(
                         hazeState = hazeState,
                         castsShadow = false,
                         frostAlpha = frostAlpha,
+                        glassRim = glassRim,
                     )
                     .touchGlow(),
                 propagateMinConstraints = true,
@@ -609,7 +621,7 @@ fun <T : Any> IosMenuPopover(
         val above = placement == IosMenuPlacement.AboveStart && anchorBounds != null
         val right = anchorBounds?.right?.roundToInt() ?: (width - margin)
         val startX = if (above && anchorBounds != null) {
-            anchorBounds.left.roundToInt()
+            anchorBounds.left.roundToInt() + startOffset.roundToPx()
         } else {
             right - panel.width
         }

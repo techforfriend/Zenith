@@ -309,6 +309,8 @@ fun SettingsScreen(
     val downloadFolderUri by AppSettings.downloadFolderUri.collectAsStateWithLifecycle()
     val syncDownloadedPlaylists by AppSettings.syncDownloadedPlaylists.collectAsStateWithLifecycle()
     val stopOnTaskRemoved by AppSettings.stopOnTaskRemoved.collectAsStateWithLifecycle()
+    val smoothPause by AppSettings.smoothPause.collectAsStateWithLifecycle()
+    val pauseOnZeroVolume by AppSettings.pauseOnZeroVolume.collectAsStateWithLifecycle()
     val hideVolumeBar by AppSettings.hideVolumeBar.collectAsStateWithLifecycle()
     val hideStatusBarInPlayer by AppSettings.hideStatusBarInPlayer.collectAsStateWithLifecycle()
     val hideSongStatus by AppSettings.hideSongStatus.collectAsStateWithLifecycle()
@@ -1840,6 +1842,36 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setHideVolumeBar(!hideVolumeBar) },
+                )
+            }
+            val smoothPauseTitle = stringResource(R.string.smooth_pause)
+            row(smoothPauseTitle, "pause", "fade", "smooth", "player") {
+                SettingsRow(
+                    icon = SfIcons.Waves,
+                    title = smoothPauseTitle,
+                    subtitle = stringResource(R.string.smooth_pause_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = smoothPause,
+                            onCheckedChange = AppSettings::setSmoothPause,
+                        )
+                    },
+                    onClick = { AppSettings.setSmoothPause(!smoothPause) },
+                )
+            }
+            val pauseOnZeroVolumeTitle = stringResource(R.string.pause_on_zero_volume)
+            row(pauseOnZeroVolumeTitle, "volume", "pause", "mute", "player") {
+                SettingsRow(
+                    icon = SfIcons.VolumeOff,
+                    title = pauseOnZeroVolumeTitle,
+                    subtitle = stringResource(R.string.pause_on_zero_volume_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = pauseOnZeroVolume,
+                            onCheckedChange = AppSettings::setPauseOnZeroVolume,
+                        )
+                    },
+                    onClick = { AppSettings.setPauseOnZeroVolume(!pauseOnZeroVolume) },
                 )
             }
             val listenTogetherTabTitle = stringResource(R.string.show_listen_together_tab)

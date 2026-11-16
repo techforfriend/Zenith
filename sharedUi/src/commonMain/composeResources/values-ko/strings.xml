@@ -106,6 +106,9 @@
     <string name="played_by">%1$s님이 재생</string>
     <string name="playing_from">%1$s에서 재생 중</string>
     <string name="playing_radio">%1$s 라디오 재생 중</string>
+    <string name="playing_from_label">재생 위치</string>
+    <string name="played_by_label">재생한 사람</string>
+    <string name="playing_radio_label">라디오 재생 중</string>
     <string name="queue">대기열</string>
     <string name="remove_from_liked">좋아요 표시한 음악에서 삭제</string>
     <string name="remove_from_queue">대기열에서 삭제</string>

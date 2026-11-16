@@ -541,6 +541,10 @@
     <string name="stop_music_on_close_subtitle">Stops playback when swiped away from recent apps</string>
     <string name="hide_volume_bar">Hide volume bar</string>
     <string name="hide_volume_bar_subtitle">Removes the volume slider from the main player</string>
+    <string name="smooth_pause">Smooth pause</string>
+    <string name="smooth_pause_subtitle">Fades the music out gently when paused instead of stopping it instantly</string>
+    <string name="pause_on_zero_volume">Pause when volume is zero</string>
+    <string name="pause_on_zero_volume_subtitle">Automatically pauses playback when the media volume is turned all the way down</string>
     <string name="hide_status_bar_in_player">Hide status bar in player</string>
     <string name="hide_status_bar_in_player_subtitle">Hides the clock, battery and notification icons while the main player is open</string>
     <string name="hide_song_status">Hide Song Status</string>

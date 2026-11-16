@@ -111,6 +111,9 @@
     <string name="played_by">Diputar oleh %1$s</string>
     <string name="playing_from">Diputar dari %1$s</string>
     <string name="playing_radio">Memutar Radio %1$s</string>
+    <string name="playing_from_label">Diputar dari</string>
+    <string name="played_by_label">Diputar oleh</string>
+    <string name="playing_radio_label">Memutar radio</string>
     <string name="queue">Antrean</string>
     <string name="remove_from_liked">Hapus dari Musik yang Disukai</string>
     <string name="remove_from_queue">Hapus dari antrean</string>

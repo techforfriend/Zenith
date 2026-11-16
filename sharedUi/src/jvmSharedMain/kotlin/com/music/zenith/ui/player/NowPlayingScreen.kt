@@ -316,7 +316,9 @@ private const val SPOTIFY_CANVAS_RESUME_DELAY_MS = 1_000L
 private const val SPOTIFY_DECK_HEIGHT_FRACTION = 0.56f
 
 /** Height of the seek bar that stays on screen once Spotify Canvas' control deck is hidden. */
-private val SPOTIFY_MINI_SCRUBBER_HEIGHT = 48.dp
+/** Seberapa jauh bar progres, menit, dan label kualitas dinaikkan dari tepi bawah layar. */
+private val SPOTIFY_MINI_SCRUBBER_LIFT = 16.dp
+private val SPOTIFY_MINI_SCRUBBER_HEIGHT = 48.dp + SPOTIFY_MINI_SCRUBBER_LIFT
 
 /** [image] selebar scope, rata atas, rasio aslinya tanpa crop; yang melewati tepi bawah terpotong. */
 private fun DrawScope.drawFrameTopAligned(image: ImageBitmap) {
@@ -1045,6 +1047,8 @@ fun NowPlayingScreen(
      * rather than a still of it.
      */
     onLiveCanvasChanged: (Boolean) -> Unit = {},
+    /** Menutup player (turun ke mini player); dipanggil chevron di header. */
+    onDismissPlayer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -1722,6 +1726,11 @@ fun NowPlayingScreen(
             if (grabbed != null) canvasPanelFrame = grabbed
         }
     }
+    // Frame beku dibuang saat player diam tanpa panel, supaya buka panel/geser
+    // antrean berikutnya tidak memakai frame basi dari sesi sebelumnya.
+    LaunchedEffect(collapseAtRest, lyricsOpen, queueOpen) {
+        if (collapseAtRest && !lyricsOpen && !queueOpen) canvasPanelFrame = null
+    }
     // Bentuk klip hero yang sedang tampil; diisi tiap komposisi di bawah (setelah
     // clipFadeFraction), dibaca saat skip menahan frame-nya.
     val heroClipGeometry = remember { HeroClipGeometry() }
@@ -1839,8 +1848,13 @@ fun NowPlayingScreen(
     val liveCanvasPanels = canvasLiveBlur && frost != null
     // While a panel is up the clip, whatever its shape, covers the whole player.
     val clipFillsPanels = liveCanvasPanels && (lyricsOpen || queueOpen)
+    // Spotify layar penuh tidak dilepas saat panel terbuka, juga ketika live blur off:
+    // klip tetap ter-mount, dijeda dan tak terlihat (presentationAlpha 0). Dilepas, ia
+    // dibangun ulang dari nol saat kembali ke player utama, dan selama decoder serta
+    // frame pertamanya belum siap yang tampil adalah cover statis.
+    val keepSpotifyClip = spotifyCanvasOnPhone && canvas?.source == CanvasSource.SPOTIFY
     val heroClipMounted = canvas?.takeIf {
-        heroMode && (!(lyricsOpen || queueOpen) || !collapseDone || liveCanvasPanels)
+        heroMode && (!(lyricsOpen || queueOpen) || !collapseDone || liveCanvasPanels || keepSpotifyClip)
     }
     val clipFullscreen = spotifyCanvasOnPhone &&
         heroClipMounted?.source == CanvasSource.SPOTIFY
@@ -2433,14 +2447,20 @@ fun NowPlayingScreen(
     // [FrostedPlayerFrame], which records the player for it and draws them
     // beside it. None under "reduce dynamic blur": the panels go opaque, and a
     // recording nothing reads is the cost that setting exists to remove.
+    // Klip Spotify layar penuh yang tetap diputar di belakang lirik/antrean (live blur
+    // on) juga harus jadi sumber blur live untuk popup dan menu di atasnya. Tanpa ini
+    // spotifyCanvasPresentation sudah false begitu panel terbuka (heroClip lepas di
+    // p >= 0.5), sehingga popup jatuh ke still statis.
+    val liveBackdropOn = spotifyCanvasPresentation ||
+        (liveCanvasPanels && clipFullscreen && canvasRendered && (lyricsOpen || queueOpen))
     val reportLiveCanvas by rememberUpdatedState(onLiveCanvasChanged)
-    LaunchedEffect(spotifyCanvasPresentation) { reportLiveCanvas(spotifyCanvasPresentation) }
+    LaunchedEffect(liveBackdropOn) { reportLiveCanvas(liveBackdropOn) }
     DisposableEffect(Unit) { onDispose { reportLiveCanvas(false) } }
     FrostedPlayerFrame(
         modifier = modifier,
         tint = playerTint,
         frost = frost,
-        live = spotifyCanvasPresentation,
+        live = liveBackdropOn,
         // Not the host's ⋯ menu: that takes its own still, of everything.
         overlayOpen = { overlayOpen.value && !currentMenuOpen() },
         overlays = playerOverlays,
@@ -2906,24 +2926,40 @@ fun NowPlayingScreen(
                 // not the legacy mesh. Live blur on: the clip itself stays playing instead.
                 val canvasPanelMesh = !tabletArtworkBackdrop && canvas != null && heroMode &&
                     (lyricsOpen || queueOpen) && !liveCanvasPanels
-                val canvasMeshAlpha by animateFloatAsState(
-                    targetValue = if (canvasPanelMesh) 1f else 0f,
-                    animationSpec = tween(
-                        durationMillis = if (canvasPanelMesh) 360 else 600,
-                        easing = FastOutSlowInEasing,
-                    ),
-                    label = "canvasPanelMesh",
-                )
                 // Blur statis dari frame terakhir canvas: tetap tampil selama panel terbuka.
                 val canvasPanelFrameBlur = rememberFullArtworkBlurImage(
                     imageUrl = null,
                     liveFrame = canvasPanelFrame,
                 )
+                // Spotify layar penuh, live blur off: alas panel HANYA blur frame beku
+                // klipnya sendiri. Cover lagu tidak boleh tampil sama sekali, juga bukan
+                // sebagai cadangan selagi blur frame belum siap.
+                val spotifyFrameOnly = spotifyCanvasOnPhone &&
+                    canvas?.source == CanvasSource.SPOTIFY && heroMode && !liveCanvasPanels
+                // Blur frame ditahan utuh selama panel terbuka dan selama collapse
+                // (masuk maupun keluar), tepat di bawah klip yang melebur.
+                val spotifyFrameHold = spotifyFrameOnly && (canvasPanelMesh || collapseStarted) &&
+                    canvasPanelFrameBlur != null
+                val canvasMeshAlpha by animateFloatAsState(
+                    targetValue = if (spotifyFrameOnly) {
+                        if (spotifyFrameHold) 1f else 0f
+                    } else if (canvasPanelMesh) 1f else 0f,
+                    animationSpec = if (spotifyFrameHold) {
+                        // Sudah utuh sebelum klip mulai melebur: tanpa naik pelan.
+                        snap()
+                    } else {
+                        tween(
+                            durationMillis = if (canvasPanelMesh) 360 else 600,
+                            easing = FastOutSlowInEasing,
+                        )
+                    },
+                    label = "canvasPanelMesh",
+                )
                 val legacyMeshBackdrop = !tabletArtworkBackdrop && !spotifyCanvasPresentation &&
                     legacyMesh && !canvasPanelMesh
                 val fullArtworkBackdropAlpha by animateFloatAsState(
                     targetValue = if (
-                        !legacyMeshBackdrop && !canvasPanelMesh &&
+                        !legacyMeshBackdrop && !canvasPanelMesh && !spotifyFrameHold &&
                         (tabletArtworkBackdrop || fullArtworkBlurImage != null) &&
                         (!spotifyCanvasPresentation || lyricsOpen || queueOpen ||
                             mixing || crossfading || clipDimmed || dissolve.fullFrame != null)
@@ -2957,7 +2993,8 @@ fun NowPlayingScreen(
                 }
                 if (canvasMeshAlpha > 0.001f) {
                     FullArtworkBlurBackdrop(
-                        image = canvasPanelFrameBlur ?: fullArtworkBlurImage,
+                        image = if (spotifyFrameOnly) canvasPanelFrameBlur
+                            else canvasPanelFrameBlur ?: fullArtworkBlurImage,
                         modifier = Modifier.graphicsLayer { alpha = canvasMeshAlpha },
                     )
                 }
@@ -3026,7 +3063,12 @@ fun NowPlayingScreen(
                                     else if (clipFullscreen) {
                                         // Spotify layar penuh: frame melebur lebih awal langsung
                                         // ke backdrop, tanpa bercampur dengan cover statis.
-                                        1f - smootherStep(((p() - 0.05f) / 0.3f).coerceIn(0f, 1f))
+                                        // Live blur off: klip bertahan utuh sampai blur
+                                        // frame beku-nya siap, lalu melebur ke sana.
+                                        if (spotifyFrameOnly && (lyricsOpen || queueOpen) &&
+                                            canvasPanelFrameBlur == null
+                                        ) 1f
+                                        else 1f - smootherStep(((p() - 0.05f) / 0.3f).coerceIn(0f, 1f))
                                     } else (1f - 2f * p()).coerceIn(0f, 1f)
                                     ) * dockFade() * clipMixFade.value
                             },
@@ -3378,30 +3420,60 @@ fun NowPlayingScreen(
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        // Thin drag handle, Apple Music style. The strip itself hands
-                        // drags to the sheet; this only says it can be pulled down.
-                        Box(
+                        // Chevron turun di sisi kiri, bukan garis divider. Strip-nya tetap
+                        // yang meneruskan drag ke sheet; ini hanya penanda bisa ditutup.
+                        androidx.compose.foundation.Canvas(
                             modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 6.dp)
-                                .size(width = 36.dp, height = 3.dp)
+                                .align(Alignment.CenterStart)
                                 .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha }
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(Color.White.copy(alpha = 0.4f)),
-                        )
+                                // Padding setelah clickable: area ketuknya melebar melewati
+                                // gambar chevron, tapi tetap di dalam tinggi strip.
+                                .clickable(
+                                    enabled = !collapsePastHalf &&
+                                        (!spotifyCanvasPresentation || spotifyCanvasControlsOpen),
+                                    interactionSource = remember {
+                                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                                    },
+                                    indication = null,
+                                    onClick = onDismissPlayer,
+                                )
+                                .padding(start = PLAYER_GUTTER, end = 24.dp, top = 14.dp, bottom = 4.dp)
+                                .size(width = 20.dp, height = 10.dp),
+                        ) {
+                            val stroke = 2.2.dp.toPx()
+                            val chevron = androidx.compose.ui.graphics.Path().apply {
+                                moveTo(stroke / 2f, stroke / 2f)
+                                lineTo(size.width / 2f, size.height - stroke / 2f)
+                                lineTo(size.width - stroke / 2f, stroke / 2f)
+                            }
+                            drawPath(
+                                path = chevron,
+                                color = Color.White.copy(alpha = 0.92f),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                    width = stroke,
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                    join = androidx.compose.ui.graphics.StrokeJoin.Round,
+                                ),
+                            )
+                        }
                         // [p] is the shared album-to-panel transition. Keeping this in
                         // composition until its final frame gives the caption a real
                         // fade on both entry and exit, but removes its click target
                         // entirely once lyrics or the queue owns the player.
                         if (!hideSongStatus) {
                             WhileShown({ !collapseAlmostDone }) {
-                                PlaybackOriginCaption(
-                                    text = playbackOriginText(song, playedBy),
+                                val (originLabel, originName) = playbackOriginParts(song, playedBy)
+                                PlaybackOriginHeader(
+                                    label = originLabel,
+                                    name = originName,
                                     onClick = openPlaybackOrigin,
-                                    textAlign = TextAlign.Center,
-                                    contentPadding = PaddingValues(start = PLAYER_GUTTER, end = PLAYER_GUTTER, bottom = 1.dp),
+                                    contentPadding = PaddingValues(
+                                        start = PLAYER_GUTTER + 36.dp,
+                                        end = PLAYER_GUTTER + 36.dp,
+                                    ),
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
+                                        .offset(y = 2.dp)
                                         .graphicsLayer { alpha = (1f - p()) * spotifyChromeAlpha },
                                 )
                             }
@@ -4119,6 +4191,11 @@ fun NowPlayingScreen(
                                             } else {
                                                 1f
                                             }
+                                        } else if (clipFullscreen && (lyricsOpen || queueOpen || collapseStarted)) {
+                                            // Live blur off: the cover behaves the same as with
+                                            // live blur on. It does not fly with the panel, it only
+                                            // fades in at the header and out again on the way back.
+                                            smootherStep(((p() - 0.75f) / 0.25f).coerceIn(0f, 1f))
                                         } else if (stillTakesOver()) 1f
                                         else if (heroClip != null) {
                                             if (clipFullscreen && canvasRendered && !clipDimmed) {
@@ -5241,6 +5318,7 @@ Spacer(Modifier.width(12.dp))
                                     }
                                 }
                                 .height(SPOTIFY_MINI_SCRUBBER_HEIGHT)
+                                .padding(bottom = SPOTIFY_MINI_SCRUBBER_LIFT)
                                 .graphicsLayer { alpha = 1f - playerDeckReveal.value },
                             contentAlignment = Alignment.BottomCenter,
                         ) {

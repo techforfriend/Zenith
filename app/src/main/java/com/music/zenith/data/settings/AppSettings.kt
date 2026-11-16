@@ -771,6 +771,12 @@ object AppSettings {
     /** Stop playback when the app is swiped away from the recent apps screen. */
     val stopOnTaskRemoved = MutableStateFlow(true)
 
+    /** Fade the music out gently when paused instead of cutting it off instantly. */
+    val smoothPause = MutableStateFlow(true)
+
+    /** Pause playback automatically when the media volume is turned all the way down to zero. */
+    val pauseOnZeroVolume = MutableStateFlow(false)
+
     /** Hides the volume slider on the main player, leaving the rest of the layout to reflow. */
     val hideVolumeBar = MutableStateFlow(false)
 
@@ -1510,6 +1516,8 @@ object AppSettings {
             prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
         )
         stopOnTaskRemoved.value = prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, true)
+        smoothPause.value = prefs.getBoolean(KEY_SMOOTH_PAUSE, true)
+        pauseOnZeroVolume.value = prefs.getBoolean(KEY_PAUSE_ON_ZERO_VOLUME, false)
         hideVolumeBar.value = prefs.getBoolean(KEY_HIDE_VOLUME_BAR, false)
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
         hideSongStatus.value = prefs.getBoolean(KEY_HIDE_SONG_STATUS, false)
@@ -2046,6 +2054,16 @@ object AppSettings {
     fun setOnboardingComplete() {
         onboardingComplete.value = true
         prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+    }
+
+    fun setPauseOnZeroVolume(value: Boolean) {
+        pauseOnZeroVolume.value = value
+        prefs.edit().putBoolean(KEY_PAUSE_ON_ZERO_VOLUME, value).apply()
+    }
+
+    fun setSmoothPause(value: Boolean) {
+        smoothPause.value = value
+        prefs.edit().putBoolean(KEY_SMOOTH_PAUSE, value).apply()
     }
 
     fun setStopOnTaskRemoved(value: Boolean) {
@@ -3144,6 +3162,8 @@ object AppSettings {
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"
     private const val KEY_PERFORMANCE_REFRESH_RATE = "performance_refresh_rate"
     private const val KEY_STOP_ON_TASK_REMOVED = "stop_on_task_removed"
+    private const val KEY_SMOOTH_PAUSE = "smooth_pause"
+    private const val KEY_PAUSE_ON_ZERO_VOLUME = "pause_on_zero_volume"
     private const val KEY_HIDE_VOLUME_BAR = "hide_volume_bar"
     private const val KEY_HIDE_STATUS_BAR_IN_PLAYER = "hide_status_bar_in_player"
     private const val KEY_HIDE_SONG_STATUS = "hide_song_status"
