@@ -306,6 +306,18 @@ object InnertubeParser {
         return HomeShelf(shelfTitle, items, strapline, layout = shelfLayoutFor(shelfTitle, items, fromList))
     }
 
+    /**
+     * Carousel yang dibawa halaman album di bawah daftar lagunya ("You might also like",
+     * "Other versions", "More by ..."), sebagai shelf sesuai urutan halaman. Hanya yang
+     * punya kartu yang bisa dibuka (album, playlist, artis) atau video yang bisa diputar;
+     * shelf dengan judul sama dibuang agar tidak dobel.
+     */
+    fun parseRelatedShelves(root: JsonElement): List<HomeShelf> =
+        collectRenderers(root, "musicCarouselShelfRenderer")
+            .mapNotNull(::carouselShelf)
+            .filter { shelf -> shelf.items.any { it.browseId != null || it.isVideo } }
+            .distinctBy { it.title }
+
     private fun plainShelf(shelf: JsonObject): HomeShelf? {
         val title = shelf.o("title").runs()
         val items = shelf.a("contents").orEmpty().mapNotNull {

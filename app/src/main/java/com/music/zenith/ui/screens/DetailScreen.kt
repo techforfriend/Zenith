@@ -1279,10 +1279,14 @@ private fun ReleaseHeader(
             )
         }
 
+        // Only where YouTube said the release can be saved and the caller
+        // is willing to take the write — see [onToggleLibrary].
+        val library = page.library?.takeIf { onToggleLibrary != null }
+        // Playlist sendiri (tanpa tombol library maupun unduh semua): Add songs ikut
+        // satu baris dengan Shuffle dan Play, sebagai lingkaran di kanan.
+        val addSongsInRow = onAddSongs != null && onDownloadAll == null &&
+            (page.browseId.startsWith("local:") || library == null)
         if (songs.isNotEmpty()) {
-            // Only where YouTube said the release can be saved and the caller
-            // is willing to take the write — see [onToggleLibrary].
-            val library = page.library?.takeIf { onToggleLibrary != null }
             Spacer(Modifier.height(18.dp))
             Row(
                 modifier = Modifier
@@ -1294,6 +1298,30 @@ private fun ReleaseHeader(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (page.browseId.startsWith("local:") || library == null) {
+                    if (addSongsInRow && onAddSongs != null) {
+                        CircleIconButton(
+                            icon = ZenithIcons.Shuffle,
+                            contentDescription = stringResource(R.string.shuffle),
+                            onClick = onShuffle,
+                            haptic = Haptic.Resume,
+                            size = RELEASE_SIDE_BUTTON,
+                        )
+                        ActionPill(
+                            icon = ZenithIcons.Play,
+                            label = stringResource(R.string.play),
+                            onClick = onPlay,
+                            filled = true,
+                            size = RELEASE_SIDE_BUTTON,
+                            modifier = Modifier.weight(1f),
+                        )
+                        CircleIconButton(
+                            icon = ZenithIcons.Plus,
+                            contentDescription = stringResource(R.string.playlist_add_songs),
+                            onClick = onAddSongs,
+                            size = RELEASE_SIDE_BUTTON,
+                        )
+                        return@Row
+                    }
                     // Already on this device — a folder, a download, a local
                     // playlist — so there is no library to add it to, and a
                     // greyed-out plus would only promise one. Apple Music's
@@ -1361,7 +1389,9 @@ private fun ReleaseHeader(
 
         // Di luar blok "songs.isNotEmpty()" di atas: playlist yang baru dibuat
         // masih kosong, dan baris Shuffle/Play belum ada, tapi tombol ini harus.
-        if (onAddSongs != null) {
+        // Dengan lagu, tombol ini sudah ada di baris aksi (addSongsInRow); pil lebar
+        // hanya untuk playlist kosong atau saat baris itu sudah dipakai tombol lain.
+        if (onAddSongs != null && !(addSongsInRow && songs.isNotEmpty())) {
             Spacer(Modifier.height(if (songs.isEmpty()) 18.dp else 10.dp))
             ActionPill(
                 icon = ZenithIcons.Plus,
@@ -3143,9 +3173,9 @@ private fun FolderCoverHero(
     }
 }
 
-/** Album: cover full-bleed sampai di bawah bar, seperti halaman folder perangkat. */
+/** Album dan playlist: cover full-bleed sampai di bawah bar, seperti halaman folder perangkat. */
 private fun DetailPage.isAlbumHero(): Boolean =
-    type == BrowseType.ALBUM && mix == null && covers.isEmpty() &&
+    (type == BrowseType.ALBUM || type == BrowseType.PLAYLIST) && mix == null && covers.isEmpty() &&
         !isFolderCover() && !isLikedMusic()
 
 /** Hero album sedikit lebih tinggi dari hero folder, supaya cover persegi tidak banyak terpotong. */

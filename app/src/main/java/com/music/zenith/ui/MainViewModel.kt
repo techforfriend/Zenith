@@ -3189,6 +3189,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                 if (thumbnailUrl == null) artwork = header.thumbnailUrl
                             }
                             description = page.description
+                            // Rekomendasi di akhir halaman album; layar sudah menggambar
+                            // DetailPage.sections untuk semua jenis halaman.
+                            sections = page.related
                             if (page.songs.isEmpty()) {
                                 UiState.Error(text(R.string.no_tracks_here))
                             } else {

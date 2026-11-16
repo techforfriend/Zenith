@@ -89,6 +89,10 @@ internal fun editorialShelfIndex(shelves: List<HomeShelf>): Int? =
     shelves.withIndex().firstOrNull { (index, shelf) ->
         index >= 2 &&
             shelf.layout == ShelfLayout.CARDS &&
+            // Shelf mix (Liked Music, Discover Mix, ...) juga punya browseId dan thumbnail,
+            // tapi bukan rilisan: tanpa ini ia dibuang dari Home tiap kali posisinya
+            // bergeser ke indeks 2 ke atas.
+            !shelf.isMixShelf() &&
             shelf.items.count { it.isRelease() } >= EDITORIAL_MIN
     }?.index
 

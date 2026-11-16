@@ -867,6 +867,11 @@ object YtMusicRepository {
          * continuation, same as [header].
          */
         val description: String? = null,
+        /**
+         * Shelf rekomendasi di akhir halaman album ("You might also like", dst.), dibaca
+         * dari respons album asli. Kosong untuk playlist dan untuk continuation.
+         */
+        val related: List<HomeShelf> = emptyList(),
     )
 
     /**
@@ -904,11 +909,16 @@ object YtMusicRepository {
      */
     private suspend fun albumPageOf(albumResponse: JsonObject): SongPage {
         val metadata = pageOf(albumResponse)
-        val playlist = albumPlaylistOf(albumResponse, metadata.songs.size) ?: return metadata
+        // Dibaca dari respons album, bukan dari playlist pengganti di bawah: hanya
+        // halaman album yang membawa carousel rekomendasinya.
+        val related = InnertubeParser.parseRelatedShelves(albumResponse)
+        val playlist = albumPlaylistOf(albumResponse, metadata.songs.size)
+            ?: return metadata.copy(related = related)
         return pageOf(playlist).copy(
             library = metadata.library,
             header = metadata.header,
             description = metadata.description,
+            related = related,
         )
     }
 

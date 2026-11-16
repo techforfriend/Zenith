@@ -294,6 +294,12 @@ private val ART_BOX_TOP_PAD = 8.dp
  * that was cut off rather than one that ran out.
  */
 private const val HERO_FADE_FRACTION = 0.42f
+/**
+ * Pudar bawah cover statis layar penuh (lagu tanpa klip Apple/Spotify). Lebih pendek
+ * dari [HERO_FADE_FRACTION] agar gambar bertahan lebih rendah seperti di Apple Music;
+ * klip tetap memakai [HERO_FADE_FRACTION].
+ */
+private const val HERO_COVER_FADE_FRACTION = 0.18f
 /** Kept transparent so the cover remains edge-to-edge, while aiding icon contrast. */
 /** A modest floor while a subview replaces the hero with its blurred artwork backdrop. */
 private const val SUBVIEW_STATUS_SCRIM_MIN_ALPHA = 0.40f
@@ -2333,8 +2339,15 @@ fun NowPlayingScreen(
     // The clip's dissolve, held at the banner's height in pixels — see [clipFadeFraction].
     fun stillFadeFraction(): Float {
         val bottom = stillBottomPx()
-        if (bottom <= 0f) return HERO_FADE_FRACTION
-        return (with(density) { (heroHeight - heroTitleDrop).toPx() } * HERO_FADE_FRACTION / bottom).coerceIn(0f, 1f)
+        // Hanya lagu tanpa klip sama sekali yang memakai pudar pendek. Selama ada klip,
+        // atau still / frame tahanannya, pudar sleeve harus sama dengan pudar klipnya.
+        val fraction = if (canvas != null || still() != null || dissolve.frame != null) {
+            HERO_FADE_FRACTION
+        } else {
+            HERO_COVER_FADE_FRACTION
+        }
+        if (bottom <= 0f) return fraction
+        return (with(density) { (heroHeight - heroTitleDrop).toPx() } * fraction / bottom).coerceIn(0f, 1f)
     }
     // Where a clip starts, read once as it mounts — see each — from its still,
     // so the first frame it paints is the one already on screen.
