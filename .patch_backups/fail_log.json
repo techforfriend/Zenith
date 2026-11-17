@@ -172,5 +172,23 @@
     "block": 1,
     "layer": "hapus_file_not_found",
     "file": "sharedUi/src/jvmSharedMain/kotlin/com/music/zenith/ui/player/ArtworkDissolve.kt"
+  },
+  {
+    "timestamp": "2026-11-17 12:34:19",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/res/values/strings.xml"
+  },
+  {
+    "timestamp": "2026-11-17 12:34:19",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/res/values-in/strings.xml"
+  },
+  {
+    "timestamp": "2026-11-17 12:34:19",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/res/values-ko/strings.xml"
   }
 ]

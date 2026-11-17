@@ -38,9 +38,22 @@ object AppUpdateChecker {
         val apkUrl: String?,
         /** The release's own Markdown body, shown as this update's "what's new". */
         val notes: String?,
-    )
+        /** When the release was published on GitHub, in epoch millis; 0 when the API didn't say. */
+        val publishedAtMillis: Long = 0L,
+    ) {
+        /**
+         * True once this release has been out for [FORCE_AFTER_MILLIS] and the
+         * user still runs an older build: the popup then loses its dismiss
+         * actions and keeps coming back until the update is installed.
+         */
+        fun isMandatory(now: Long = System.currentTimeMillis()): Boolean =
+            publishedAtMillis > 0L && now - publishedAtMillis >= FORCE_AFTER_MILLIS
+    }
 
     private const val CACHE_SUBDIR = "updates"
+
+    /** How long a release may sit unadopted before the update popup becomes mandatory: 2 days. */
+    const val FORCE_AFTER_MILLIS = 2L * 24 * 60 * 60 * 1000
 
     private val LATEST_RELEASE_URL =
         "https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest"
@@ -77,9 +90,12 @@ object AppUpdateChecker {
             val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
             val apkUrl = apkAssetUrl(release)
             val notes = release["body"]?.jsonPrimitive?.contentOrNull
+            val publishedAt = release["published_at"]?.jsonPrimitive?.contentOrNull
+                ?.let { runCatching { java.time.Instant.parse(it).toEpochMilli() }.getOrNull() }
+                ?: 0L
             val latest = tag.removePrefix("v")
             if (isNewer(latest, BuildConfig.VERSION_NAME)) {
-                _available.value = UpdateInfo(latest, url, apkUrl, notes)
+                _available.value = UpdateInfo(latest, url, apkUrl, notes, publishedAt)
             }
         }
     }

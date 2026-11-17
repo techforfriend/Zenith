@@ -1,0 +1,96 @@
+name: Telegram Notify
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review]
+  push:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram message
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          TG_TOPIC_ID: ${{ secrets.TG_TOPIC_ID }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          ACTOR: ${{ github.actor }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_STATE: ${{ github.event.issue.state }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_STATE: ${{ github.event.pull_request.state }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          REF_NAME: ${{ github.ref_name }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          COMPARE_URL: ${{ github.event.compare }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+        run: |
+          set -eu
+          case "$EVENT" in
+            issues)
+              MSG=$(printf '%s • Issue\n%s %s\n%s#%s %s\nState: %s • Author: %s\nLabels: %s\n%s' \
+                "$REPO" "$ACTOR" "$ACTION" "${REPO#*/}" "$ISSUE_NUM" "$ISSUE_TITLE" \
+                "$ISSUE_STATE" "$ISSUE_AUTHOR" "${ISSUE_LABELS:-none}" "$ISSUE_URL")
+              ;;
+            issue_comment)
+              BODY="${COMMENT_BODY:0:300}"
+              MSG=$(printf '%s • Comment\n%s commented %s#%s %s\n\n%s\n%s' \
+                "$REPO" "$ACTOR" "${REPO#*/}" "$ISSUE_NUM" "$ISSUE_TITLE" "$BODY" "$COMMENT_URL")
+              ;;
+            pull_request)
+              STATE="$PR_STATE"
+              if [ "$PR_MERGED" = "true" ]; then STATE="merged"; fi
+              MSG=$(printf '%s • Pull Request\n%s %s %s#%s %s\nState: %s • Author: %s\n%s' \
+                "$REPO" "$ACTOR" "$ACTION" "${REPO#*/}" "$PR_NUM" "$PR_TITLE" \
+                "$STATE" "$PR_AUTHOR" "$PR_URL")
+              ;;
+            push)
+              COMMIT_COUNT=$(jq '.commits | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo 0)
+              FIRST_LINE="${HEAD_MSG%%$'\n'*}"
+              MSG=$(printf '%s • Push\n%s pushed %s commit(s) to %s\n%s\n%s' \
+                "$REPO" "$ACTOR" "$COMMIT_COUNT" "$REF_NAME" "$FIRST_LINE" "$COMPARE_URL")
+              ;;
+            release)
+              MSG=$(printf '%s • Release\n%s published %s %s\n%s' \
+                "$REPO" "$ACTOR" "$RELEASE_TAG" "$RELEASE_NAME" "$RELEASE_URL")
+              ;;
+            *)
+              MSG="$REPO • $EVENT $ACTION by $ACTOR"
+              ;;
+          esac
+
+          if [ -n "${TG_TOPIC_ID:-}" ]; then
+            curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${TG_CHAT_ID}" \
+              --data-urlencode "message_thread_id=${TG_TOPIC_ID}" \
+              --data-urlencode "disable_web_page_preview=true" \
+              --data-urlencode "text=${MSG}"
+          else
+            curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${TG_CHAT_ID}" \
+              --data-urlencode "disable_web_page_preview=true" \
+              --data-urlencode "text=${MSG}"
+          fi

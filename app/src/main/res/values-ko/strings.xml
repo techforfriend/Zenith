@@ -142,6 +142,7 @@
     <string name="update_available">업데이트 가능: v%1$s</string>
     <string name="software_update">소프트웨어 업데이트</string>
     <string name="update_available_body">Zenith %1$s을(를) 다운로드할 수 있어요.</string>
+    <string name="update_required_body">필수 업데이트가 있습니다. 앱을 계속 사용하려면 Zenith %1$s을(를) 설치해 주세요.</string>
     <string name="update_downloading_body">Zenith %1$s 다운로드 중…</string>
     <string name="update_ready_body">Zenith %1$s을(를) 설치할 준비가 됐어요.</string>
     <string name="update_failed_body">Zenith %1$s을(를) 다운로드할 수 없어요.</string>

@@ -109,6 +109,7 @@
     <string name="update_available">Pembaruan tersedia: v%1$s</string>
     <string name="software_update">Pembaruan Perangkat Lunak</string>
     <string name="update_available_body">Zenith %1$s tersedia untuk diunduh.</string>
+    <string name="update_required_body">Pembaruan wajib tersedia. Silakan pasang Zenith %1$s untuk terus menggunakan aplikasi.</string>
     <string name="update_downloading_body">Mengunduh Zenith %1$s…</string>
     <string name="update_ready_body">Zenith %1$s siap dipasang.</string>
     <string name="update_failed_body">Gagal mengunduh Zenith %1$s.</string>

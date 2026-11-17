@@ -88,6 +88,8 @@ fun UpdateAvailableDialog(
     onInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
     modifier: Modifier = Modifier,
+    /** True once the update is overdue: no scrim dismiss and no Later / Remind Me Later. */
+    mandatory: Boolean = false,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
@@ -98,14 +100,14 @@ fun UpdateAvailableDialog(
         modifier = modifier
             .fillMaxSize()
             .macOSPopupScrim(motion, SCRIM_COLOR)
-            // Tapping the scrim reads the same as Remind Me Later — nothing
-            // about this update is mandatory, so backing out of it should be as
-            // easy as getting into it. Mid-download it only closes the sheet;
-            // the download keeps going and the top-bar icon reopens this.
+            // Tapping the scrim reads the same as Remind Me Later, unless the
+            // update is overdue (mandatory): then the scrim does nothing.
+            // Mid-download it only closes the sheet; the download keeps going
+            // and the top-bar icon reopens this.
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = motion::requestClose,
+                onClick = { if (!mandatory) motion.requestClose() },
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -148,7 +150,11 @@ fun UpdateAvailableDialog(
                         is AppUpdateChecker.DownloadState.Failed ->
                             stringResource(R.string.update_failed_body, version)
                         else ->
-                            stringResource(R.string.update_available_body, version)
+                            if (mandatory) {
+                                stringResource(R.string.update_required_body, version)
+                            } else {
+                                stringResource(R.string.update_available_body, version)
+                            }
                     },
                     modifier = Modifier.padding(top = 4.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -238,8 +244,10 @@ fun UpdateAvailableDialog(
                 }
                 is AppUpdateChecker.DownloadState.Ready -> {
                     AlertAction(label = stringResource(R.string.install_now), emphasised = true, onClick = onInstall)
-                    AlertRule()
-                    AlertAction(label = stringResource(R.string.later), emphasised = false, onClick = onDismiss)
+                    if (!mandatory) {
+                        AlertRule()
+                        AlertAction(label = stringResource(R.string.later), emphasised = false, onClick = onDismiss)
+                    }
                 }
                 is AppUpdateChecker.DownloadState.Failed -> {
                     AlertAction(label = stringResource(R.string.try_again), emphasised = true, onClick = onDownload)
@@ -248,8 +256,10 @@ fun UpdateAvailableDialog(
                 }
                 else -> {
                     AlertAction(label = stringResource(R.string.download_now), emphasised = true, onClick = onDownload)
-                    AlertRule()
-                    AlertAction(label = stringResource(R.string.remind_me_later), emphasised = false, onClick = onDismiss)
+                    if (!mandatory) {
+                        AlertRule()
+                        AlertAction(label = stringResource(R.string.remind_me_later), emphasised = false, onClick = onDismiss)
+                    }
                 }
             }
         }

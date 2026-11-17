@@ -492,7 +492,10 @@ class MainActivity : AppCompatActivity() {
                             item = if (open) Unit else null,
                             anchor = anchor,
                             onDismiss = onDismiss,
-                            backdrop = playerFrost ?: lyricsBackdrop,
+                            // Saat Canvas live, playerFrost adalah LayerBackdrop yang merekam
+                            // seluruh player, termasuk popover ini sendiri (dipasang di dalam
+                            // lirik). Menggambar backdrop yang memuat dirinya = rekursi -> crash.
+                            backdrop = (playerFrost as? SnapshotBackdrop) ?: lyricsBackdrop,
                             hazeState = haze,
                             placement = IosMenuPlacement.AboveStart,
                             dimBackground = false,
@@ -530,7 +533,8 @@ class MainActivity : AppCompatActivity() {
                             item = if (open) Unit else null,
                             anchor = anchor,
                             onDismiss = onDismiss,
-                            backdrop = playerFrost ?: lyricsBackdrop,
+                            // Sama seperti popover globe: hindari backdrop live yang memuat dirinya.
+                            backdrop = (playerFrost as? SnapshotBackdrop) ?: lyricsBackdrop,
                             hazeState = haze,
                             placement = if (atStart) IosMenuPlacement.BelowStart else IosMenuPlacement.BelowEnd,
                             dimBackground = false,
@@ -1036,6 +1040,10 @@ private fun ZenithApp(
      * them made the top bar look like it had caught something the app hadn't.
      */
     val updateNotice = updateAvailable
+
+    // Overdue update (release older than two days): the popup is no longer
+    // once-per-launch or dismissible — it stays up until the update is installed.
+    val updateForced = updateNotice?.isMandatory() == true
 
     LaunchedEffect(updateNotice) {
         if (updateNotice != null && !updateDialogShown) {
@@ -3096,7 +3104,7 @@ private fun ZenithApp(
         val replayDrawable = replay.summary?.isEmpty == false
         BackHandler(enabled = replayDrawable && replayStory != null && !showReplayShare) { replayStory = null }
         BackHandler(enabled = replayDrawable && showReplayShare) { showReplayShare = false }
-        BackHandler(enabled = showUpdateDialog) { showUpdateDialog = false }
+        BackHandler(enabled = showUpdateDialog || updateForced) { if (!updateForced) showUpdateDialog = false }
         BackHandler(enabled = showListenBrainzLogin) { showListenBrainzLogin = false }
         BackHandler(enabled = showLastfmLogin) { showLastfmLogin = false }
         BackHandler(enabled = discordDialog != null) { discordDialog = null }
@@ -5264,13 +5272,17 @@ private fun ZenithApp(
                 Box(
                     when {
                         reduceDynamicBlur -> Modifier
-                        playerLiveCanvas -> Modifier.layerBackdrop(livePlayerBackdrop)
+                        // Snapshot diam tetap dipasang saat Canvas live, khusus untuk popover
+                        // di dalam player (globe / info antrean) agar frost-nya benar-benar blur.
+                        playerLiveCanvas -> Modifier
+                            .layerBackdrop(livePlayerBackdrop)
+                            .snapshotBackdropSource(playerBackdrop)
                         else -> Modifier.snapshotBackdropSource(playerBackdrop)
                     },
                 ) {
                     CompositionLocalProvider(
                         LocalPlayerDock provides activeDock,
-                        LocalPlayerMenuBackdrop provides (if (playerLiveCanvas) livePlayerBackdrop else playerBackdrop),
+                        LocalPlayerMenuBackdrop provides playerBackdrop,
                     ) {
                         nowPlaying(playerSong)
                     }
@@ -6057,12 +6069,13 @@ private fun ZenithApp(
         }
 
         // ---- Update available (once per launch; held until the welcome is done) ----
-        if (showUpdateDialog && onboardingComplete) {
+        if ((showUpdateDialog || updateForced) && onboardingComplete) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(
                     version = update.version,
                     notes = update.notes,
                     hazeState = hazeState,
+                    mandatory = updateForced,
                     // A download in progress keeps running behind the closed
                     // sheet — only the sheet itself goes away. The top bar's
                     // update icon reopens it onto whatever state it reached.
