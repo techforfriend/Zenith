@@ -322,6 +322,40 @@ fun LazyListScope.librarySkeleton() {
     songListSkeleton(count = 7, keyPrefix = "skeleton:library:song")
 }
 
+/**
+ * Placeholders for the pinned playlists at the head of the Library page: the
+ * same three-across grid, spacing and square cards as the real one, so the
+ * pins land in place instead of popping in and pushing the page down.
+ */
+@Composable
+fun PinnedGridSkeleton(count: Int) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = PAGE_GUTTER)
+            .padding(top = 4.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        (0 until count).toList().chunked(3).forEach { rowIndexes ->
+            Row(horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING)) {
+                rowIndexes.forEach { index ->
+                    Column(Modifier.weight(1f)) {
+                        ShimmerBox(
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        SkeletonLine(fraction = TitleWidths[index % TitleWidths.size], height = 13.dp)
+                        Spacer(Modifier.height(6.dp))
+                        SkeletonLine(fraction = SubtitleWidths[index % SubtitleWidths.size], height = 11.dp)
+                    }
+                }
+                repeat(3 - rowIndexes.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
 /** The Play / Shuffle pair, which only appears once there is something to play. */
 @Composable
 private fun DetailActionsSkeleton(isArtist: Boolean) {

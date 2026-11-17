@@ -59,7 +59,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.SortByAlpha
 import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -1669,7 +1668,7 @@ internal fun TranslationToggleButton(
             )
         } else {
             Icon(
-                imageVector = Icons.Rounded.Translate,
+                imageVector = ZenithIcons.Translate,
                 contentDescription = stringResource(
                     if (showingTranslation) Res.string.show_original_lyrics
                     else Res.string.translate_lyrics,

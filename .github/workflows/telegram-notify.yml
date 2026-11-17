@@ -7,9 +7,14 @@ on:
     types: [created]
   pull_request:
     types: [opened, closed, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted]
   push:
   release:
     types: [published]
+  watch:
+    types: [started]
+  fork:
 
 permissions:
   contents: read
@@ -24,73 +29,304 @@ jobs:
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           TG_TOPIC_ID: ${{ secrets.TG_TOPIC_ID }}
           REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
           EVENT: ${{ github.event_name }}
           ACTION: ${{ github.event.action }}
           ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
           ISSUE_NUM: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_STATE: ${{ github.event.issue.state }}
           ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
           ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ', ') }}
+          ISSUE_ASSIGNEES: ${{ join(github.event.issue.assignees.*.login, ', ') }}
+          ISSUE_MILESTONE: ${{ github.event.issue.milestone.title }}
+          ISSUE_COMMENTS: ${{ github.event.issue.comments }}
           ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_PR_URL: ${{ github.event.issue.pull_request.html_url }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_URL: ${{ github.event.comment.html_url }}
           PR_NUM: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
           PR_STATE: ${{ github.event.pull_request.state }}
           PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+          PR_FILES: ${{ github.event.pull_request.changed_files }}
+          PR_COMMITS: ${{ github.event.pull_request.commits }}
+          PR_REVIEWERS: ${{ join(github.event.pull_request.requested_reviewers.*.login, ', ') }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          REF_NAME: ${{ github.ref_name }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+          REVIEW_BODY: ${{ github.event.review.body }}
+          REVIEW_URL: ${{ github.event.review.html_url }}
           HEAD_MSG: ${{ github.event.head_commit.message }}
+          HEAD_URL: ${{ github.event.head_commit.url }}
+          HEAD_AUTHOR: ${{ github.event.head_commit.author.name }}
+          PUSHER: ${{ github.event.pusher.name }}
+          PUSH_FORCED: ${{ github.event.forced }}
+          PUSH_DELETED: ${{ github.event.deleted }}
           COMPARE_URL: ${{ github.event.compare }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_TARGET: ${{ github.event.release.target_commitish }}
+          RELEASE_PRE: ${{ github.event.release.prerelease }}
           RELEASE_URL: ${{ github.event.release.html_url }}
+          STAR_COUNT: ${{ github.event.repository.stargazers_count }}
+          FORK_COUNT: ${{ github.event.repository.forks_count }}
+          FORK_NAME: ${{ github.event.forkee.full_name }}
+          FORK_URL: ${{ github.event.forkee.html_url }}
         run: |
           set -eu
+          NL=$'\n'
+          TAB=$'\t'
+
+          # HTML-escape for Telegram parse_mode=HTML.
+          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+          # Trim text to a maximum length, appending an ellipsis when cut.
+          clip() {
+            local t
+            t=$(printf '%s' "$1" | tr '\r' ' ' | sed -e 's/[[:space:]]*$//')
+            if [ "${#t}" -gt "$2" ]; then t="${t:0:$2}…"; fi
+            printf '%s' "$t"
+          }
+
+          META=""
+          BUTTONS=""
+          LABEL=""
+          SUBJECT=""
+          QUOTE=""
+
+          # Detail row: bold label, colon, value (skipped when empty).
+          meta() {
+            [ -n "${2:-}" ] || return 0
+            local val
+            val=$(esc "$2")
+            case "$1" in
+              Branch|Commit|Tag) val="<code>${val}</code>" ;;
+            esac
+            META="${META}<b>$1</b> : ${val}${NL}"
+          }
+          # Inline shortcut button (skipped when the URL is empty).
+          btn() {
+            [ -n "${2:-}" ] || return 0
+            BUTTONS="${BUTTONS}$1${TAB}$2${NL}"
+          }
+
+          R=$(esc "$REPO")
+          REPO_URL="${SERVER_URL}/${REPO}"
+          RUN_URL="${REPO_URL}/actions/runs/${RUN_ID}"
+          NOW=$(TZ='Asia/Makassar' date '+%d %b %Y, %H:%M WITA')
+
           case "$EVENT" in
             issues)
-              MSG=$(printf '%s • Issue\n%s %s\n%s#%s %s\nState: %s • Author: %s\nLabels: %s\n%s' \
-                "$REPO" "$ACTOR" "$ACTION" "${REPO#*/}" "$ISSUE_NUM" "$ISSUE_TITLE" \
-                "$ISSUE_STATE" "$ISSUE_AUTHOR" "${ISSUE_LABELS:-none}" "$ISSUE_URL")
+              LABEL="ISSUE ${ACTION^^}"
+              SUBJECT="<b>#${ISSUE_NUM}</b>  <a href=\"${ISSUE_URL}\">$(esc "$ISSUE_TITLE")</a>"
+              if [ "$ACTION" = "opened" ] && [ -n "$ISSUE_BODY" ]; then
+                QUOTE="<blockquote expandable>$(esc "$(clip "$ISSUE_BODY" 500)")</blockquote>"
+              fi
+              meta "State" "${ISSUE_STATE^^}"
+              meta "Author" "$ISSUE_AUTHOR"
+              meta "Labels" "$ISSUE_LABELS"
+              meta "Assignees" "$ISSUE_ASSIGNEES"
+              meta "Milestone" "$ISSUE_MILESTONE"
+              meta "Actor" "$ACTOR"
+              btn "Open issue" "$ISSUE_URL"
+              btn "All issues" "${REPO_URL}/issues"
+              btn "Repository" "$REPO_URL"
               ;;
             issue_comment)
-              BODY="${COMMENT_BODY:0:300}"
-              MSG=$(printf '%s • Comment\n%s commented %s#%s %s\n\n%s\n%s' \
-                "$REPO" "$ACTOR" "${REPO#*/}" "$ISSUE_NUM" "$ISSUE_TITLE" "$BODY" "$COMMENT_URL")
+              KIND="ISSUE"
+              if [ -n "$ISSUE_PR_URL" ]; then KIND="PULL REQUEST"; fi
+              LABEL="${KIND} COMMENT"
+              SUBJECT="<b>#${ISSUE_NUM}</b>  <a href=\"${COMMENT_URL}\">$(esc "$ISSUE_TITLE")</a>"
+              QUOTE="<blockquote expandable>$(esc "$(clip "$COMMENT_BODY" 600)")</blockquote>"
+              meta "Commenter" "$ACTOR"
+              meta "Author" "$ISSUE_AUTHOR"
+              meta "State" "${ISSUE_STATE^^}"
+              meta "Comments" "$ISSUE_COMMENTS"
+              btn "View comment" "$COMMENT_URL"
+              btn "Open thread" "$ISSUE_URL"
+              btn "Repository" "$REPO_URL"
               ;;
             pull_request)
               STATE="$PR_STATE"
-              if [ "$PR_MERGED" = "true" ]; then STATE="merged"; fi
-              MSG=$(printf '%s • Pull Request\n%s %s %s#%s %s\nState: %s • Author: %s\n%s' \
-                "$REPO" "$ACTOR" "$ACTION" "${REPO#*/}" "$PR_NUM" "$PR_TITLE" \
-                "$STATE" "$PR_AUTHOR" "$PR_URL")
+              WORD="${ACTION//_/ }"
+              if [ "$PR_MERGED" = "true" ]; then STATE="merged"; WORD="merged"; fi
+              LABEL="PULL REQUEST ${WORD^^}"
+              SUBJECT="<b>#${PR_NUM}</b>  <a href=\"${PR_URL}\">$(esc "$PR_TITLE")</a>"
+              if { [ "$ACTION" = "opened" ] || [ "$ACTION" = "ready_for_review" ]; } && [ -n "$PR_BODY" ]; then
+                QUOTE="<blockquote expandable>$(esc "$(clip "$PR_BODY" 500)")</blockquote>"
+              fi
+              meta "Branch" "${PR_HEAD} -> ${PR_BASE}"
+              meta "State" "${STATE^^}"
+              meta "Author" "$PR_AUTHOR"
+              meta "Changes" "+${PR_ADDITIONS} / -${PR_DELETIONS}  (${PR_FILES} files)"
+              meta "Commits" "$PR_COMMITS"
+              meta "Reviewers" "$PR_REVIEWERS"
+              if [ "$PR_DRAFT" = "true" ]; then meta "Draft" "yes"; fi
+              meta "Actor" "$ACTOR"
+              btn "Open PR" "$PR_URL"
+              btn "Files changed" "${PR_URL}/files"
+              btn "Commits" "${PR_URL}/commits"
+              btn "Checks" "${PR_URL}/checks"
+              ;;
+            pull_request_review)
+              WORD="${REVIEW_STATE//_/ }"
+              LABEL="REVIEW ${WORD^^}"
+              SUBJECT="<b>#${PR_NUM}</b>  <a href=\"${REVIEW_URL}\">$(esc "$PR_TITLE")</a>"
+              if [ -n "$REVIEW_BODY" ]; then
+                QUOTE="<blockquote expandable>$(esc "$(clip "$REVIEW_BODY" 500)")</blockquote>"
+              fi
+              meta "Reviewer" "$ACTOR"
+              meta "Author" "$PR_AUTHOR"
+              meta "Branch" "${PR_HEAD} -> ${PR_BASE}"
+              btn "View review" "$REVIEW_URL"
+              btn "Open PR" "$PR_URL"
+              btn "Files changed" "${PR_URL}/files"
               ;;
             push)
-              COMMIT_COUNT=$(jq '.commits | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo 0)
-              FIRST_LINE="${HEAD_MSG%%$'\n'*}"
-              MSG=$(printf '%s • Push\n%s pushed %s commit(s) to %s\n%s\n%s' \
-                "$REPO" "$ACTOR" "$COMMIT_COUNT" "$REF_NAME" "$FIRST_LINE" "$COMPARE_URL")
+              if [ "$REF_TYPE" = "tag" ]; then
+                if [ "$PUSH_DELETED" = "true" ]; then LABEL="TAG DELETED"; else LABEL="TAG PUSHED"; fi
+                SUBJECT="<b>$(esc "$REF_NAME")</b>"
+                meta "Tag" "$REF_NAME"
+                meta "Commit" "${SHA:0:7}"
+                meta "Pusher" "${PUSHER:-$ACTOR}"
+                btn "Open tag" "${REPO_URL}/releases/tag/${REF_NAME}"
+                btn "Build runs" "${REPO_URL}/actions"
+              elif [ "$PUSH_DELETED" = "true" ]; then
+                LABEL="BRANCH DELETED"
+                SUBJECT="<b>$(esc "$REF_NAME")</b>"
+                meta "Branch" "$REF_NAME"
+                meta "Pusher" "${PUSHER:-$ACTOR}"
+                btn "Branches" "${REPO_URL}/branches"
+              else
+                COMMIT_COUNT=$(jq '.commits | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo 0)
+                LINES=""
+                while IFS=$'\t' read -r SH TT; do
+                  [ -n "$SH" ] || continue
+                   LINES="${LINES}<code>${SH}</code>${NL}$(esc "$TT")${NL}${NL}"
+                done < <(jq -r '.commits[:10][] | [.id[:7], (.message | split("\n")[0])] | @tsv' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
+                if [ -z "$LINES" ]; then
+                   LINES="<code>${SHA:0:7}</code>${NL}$(esc "${HEAD_MSG%%$'\n'*}")${NL}"
+                fi
+                if [ "$COMMIT_COUNT" -gt 10 ]; then
+                   LINES="${LINES}+ $((COMMIT_COUNT - 10)) more${NL}"
+                fi
+                 LABEL="PUSH"
+                 if [ "$COMMIT_COUNT" = "1" ]; then CWORD="commit"; else CWORD="commits"; fi
+                 SUBJECT="<b>${COMMIT_COUNT} ${CWORD}</b> pushed to <code>$(esc "$REF_NAME")</code>"
+                 QUOTE="<blockquote>$(printf '%s' "$LINES")</blockquote>"
+
+                 # A merge push gets its own layout: source -> target, then only
+                 # the commits that came in, without the merge commit itself.
+                 FIRST_MSG="${HEAD_MSG%%$'\n'*}"
+                 case "$FIRST_MSG" in
+                   "Merge branch "*|"Merge pull request "*|"Merge remote-tracking branch "*)
+                     MERGE_SRC=$(printf '%s' "$FIRST_MSG" | sed -n "s/^Merge .*branch '\([^']*\)'.*/\1/p")
+                     if [ -z "$MERGE_SRC" ]; then
+                       MERGE_SRC=$(printf '%s' "$FIRST_MSG" | sed -n 's/^Merge pull request #[0-9]* from //p')
+                     fi
+                     MLINES=""
+                     while IFS=$'\t' read -r SH TT; do
+                       [ -n "$SH" ] || continue
+                       MLINES="${MLINES}<code>${SH}</code>${NL}$(esc "$TT")${NL}${NL}"
+                     done < <(jq -r '.commits[:10][] | select(.message | startswith("Merge ") | not) | [.id[:7], (.message | split("\n")[0])] | @tsv' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
+                     MTOTAL=$(jq '[.commits[] | select(.message | startswith("Merge ") | not)] | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo 0)
+                     if [ -n "$MLINES" ]; then
+                       if [ "$MTOTAL" -gt 10 ]; then
+                         MLINES="${MLINES}+ $((MTOTAL - 10)) more${NL}"
+                       fi
+                       if [ "$MTOTAL" = "1" ]; then MWORD="commit"; else MWORD="commits"; fi
+                       LABEL="MERGE"
+                       SUBJECT="<b>$(esc "${MERGE_SRC:-branch}")</b> merged into <b>$(esc "$REF_NAME")</b>${NL}${MTOTAL} ${MWORD} included"
+                       QUOTE="<blockquote>$(printf '%s' "$MLINES")</blockquote>"
+                     fi
+                     ;;
+                 esac
+                meta "Branch" "$REF_NAME"
+                meta "Author" "$HEAD_AUTHOR"
+                meta "Pusher" "${PUSHER:-$ACTOR}"
+                meta "Commit" "${SHA:0:7}"
+                if [ "$PUSH_FORCED" = "true" ]; then meta "Forced" "yes"; fi
+                btn "View changes" "$COMPARE_URL"
+                btn "Latest commit" "$HEAD_URL"
+                btn "Browse branch" "${REPO_URL}/tree/${REF_NAME}"
+                btn "Build runs" "${REPO_URL}/actions"
+              fi
+              ;;
+            watch)
+              LABEL="NEW STAR"
+              SUBJECT="<a href=\"${SERVER_URL}/${ACTOR}\">$(esc "$ACTOR")</a> starred the repository"
+              meta "Stars" "$STAR_COUNT"
+              btn "Profile" "${SERVER_URL}/${ACTOR}"
+              btn "Stargazers" "${REPO_URL}/stargazers"
+              ;;
+            fork)
+              LABEL="NEW FORK"
+              SUBJECT="<a href=\"${FORK_URL}\">$(esc "$FORK_NAME")</a>"
+              meta "Forks" "$FORK_COUNT"
+              meta "Actor" "$ACTOR"
+              btn "Open fork" "$FORK_URL"
+              btn "All forks" "${REPO_URL}/forks"
               ;;
             release)
-              MSG=$(printf '%s • Release\n%s published %s %s\n%s' \
-                "$REPO" "$ACTOR" "$RELEASE_TAG" "$RELEASE_NAME" "$RELEASE_URL")
+              ASSET_COUNT=$(jq '.release.assets | length' "$GITHUB_EVENT_PATH" 2>/dev/null || echo 0)
+              LABEL="RELEASE PUBLISHED"
+              SUBJECT="<a href=\"${RELEASE_URL}\">$(esc "$RELEASE_TAG")</a>  $(esc "$RELEASE_NAME")"
+              if [ -n "$RELEASE_BODY" ]; then
+                QUOTE="<blockquote expandable>$(esc "$(clip "$RELEASE_BODY" 600)")</blockquote>"
+              fi
+              meta "Tag" "$RELEASE_TAG"
+              meta "Target" "$RELEASE_TARGET"
+              if [ "$RELEASE_PRE" = "true" ]; then meta "Channel" "pre-release"; else meta "Channel" "stable"; fi
+              meta "Assets" "$ASSET_COUNT"
+              meta "Actor" "$ACTOR"
+              btn "Open release" "$RELEASE_URL"
+              btn "All releases" "${REPO_URL}/releases"
               ;;
             *)
-              MSG="$REPO • $EVENT $ACTION by $ACTOR"
+              GENERIC="${EVENT//_/ } ${ACTION//_/ }"
+              LABEL="${GENERIC^^}"
+              SUBJECT="Event received"
+              meta "Actor" "$ACTOR"
+              btn "Repository" "$REPO_URL"
               ;;
           esac
 
-          if [ -n "${TG_TOPIC_ID:-}" ]; then
-            curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-              --data-urlencode "chat_id=${TG_CHAT_ID}" \
-              --data-urlencode "message_thread_id=${TG_TOPIC_ID}" \
-              --data-urlencode "disable_web_page_preview=true" \
-              --data-urlencode "text=${MSG}"
-          else
-            curl -sS -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
-              --data-urlencode "chat_id=${TG_CHAT_ID}" \
-              --data-urlencode "disable_web_page_preview=true" \
-              --data-urlencode "text=${MSG}"
+          btn "Workflow run" "$RUN_URL"
+
+          RULE='━━━━━━━━━━━━━━━━━'
+          META="${META%$NL}"
+          MSG="<b>${LABEL}</b>${NL}<a href=\"${REPO_URL}\">${R}</a>${NL}${RULE}${NL}${NL}${SUBJECT}"
+          if [ -n "$QUOTE" ]; then MSG="${MSG}${NL}${NL}${QUOTE}"; fi
+          if [ -n "$META" ]; then MSG="${MSG}${NL}${NL}${META}"; fi
+          MSG="${MSG}${NL}${NL}${RULE}${NL}<b>Run</b> : #${RUN_NUMBER}${NL}<b>Time</b> : ${NOW}"
+
+          ARGS=(
+            --data-urlencode "chat_id=${TG_CHAT_ID}"
+            --data-urlencode "parse_mode=HTML"
+            --data-urlencode "disable_web_page_preview=true"
+            --data-urlencode "text=${MSG}"
+          )
+          if [ -n "$BUTTONS" ]; then
+            KEYBOARD=$(printf '%s' "$BUTTONS" | jq -Rsc '
+              split("\n") | map(select(length > 0) | split("\t") | {text: .[0], url: .[1]}) as $b
+              | {inline_keyboard: [range(0; ($b | length); 2) as $i | $b[$i:$i+2]]}')
+            ARGS+=(--data-urlencode "reply_markup=${KEYBOARD}")
           fi
+          if [ -n "${TG_TOPIC_ID:-}" ]; then
+            ARGS+=(--data-urlencode "message_thread_id=${TG_TOPIC_ID}")
+          fi
+          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" "${ARGS[@]}"

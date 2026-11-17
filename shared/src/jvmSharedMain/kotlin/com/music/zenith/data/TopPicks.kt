@@ -127,16 +127,7 @@ object TopPicks {
                 ?: shuffled.firstOrNull { it.images.isNotEmpty() }
             if (withArt == null) shuffled else listOf(withArt) + shuffled.filter { it !== withArt }
         }
-        // The listener's own Most Played card is no longer pinned to slot 2: it
-        // lands at a random slot on every build, anywhere but the first.
-        val cards = listOfNotNull(lead) + rest
-        val mostPlayed = mostPlayed(local)
-        val all = if (mostPlayed == null) {
-            cards
-        } else {
-            val at = if (cards.isEmpty()) 0 else Random.nextInt(1, cards.size + 1)
-            cards.toMutableList().also { it.add(at, mostPlayed) }
-        }
+        val all = listOfNotNull(lead) + rest
         // Made for You Mix (New Music Mix dll) selalu di posisi 2 atau 3.
         val mix = all.firstOrNull { it.kind == TopPickKind.MADE_FOR_YOU_MIX }
         if (mix == null || all.size < 2) {
@@ -147,20 +138,7 @@ object TopPicks {
         }
     }
 
-    /** The listener's most played songs as one card, or null with too little history to fill it. */
-    private fun mostPlayed(local: LocalTaste): TopPick? {
-        val songs = local.topSongs
-            .filter { !it.thumbnailUrl.isNullOrBlank() }
-            .distinctBy { it.videoId }
-            .take(30)
-        if (songs.size < 3) return null
-        return TopPick(
-            kind = TopPickKind.MOST_PLAYED,
-            subtitle = songs.map { it.artist }.filter { it.isNotBlank() }.distinct().take(3).joinToString(", "),
-            images = songs.mapNotNull { it.thumbnailUrl }.distinct(),
-            songs = songs.map { TopPickSong(it.videoId, it.title, it.artist, it.thumbnailUrl) },
-        )
-    }
+
 
     /**
      * [count] of [ranked] at random, the higher an artist sits the likelier —

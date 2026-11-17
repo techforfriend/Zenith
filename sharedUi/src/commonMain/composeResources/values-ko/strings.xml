@@ -200,6 +200,7 @@
     <string name="shelf_trending_community_playlists">인기 커뮤니티 재생목록</string>
     <string name="shelf_youtube_charts">YouTube 차트</string>
     <string name="show_all">모두 보기</string>
+    <string name="play_all">모두 재생</string>
     <string name="sign_in">로그인</string>
     <string name="sign_in_youtube_music">YouTube Music에 로그인</string>
     <string name="subscriptions">구독</string>

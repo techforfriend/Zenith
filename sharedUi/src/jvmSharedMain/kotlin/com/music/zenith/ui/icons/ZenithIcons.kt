@@ -986,4 +986,86 @@ object ZenithIcons {
             }
         }.build()
     }
+
+    /**
+     * Apple Music's translate glyph: an outlined back bubble holding an "A" and a
+     * solid front bubble overlapping it, with a "文" punched out by the even-odd rule.
+     */
+    val Translate: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_translate",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            // Back bubble (outlined, open where the front bubble covers it) and the A.
+            path(
+                stroke = stroke,
+                strokeLineWidth = 1.6f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(12.5f, 6.2f)
+                quadTo(12.5f, 3.8f, 10.1f, 3.8f)
+                lineTo(4f, 3.8f)
+                quadTo(1.6f, 3.8f, 1.6f, 6.2f)
+                lineTo(1.6f, 11.9f)
+                quadTo(1.6f, 14.3f, 4f, 14.3f)
+                lineTo(3.8f, 16.4f)
+                quadTo(3.7f, 17.2f, 4.4f, 16.6f)
+                lineTo(6.8f, 14.3f)
+                lineTo(9.4f, 14.3f)
+
+                moveTo(4.75f, 11.75f)
+                lineTo(7.05f, 6.35f)
+                lineTo(9.35f, 11.75f)
+                moveTo(5.6f, 10.2f)
+                lineTo(8.5f, 10.2f)
+            }
+            // Front bubble (solid) with the 文 cut out.
+            path(
+                fill = stroke,
+                pathFillType = PathFillType.EvenOdd,
+            ) {
+                moveTo(13.5f, 7.4f)
+                lineTo(20.4f, 7.4f)
+                quadTo(23f, 7.4f, 23f, 10f)
+                lineTo(23f, 16.1f)
+                quadTo(23f, 18.7f, 20.4f, 18.7f)
+                lineTo(19.9f, 18.7f)
+                lineTo(19.6f, 20.3f)
+                quadTo(19.45f, 21.2f, 18.7f, 20.7f)
+                lineTo(16.4f, 18.7f)
+                lineTo(13.5f, 18.7f)
+                quadTo(10.9f, 18.7f, 10.9f, 16.1f)
+                lineTo(10.9f, 10f)
+                quadTo(10.9f, 7.4f, 13.5f, 7.4f)
+                close()
+
+                // 文
+                moveTo(16.49f, 9.63f)
+                lineTo(16.49f, 10.79f)
+                lineTo(13.63f, 10.79f)
+                lineTo(13.63f, 11.63f)
+                lineTo(14.67f, 11.63f)
+                curveTo(15.07f, 12.7f, 15.57f, 13.6f, 16.23f, 14.35f)
+                curveTo(15.49f, 14.92f, 14.58f, 15.33f, 13.5f, 15.62f)
+                curveTo(13.67f, 15.83f, 13.95f, 16.24f, 14.05f, 16.47f)
+                curveTo(15.16f, 16.12f, 16.1f, 15.65f, 16.89f, 15.01f)
+                curveTo(17.66f, 15.66f, 18.6f, 16.14f, 19.78f, 16.45f)
+                curveTo(19.91f, 16.2f, 20.19f, 15.79f, 20.4f, 15.58f)
+                curveTo(19.29f, 15.33f, 18.37f, 14.9f, 17.62f, 14.33f)
+                curveTo(18.3f, 13.6f, 18.83f, 12.71f, 19.22f, 11.63f)
+                lineTo(20.27f, 11.63f)
+                lineTo(20.27f, 10.79f)
+                lineTo(17.38f, 10.79f)
+                lineTo(17.38f, 9.63f)
+                close()
+                moveTo(16.94f, 13.71f)
+                curveTo(16.38f, 13.12f, 15.95f, 12.42f, 15.65f, 11.63f)
+                lineTo(18.19f, 11.63f)
+                curveTo(17.88f, 12.45f, 17.46f, 13.14f, 16.94f, 13.71f)
+                close()
+            }
+        }.build()
+    }
 }

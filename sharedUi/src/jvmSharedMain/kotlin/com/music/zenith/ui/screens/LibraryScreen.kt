@@ -63,6 +63,7 @@ import com.music.zenith.ui.components.MessageState
 import com.music.zenith.ui.components.PAGE_GUTTER
 import com.music.zenith.ui.components.PullToRefresh
 import com.music.zenith.ui.components.SHELF_CARD_WIDTH
+import com.music.zenith.ui.components.PinnedGridSkeleton
 import com.music.zenith.ui.components.libraryGrid
 import com.music.zenith.ui.components.librarySkeleton
 
@@ -195,7 +196,12 @@ fun LibraryScreen(
             // Status muat/gagal selalu di akhir dan tidak ikut diatur.
             val status = ArrayList<LazyListScope.() -> Unit>()
             section(LIBRARY_SLOT_PINNED) {
-                if (pinnedItems.isNotEmpty()) {
+                // While the account's shelves are still loading, a pin that lives
+                // on the Playlists shelf can't be drawn yet. Hold its place with
+                // placeholders so the grid doesn't pop in late and shove the page.
+                if (signedIn && state is UiState.Loading && pinnedItems.size < pinnedPlaylists.size) {
+                    item(key = "pinned") { PinnedGridSkeleton(count = pinnedPlaylists.size) }
+                } else if (pinnedItems.isNotEmpty()) {
                     item(key = "pinned") {
                         LibraryPinnedGrid(
                             items = pinnedItems,

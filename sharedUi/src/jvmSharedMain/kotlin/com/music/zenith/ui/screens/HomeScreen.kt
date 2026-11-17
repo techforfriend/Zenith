@@ -863,6 +863,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     isPlaying = isPlaying,
                     onPlaySongs = onPlaySongs,
                 )
+            } else if (shelf.isDailyDiscoverShelf()) {
+                DailyDiscoverShelf(
+                    shelf = shelf.copy(
+                        title = localizeShelfTitle(shelf.title),
+                        subtitle = localizeShelfSubtitle(shelf.subtitle),
+                    ),
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                    onPlaySongs = onPlaySongs,
+                    isCurrentItem = shelf.items.playingItemMatcher(currentSong),
+                    isPlaying = isPlaying,
+                )
             } else if (shelf.isMixShelf()) {
                 MixCoverShelf(
                     shelf = shelf,
@@ -892,7 +904,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                 )
-            } else if (index == 0 && firstIsHero && shelf.layout == ShelfLayout.CARDS) {
+            } else if (index == 0 && firstIsHero && !isQuickPicks && shelf.layout == ShelfLayout.CARDS) {
                 HeroShelf(
                     shelf = shelf,
                     onItemClick = openItem,

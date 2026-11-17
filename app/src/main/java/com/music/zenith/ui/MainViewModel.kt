@@ -1977,6 +1977,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             if (!isCurrentHomeLoad(identity, generation)) return@onSuccess
                             homeContinuation = feed.continuation
                             publishHomeShelves(feed.shelves)
+                            (_home.value as? UiState.Success)?.data?.let { current ->
+                                val withQuick = withQuickPicksFallback(current)
+                                if (withQuick.size != current.size) {
+                                    homeSeenTitles.add("quick picks")
+                                    _home.value = UiState.Success(withQuick)
+                                }
+                            }
                             localSpeedDialShelf()?.let { speedDial ->
                                 if (isCurrentHomeLoad(identity, generation)) {
                                     publishHomeShelves(listOf(speedDial), prepend = true)
@@ -2009,6 +2016,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         homeShelfRequestSettled(identity, generation)
                     }
                 }
+                if (isCurrentHomeLoad(identity, generation)) ensureQuickPicks()
             }
         }
     }
@@ -2147,6 +2155,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return picked.shuffled()
     }
 
+    /**
+     * YouTube sometimes leaves Quick picks out of the feed. Builds one from the
+     * tracks the other shelves already carry (no extra request) and slots it
+     * right under Listen again, which Home then swaps to the front. Returned
+     * unchanged when the feed has it, or has too few tracks to fill a row.
+     */
+    private fun withQuickPicksFallback(feed: List<HomeShelf>): List<HomeShelf> {
+        fun key(shelf: HomeShelf) = com.music.zenith.data.model.homeShelfKey(shelf.title)
+        val quickTitles = setOf(
+            "quick picks", "lựa chọn nhanh", "chọn nhanh đài phát", "クイック ミックス",
+            "pilihan cepat", "pilihan singkat", "빠른 선곡", "빠른 선택",
+        )
+        if (feed.any { it.title.trim().lowercase(Locale.ROOT) in quickTitles && it.items.isNotEmpty() }) return feed
+        val again = feed.indexOfFirst { key(it) == "shelf:listen-again" }
+        if (again < 0) return feed
+        val skipTitles = setOf("recents", "recently played", "my speed dial", "speed dial")
+        val songs = feed
+            .filter { key(it) != "shelf:listen-again" && it.title.trim().lowercase(Locale.ROOT) !in skipTitles }
+            .flatMap { it.items }
+            .filter { it.videoId != null && !it.isVideo && !it.thumbnailUrl.isNullOrBlank() }
+            .distinctBy { it.videoId }
+            .shuffled()
+            .take(20)
+            .let { picked ->
+                if (picked.size >= 6) {
+                    picked
+                } else {
+                    (picked + feed[again].items.filter { it.videoId != null && !it.isVideo && !it.thumbnailUrl.isNullOrBlank() })
+                        .distinctBy { it.videoId }
+                        .take(20)
+                }
+            }
+        if (songs.size < 4) return feed
+        val shelf = HomeShelf(title = "Quick picks", items = songs)
+        return feed.toMutableList().also { it.add(again + 1, shelf) }
+    }
+
+    /** Re-runs the Quick picks fallback once more of the feed has landed (supplements, next pages). */
+    private fun ensureQuickPicks() {
+        val current = (_home.value as? UiState.Success)?.data ?: return
+        val withQuick = withQuickPicksFallback(current)
+        if (withQuick.size != current.size) {
+            homeSeenTitles.add("quick picks")
+            _home.value = UiState.Success(withQuick)
+        }
+    }
+
     private suspend fun localSpeedDialShelf(): HomeShelf? {
         val youtubeId = Regex("^[A-Za-z0-9_-]{11}$")
         val pool = runCatching { ListeningStats.summary(ReplayPeriod.ALL_TIME) }
@@ -2225,7 +2280,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val replacing = listOfNotNull(recentShelf, speedDialShelf).map { it.title.lowercase(Locale.ROOT) }.toSet()
                 homeSeenTitles.addAll(replacing)
                 _home.value = UiState.Success(
-                    listOfNotNull(speedDialShelf, recentShelf) + shelves.filterNot { it.title.lowercase(Locale.ROOT) in replacing },
+                    listOfNotNull(speedDialShelf, recentShelf) +
+                        withQuickPicksFallback(shelves.filterNot { it.title.lowercase(Locale.ROOT) in replacing }),
                 )
             }
         }
@@ -2252,6 +2308,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     // treat it the same as exhausted so scrolling can't spin here.
                     homeContinuation = feed.continuation.takeIf { added.isNotEmpty() }
                     if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
+                    ensureQuickPicks()
                 }
             }
             if (identity == listenerKey()) _homeLoadingMore.value = false

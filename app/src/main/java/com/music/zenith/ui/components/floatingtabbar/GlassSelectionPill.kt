@@ -12,6 +12,8 @@
 package com.music.zenith.ui.components.floatingtabbar
 
 import android.os.Build
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,6 +65,7 @@ import com.music.zenith.ui.components.backdrop.highlight.Highlight
 import com.music.zenith.ui.components.backdrop.shadow.InnerShadow
 import com.music.zenith.ui.components.backdrop.shadow.Shadow
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.exp
@@ -73,28 +76,22 @@ import kotlin.math.sign
 internal val PILL_GROW_HEIGHT = 22.dp
 
 /**
- * The selection pill's physics, owned by the tab bar and handed to whichever
- * pill is drawing it.
+ 
+ * (DampedDragAnimation).
  *
- * A tap lifts the pill at once — it inflates past the bar on two
- * under-damped springs, one per axis, so it overshoots its raised size and
- * rebounds — and it stays up for the whole journey. The travel is its own
- * spring. Only once the pill has landed ([HANDOVER_START] of the way there) is
- * the lift released, so it deflates where it stands, dipping a little under
- * its resting size and coming back. A drag is the same lift held open by a
- * finger.
+ * One pill, a handful of [Animatable]s and nothing else: the position is a stiff,
+ * critically damped spring; the press is a second one of the same kind and drives the
+ * glass; the two size axes are under-damped (0.6 across, 0.7 down) so the pill overshoots
+ * its raised size and settles instead of stopping dead. No per-frame integrator and no
+ * hand-off timers that can drift out of step with the springs.
  *
- * Along the way the pill's drawn position is sampled every frame and
- * differentiated twice: it stretches wide and flat as it launches, squashes
- * narrow and tall as it brakes, and is undeformed at constant speed. A travel
- * keeps one sense of that deformation for the whole trip, keyed to where it is
- * going; a finger keeps the raw force.
- *
- * The glass is a third, much faster spring, so the pill reads as glass almost
- * as soon as it is touched, and sheds it ([glassPresence]) from the landing
- * while the size is still settling. Once nothing is left to see, [isFlat]
- * flips and the plain pill takes over — two identical pictures, so there is
- * nothing to cross-fade.
+ * A tap or a finger lifts the pill and a landing sets it down. The lift is released as
+ * soon as the pill is [LAND_STEPS] from its tab, so the shrink overlaps the end of the
+ * travel instead of waiting for it. The glass stays up for as long as the pill is bigger
+ * than its resting size ([material] never falls faster than the lift does), so the shrink
+ * is one object getting smaller and the flat pill takes over only once both are the same
+ * size. Stretch comes from the speed of the move (the spring's or the finger's), never
+ * from its acceleration, which is too noisy to animate.
  *
  * Positions are in tab steps: `0` is the first tab, `1` the second.
  */
@@ -102,88 +99,74 @@ internal val PILL_GROW_HEIGHT = 22.dp
 internal class GlassPillMotion(
     private val scope: CoroutineScope,
     initialIndex: Int,
-    /** Time stretch for the lift and the glass hand-off: 1 is the tab pill's pace, above 1 slower and softer. */
+    /** Time stretch for the lift: 1 is the tab pill's pace, above 1 slower and softer. */
     private val slow: Double = 1.0,
 ) {
+    private val slowSq = (slow * slow).toFloat()
+    private val valueSpec = spring<Float>(dampingRatio = 1f, stiffness = 1000f, visibilityThreshold = 0.001f)
+    private val pressSpec = spring<Float>(dampingRatio = 1f, stiffness = 1000f / slowSq, visibilityThreshold = 0.001f)
+    private val liftXSpec = spring<Float>(dampingRatio = 0.6f, stiffness = 250f / slowSq, visibilityThreshold = 0.001f)
+    private val liftYSpec = spring<Float>(dampingRatio = 0.7f, stiffness = 250f / slowSq, visibilityThreshold = 0.001f)
+    private val stretchSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 300f, visibilityThreshold = 0.05f)
+
+    private val valueAnim = Animatable(initialIndex.toFloat(), 0.001f)
+    private val pressAnim = Animatable(0f, 0.001f)
+    private val liftXAnim = Animatable(0f, 0.001f)
+    private val liftYAnim = Animatable(0f, 0.001f)
+    private val stretchAnim = Animatable(0f, 0.05f)
+
+    private var held = false
+    private var liftJob: Job? = null
+    private var dropJob: Job? = null
+    private var settleJob: Job? = null
+    private var lastDragPos = 0f
+    private var lastDragNs = 0L
+
     /** Where the pill is drawn, in tab steps. */
-    var position by mutableFloatStateOf(initialIndex.toFloat())
-        private set
+    val position: Float get() = valueAnim.value
 
     /** The width lift, `0` at rest and `1` at the raised size; overshoots both. */
-    var liftX by mutableFloatStateOf(0f)
-        private set
+    val liftX: Float get() = liftXAnim.value
 
     /** The height lift; see [liftX]. */
-    var liftY by mutableFloatStateOf(0f)
-        private set
+    val liftY: Float get() = liftYAnim.value
 
-    /** How much of the material is on, `0`..`1`. */
-    var material by mutableFloatStateOf(0f)
-        private set
+    /** How much of the glass is on, `0`..`1`: quick with the press, gone only as the pill shrinks back. */
+    val material: Float
+        get() = maxOf(pressAnim.value, (liftXAnim.value + liftYAnim.value) / 2f).coerceIn(0f, 1f)
 
-    /** Acceleration squash: width scales by `1 + this`, height by `1 - this`. */
-    var deviation by mutableFloatStateOf(0f)
-        private set
+    /** How much of the pill still reads as glass. */
+    val glassPresence: Float get() = material
 
-    /** How much of the pill still reads as glass, `1` lifted to `0` flat. */
-    var glassPresence by mutableFloatStateOf(0f)
-        private set
+    /** How much of the frosted flat pill shows through, `1` at rest. */
+    val blurMix: Float get() = 1f - material
 
-    /**
-     * How much of the frosted blur is back, `0` while a finger holds the pill
-     * (or a tap carries it) to `1` at rest. It comes back on its own fast
-     * spring from the moment of release, not from the landing.
-     */
-    var blurMix by mutableFloatStateOf(1f)
-        private set
+    /** Current speed stretch: width scales by `1 + this`, height by `1 - this / 3`. */
+    val deviation: Float get() = stretch()
 
-    /**
-     * True when there is nothing left in the pill but a flat fill at rest size,
-     * where the plain pill draws exactly the same picture.
-     */
+    /** True when nothing is left but the flat pill at rest size. */
     var isFlat by mutableStateOf(true)
+        private set
+
+    /** Discrete: false only while the lens is fully up and the flat pill underneath is not needed. */
+    var flatVisible by mutableStateOf(true)
         private set
 
     /** The tab the pill is headed for. */
     var index: Int = initialIndex
         private set
 
-    /** One tab step in dp, which the squash model samples the pill's travel in. */
+    /** A finger is holding the pill up: a press or a drag that has not been released yet. */
+    val isHeld: Boolean get() = held
+
+    /** One tab step in dp. */
     var stepDp: Float = 0f
 
     /** "Reduce animation": every move lands at once, with no lift. */
     var reduceMotion: Boolean = false
 
-    /** Pengali squash akselerasi dari pengaturan indikator; 1 = bawaan. */
+    /** Stretch multiplier from the indicator settings; 1 = default. */
     var squashScale: Float = 1f
-
-    private var travelPos = initialIndex.toDouble()
-    private var travelVel = 0.0
-    private var travelTarget = travelPos
-    private var travelFrom = travelPos
-    private var travelActive = false
-
-    private var lifted = false
-    private var liftXPos = 0.0
-    private var liftXVel = 0.0
-    private var liftYPos = 0.0
-    private var liftYVel = 0.0
-    private var liftPos = 0.0
-    private var liftVel = 0.0
-
-    private var dragging = false
-    private var dragTarget = 0.0
-    private var dragFollow = 0.0
-
-    private var travelSign = 0.0
-    private var travelSignEased = 0.0
-    private var handover = 1.0
-    private var blur = 1.0
-    private var releasedFromDrag = false
-    private var squash = 0.0
-    private val squashModel = PillSquashModel()
-
-    private var running = false
 
     /** A tab was chosen: travel there, lifted. Re-choosing the current tab is a no-op. */
     fun animateTo(next: Int) {
@@ -193,45 +176,31 @@ internal class GlassPillMotion(
             return
         }
         index = next
-        releasedFromDrag = false
-        travelActive = true
-        lifted = true
-        // Retarget from wherever the pill is; the spring keeps its velocity.
-        travelFrom = travelPos
-        travelTarget = next.toDouble()
-        travelSign = signOfTravel(travelTarget - travelFrom)
-        isFlat = false
-        start()
+        held = false
+        settleTo(next.toFloat(), null)
     }
 
     /** Place the pill on [target] at rest, with no travel and no lift. */
     fun snapTo(target: Int) {
         index = target
-        travelPos = target.toDouble()
-        travelTarget = travelPos
-        travelFrom = travelPos
-        travelVel = 0.0
-        travelActive = false
-        dragging = false
-        lifted = false
-        liftXPos = 0.0; liftXVel = 0.0
-        liftYPos = 0.0; liftYVel = 0.0
-        liftPos = 0.0; liftVel = 0.0
-        handover = 1.0
-        blur = 1.0
-        releasedFromDrag = false
-        squash = 0.0
-        squashModel.stop()
-        travelSign = 0.0
-        travelSignEased = 0.0
-        publish()
-        isFlat = true
+        held = false
+        settleJob?.cancel()
+        liftJob?.cancel()
+        dropJob?.cancel()
+        scope.launch {
+            valueAnim.snapTo(target.toFloat())
+            pressAnim.snapTo(0f)
+            liftXAnim.snapTo(0f)
+            liftYAnim.snapTo(0f)
+            stretchAnim.snapTo(0f)
+            flatVisible = true
+            isFlat = true
+        }
     }
 
     /**
-     * Back from a tab that has no place in this row (Search): the pill starts
-     * at [from], a step past the row where that tab sits, and travels in lifted
-     * like any other move, instead of appearing on the tab with no motion.
+     * Back from a tab that has no place in this row (Search): the pill starts at [from],
+     * a step past the row, and travels in lifted like any other move.
      */
     fun enterFrom(from: Double, next: Int) {
         if (reduceMotion) {
@@ -239,192 +208,110 @@ internal class GlassPillMotion(
             return
         }
         index = next
-        dragging = false
-        releasedFromDrag = false
-        travelPos = from
-        travelVel = 0.0
-        travelFrom = from
-        travelTarget = next.toDouble()
-        travelSign = signOfTravel(travelTarget - travelFrom)
-        travelActive = true
-        lifted = true
-        isFlat = false
-        publish()
-        start()
+        held = false
+        settleTo(next.toFloat(), from.toFloat())
     }
 
     /** A finger has picked the pill up where it stands. */
     fun startDrag() {
-        dragging = true
-        releasedFromDrag = false
-        travelActive = false
-        lifted = !reduceMotion
-        // The hand takes the deformation back off the travel.
-        travelSign = 0.0
-        dragFollow = travelPos
-        dragTarget = travelPos
-        travelVel = 0.0
-        isFlat = false
-        start()
+        held = true
+        settleJob?.cancel()
+        scope.launch { valueAnim.stop() }
+        lastDragPos = valueAnim.value
+        lastDragNs = 0L
+        if (!reduceMotion) raise()
     }
 
-    /** The finger is over [position] tab steps. */
+    /** The finger is over [position] tab steps. The finger owns the position: no smoothing. */
     fun dragTo(position: Float) {
-        if (dragging) dragTarget = position.toDouble()
+        if (!held) return
+        val now = System.nanoTime()
+        if (lastDragNs != 0L) {
+            val dt = (now - lastDragNs) / 1e9f
+            if (dt > 0f) {
+                val raw = (position - lastDragPos) / dt
+                val smoothed = stretchAnim.value + (raw - stretchAnim.value) * 0.35f
+                scope.launch { stretchAnim.snapTo(smoothed) }
+            }
+        }
+        lastDragPos = position
+        lastDragNs = now
+        scope.launch { valueAnim.snapTo(position) }
     }
 
-    /**
-     * The finger let go and the pill is to settle on [next]. It stays lifted
-     * through the snap and comes down on landing, exactly as a tap's does.
-     */
+    /** The finger let go and the pill is to settle on [next]; it comes down as it lands. */
     fun release(next: Int) {
-        if (!dragging) return
-        val from = dragFollow
-        dragging = false
-        releasedFromDrag = true
+        if (!held) return
+        held = false
         index = next
         if (reduceMotion) {
             snapTo(next)
             return
         }
-        travelActive = true
-        travelPos = from
-        travelVel = 0.0
-        travelFrom = from
-        travelTarget = next.toDouble()
-        travelSign = signOfTravel(travelTarget - travelFrom)
-        start()
+        settleTo(next.toFloat(), null)
     }
 
-    private fun start() {
-        if (running) return
-        running = true
-        scope.launch {
-            var last = -1L
-            try {
-                while (true) {
-                    val now = withFrameNanos { it }
-                    val dt = if (last < 0) 0.0 else (now - last) / 1e9
-                    last = now
-                    if (!tick(dt, now / 1e9)) break
+    private fun settleTo(target: Float, from: Float?) {
+        settleJob?.cancel()
+        settleJob = scope.launch {
+            raise()
+            if (from != null) valueAnim.snapTo(from)
+            var landed = false
+            valueAnim.animateTo(target, valueSpec) {
+                if (!landed && abs(value - target) < LAND_STEPS) {
+                    landed = true
+                    lower()
                 }
-            } finally {
-                running = false
             }
+            if (!landed) lower()
         }
     }
 
-    /** One frame of everything. False once all of it has settled. */
-    private fun tick(dt: Double, now: Double): Boolean {
-        // 1) Travel.
-        var travelSettled = true
-        if (travelActive) {
-            val r = springStep(travelPos, travelVel, travelTarget, dt, TRAVEL_STIFFNESS, TRAVEL_DAMPING)
-            travelPos = r.first
-            travelVel = r.second
-            travelSettled = abs(travelPos - travelTarget) < 0.003 && abs(travelVel) < 0.05
-            if (travelSettled) {
-                travelPos = travelTarget
-                travelVel = 0.0
+    /** The press: glass on fast, size up on the two under-damped springs. */
+    private fun raise() {
+        dropJob?.cancel()
+        liftJob?.cancel()
+        isFlat = false
+        liftJob = scope.launch {
+            launch {
+                pressAnim.animateTo(1f, pressSpec)
+                flatVisible = false
             }
+            launch { liftXAnim.animateTo(1f, liftXSpec) }
+            launch { liftYAnim.animateTo(1f, liftYSpec) }
         }
-
-        // 2) Under a finger, chase it smoothly.
-        if (dragging) {
-            dragFollow += if (reduceMotion) {
-                dragTarget - dragFollow
-            } else {
-                (dragTarget - dragFollow) * (1 - exp(-dt / FOLLOW_TAU))
-            }
-        }
-
-        // 3) The lift, held for the journey and released on landing.
-        if (!dragging && (travelSettled || travelProgress() >= HANDOVER_START)) {
-            lifted = false
-        }
-        val liftTarget = if (lifted) 1.0 else 0.0
-        stepLift(liftXPos, liftXVel, liftTarget, dt, LIFT_STIFFNESS / (slow * slow), LIFT_DAMPING_X / slow).let {
-            liftXPos = it.first; liftXVel = it.second
-        }
-        stepLift(liftYPos, liftYVel, liftTarget, dt, LIFT_STIFFNESS / (slow * slow), LIFT_DAMPING_Y / slow).let {
-            liftYPos = it.first; liftYVel = it.second
-        }
-        stepLift(liftPos, liftVel, liftTarget, dt, MATERIAL_STIFFNESS / (slow * slow), MATERIAL_DAMPING / slow).let {
-            liftPos = it.first; liftVel = it.second
-        }
-        val liftSettled = !lifted && liftXPos == 0.0 && liftYPos == 0.0 && liftPos == 0.0
-
-        // 4) The deflation outlives the spring that carried the pill there.
-        if (travelActive && travelSettled && liftSettled && !dragging) {
-            travelActive = false
-        }
-
-        // 5) Sample the pill where it is drawn this frame.
-        val frac = if (dragging) dragFollow else travelPos
-        if (stepDp > 0f) {
-            if (!squashModel.isTracking) squashModel.start()
-            squash = squashModel.track(frac * stepDp, now, dt)
-            if (travelSignEased == 0.0) {
-                travelSignEased = travelSign
-            } else if (travelSignEased != travelSign) {
-                travelSignEased += (travelSign - travelSignEased) * (1 - exp(-dt / SIGN_TAU))
-                if (abs(travelSign - travelSignEased) < 0.01) travelSignEased = travelSign
-            }
-            // Keep the force's magnitude and take its sign from the direction
-            // of travel, so a trip deforms one way the whole way.
-            val key = travelSignEased
-            if (key != 0.0) squash = squash * (1 - abs(key)) - key * abs(squash)
-        }
-
-        // 6) The hand-off rides the same landing as the deflation.
-        val handoverTarget = if (lifted) 0.0 else 1.0
-        val tau = (if (handoverTarget > handover) HANDOVER_TAU else GLASS_RETURN_TAU) * slow
-        handover += (handoverTarget - handover) * (1 - exp(-dt / tau))
-        if (abs(handoverTarget - handover) < 0.002) handover = handoverTarget
-
-        // 7) The frosted blur: off while held, back the instant a finger lets
-        // go (a tap's blur returns when its lift is released on landing).
-        val blurTarget = if (dragging || (lifted && !releasedFromDrag)) 0.0 else 1.0
-        val blurTau = (if (blurTarget > blur) BLUR_RETURN_TAU else BLUR_OFF_TAU) * slow
-        blur += (blurTarget - blur) * (1 - exp(-dt / blurTau))
-        if (abs(blurTarget - blur) < 0.002) blur = blurTarget
-
-        val settled = !travelActive && !dragging && liftSettled &&
-            abs(squash) < 0.0005 && handover >= 1.0 && blur >= 1.0
-        if (settled) {
-            squashModel.stop()
-            squash = 0.0
-            travelSign = 0.0
-            travelSignEased = 0.0
-        }
-        publish()
-        isFlat = settled
-        return !settled
     }
 
-    private fun publish() {
-        position = (if (dragging) dragFollow else travelPos).toFloat()
-        liftX = liftXPos.toFloat()
-        liftY = liftYPos.toFloat()
-        material = liftPos.coerceIn(0.0, 1.0).toFloat()
-        deviation = squash.toFloat()
-        glassPresence = (1 - handover).coerceIn(0.0, 1.0).toFloat()
-        blurMix = blur.coerceIn(0.0, 1.0).toFloat()
+    /** The release: everything springs back to rest together. */
+    private fun lower() {
+        liftJob?.cancel()
+        dropJob?.cancel()
+        flatVisible = true
+        dropJob = scope.launch {
+            val a = launch { pressAnim.animateTo(0f, pressSpec) }
+            val b = launch { liftXAnim.animateTo(0f, liftXSpec) }
+            val c = launch { liftYAnim.animateTo(0f, liftYSpec) }
+            val d = launch { stretchAnim.animateTo(0f, stretchSpec) }
+            a.join()
+            b.join()
+            c.join()
+            d.join()
+            if (!held) isFlat = true
+        }
     }
 
-    private fun travelProgress(): Double {
-        val span = abs(travelTarget - travelFrom)
-        if (span < 1e-6) return 1.0
-        return (1 - abs(travelTarget - travelPos) / span).coerceIn(0.0, 1.0)
+    /** Speed stretch, from the spring's own velocity or the finger's. */
+    private fun stretch(): Float {
+        // Reading the value subscribes the caller to every frame of the spring.
+        if (valueAnim.value.isNaN()) return 0f
+        val speed = abs(valueAnim.velocity) + abs(stretchAnim.value)
+        return (speed * STRETCH_PER_STEP_PER_S).coerceAtMost(MAX_STRETCH) * squashScale
     }
-
-    private fun signOfTravel(span: Double): Double = if (abs(span) < 1e-6) 0.0 else sign(span)
 
     /**
      * [liveSize] for the flat pill, which is drawn inside the bar's clip: it
      * never exceeds the resting width or height, so a lifted pill cannot be
-     * cut off at the top, bottom, or at the first and last tab while the blur
-     * fades back in.
+     * cut off at the top, bottom, or at the first and last tab.
      */
     fun flatSize(rest: Size, lifted: Size): Size {
         val s = liveSize(rest, lifted)
@@ -438,134 +325,17 @@ internal class GlassPillMotion(
     fun liveSize(rest: Size, lifted: Size): Size {
         val w = rest.width + (lifted.width - rest.width) * liftX
         val h = rest.height + (lifted.height - rest.height) * liftY
-        val d = deviation * squashScale
-        return Size(w * (1 + d), h * (1 - d))
+        val s = stretch()
+        return Size(w * (1f + s), h * (1f - s / 3f))
     }
 
     private companion object {
-        const val TRAVEL_STIFFNESS = 280.0
-        const val TRAVEL_DAMPING = 31.4
+        /** Stretch per tab step a second: 12 % wider at 10 steps a second. */
+        const val STRETCH_PER_STEP_PER_S = 0.012f
+        const val MAX_STRETCH = 0.12f
 
-        /** Damping ratio 0.6 across, 0.7 down, so width overshoots a shade further. */
-        const val LIFT_STIFFNESS = 250.0
-        const val LIFT_DAMPING_X = 19.0
-        const val LIFT_DAMPING_Y = 22.1
-
-        /** Critically damped and four times as stiff: the glass is on long before the size settles. */
-        const val MATERIAL_STIFFNESS = 1000.0
-        const val MATERIAL_DAMPING = 63.3
-
-        const val HANDOVER_START = 0.92
-        const val HANDOVER_TAU = 0.09
-        const val GLASS_RETURN_TAU = 0.05
-        const val FOLLOW_TAU = 0.05
-        const val SIGN_TAU = 0.25
-
-        /** Fast and soft: the blur is back in about a tenth of a second. */
-        const val BLUR_RETURN_TAU = 0.06
-        const val BLUR_OFF_TAU = 0.04
-
-        /** Semi-implicit Euler in 1/240 s substeps, so a long frame cannot blow it up. */
-        fun springStep(
-            x: Double,
-            vel: Double,
-            target: Double,
-            dt: Double,
-            stiffness: Double,
-            damping: Double,
-        ): Pair<Double, Double> {
-            var t = dt
-            var px = x
-            var pv = vel
-            while (t > 0) {
-                val step = if (t > 1 / 240.0) 1 / 240.0 else t
-                val accel = -stiffness * (px - target) - damping * pv
-                pv += accel * step
-                px += pv * step
-                t -= step
-            }
-            return px to pv
-        }
-
-        /** A spring step snapped to its target once it has nothing left to say. */
-        fun stepLift(
-            x: Double,
-            vel: Double,
-            target: Double,
-            dt: Double,
-            stiffness: Double,
-            damping: Double,
-        ): Pair<Double, Double> {
-            val r = springStep(x, vel, target, dt, stiffness, damping)
-            return if (abs(r.first - target) < 0.0008 && abs(r.second) < 0.01) target to 0.0 else r
-        }
-    }
-}
-
-/**
- * Acceleration to deformation: the pill's position over a short window,
- * differentiated twice and averaged, scaled and clamped, then eased so a
- * single noisy frame cannot flick it. Tuned in dp/s².
- */
-private class PillSquashModel {
-    private val history = ArrayList<Pair<Double, Double>>()
-    var isTracking = false
-        private set
-    private var value = 0.0
-
-    fun start() {
-        history.clear()
-        value = 0.0
-        isTracking = true
-    }
-
-    fun stop() {
-        isTracking = false
-        history.clear()
-        value = 0.0
-    }
-
-    fun track(x: Double, now: Double, dt: Double): Double {
-        if (!isTracking) return value
-        history.add(x to now)
-        val cutoff = now - SAMPLE_WINDOW
-        history.removeAll { it.second < cutoff }
-        val raw = (averageAcceleration() * SENSITIVITY).coerceIn(-MAX_DEFORMATION, MAX_DEFORMATION)
-        val ease = (dt / RESPONSE_TIME).coerceIn(0.0, 1.0)
-        value += (raw - value) * ease
-        return value
-    }
-
-    private fun averageAcceleration(): Double {
-        if (history.size < 3) return 0.0
-        val velocities = ArrayList<Pair<Double, Double>>(history.size)
-        for (i in 1 until history.size) {
-            val dt = history[i].second - history[i - 1].second
-            if (dt <= 0) continue
-            velocities.add(
-                (history[i].first - history[i - 1].first) / dt to
-                    (history[i].second + history[i - 1].second) / 2,
-            )
-        }
-        if (velocities.size < 2) return 0.0
-        var total = 0.0
-        var count = 0
-        for (i in 1 until velocities.size) {
-            val dt = velocities[i].second - velocities[i - 1].second
-            if (dt <= 0) continue
-            total += (velocities[i].first - velocities[i - 1].first) / dt
-            count++
-        }
-        return if (count == 0) 0.0 else total / count
-    }
-
-    private companion object {
-        const val SAMPLE_WINDOW = 0.3
-        const val SENSITIVITY = 0.00007
-
-        /** ±12 %: the pill travels inside the bar, and more would climb out of it. */
-        const val MAX_DEFORMATION = 0.12
-        const val RESPONSE_TIME = 0.18
+        /** The lift is released this close (in tab steps) to the target tab. */
+        const val LAND_STEPS = 0.05f
     }
 }
 

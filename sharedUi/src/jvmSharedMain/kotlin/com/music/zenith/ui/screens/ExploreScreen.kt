@@ -266,7 +266,7 @@ fun MoodGenreSleeve(
         Box(
             Modifier
                 .matchParentSize()
-                .background(Brush.verticalGradient(.38f to Color.Transparent, 1f to Color.Black.copy(alpha = .45f))),
+                .background(Brush.verticalGradient(.32f to Color.Transparent, 1f to Color.Black.copy(alpha = .5f))),
         )
         Text(
             text = item.title,
@@ -287,16 +287,31 @@ fun MoodGenreSleeve(
 private class MoodTone(val stripe: Color, val placeholder: Color, val duotone: ColorFilter)
 
 private fun moodTone(item: MoodGenre): MoodTone {
-    val base = item.stripeColor?.let { Color(it.toInt()) } ?: fallbackMoodColor(item.title)
-    // YouTube's palette is already pastel; a touch of black keeps it from
-    // glowing against the black page.
-    val stripe = lerp(base, Color.Black, .08f)
-    val shadow = lerp(base, Color.Black, .68f)
-    val highlight = lerp(base, Color.White, .32f)
+    val given = item.stripeColor?.let { Color(it.toInt()) }
+    // Greys carry no hue to boost, so they take one of the vivid fallbacks.
+    val base = if (given == null || chroma(given) < .12f) fallbackMoodColor(item.title) else given
+    // YouTube's palette is pastel: lift the saturation only slightly, then ramp from a
+    // deep shadow to a soft highlight so the sleeve stays rich but easy on the eyes.
+    val vivid = saturate(base, 1.05f)
+    val stripe = lerp(vivid, Color.Black, .05f)
+    val shadow = lerp(vivid, Color.Black, .78f)
+    val highlight = lerp(vivid, Color.Black, .12f)
     return MoodTone(
         stripe = stripe,
-        placeholder = lerp(shadow, highlight, .45f),
+        placeholder = lerp(shadow, highlight, .55f),
         duotone = duotone(shadow, highlight),
+    )
+}
+
+private fun chroma(c: Color): Float = maxOf(c.red, c.green, c.blue) - minOf(c.red, c.green, c.blue)
+
+/** Pushes each channel away from the colour's own luminance by [amount] (1 = unchanged). */
+private fun saturate(c: Color, amount: Float): Color {
+    val l = c.red * .299f + c.green * .587f + c.blue * .114f
+    return Color(
+        (l + (c.red - l) * amount).coerceIn(0f, 1f),
+        (l + (c.green - l) * amount).coerceIn(0f, 1f),
+        (l + (c.blue - l) * amount).coerceIn(0f, 1f),
     )
 }
 
@@ -305,9 +320,12 @@ private fun moodTone(item: MoodGenre): MoodTone {
  * are in 0..255, which Compose honours on Skia too (it rescales them).
  */
 private fun duotone(shadow: Color, highlight: Color): ColorFilter {
+    // Luminance is stretched around mid grey before it is mapped onto the ramp.
+    val contrast = 1.1f
     fun channel(from: Float, to: Float): FloatArray {
         val span = to - from
-        return floatArrayOf(span * .299f, span * .587f, span * .114f, 0f, from * 255f)
+        val k = span * contrast
+        return floatArrayOf(k * .299f, k * .587f, k * .114f, 0f, (from + span * (.5f - .5f * contrast)) * 255f)
     }
     return ColorFilter.colorMatrix(
         ColorMatrix(
@@ -319,16 +337,16 @@ private fun duotone(shadow: Color, highlight: Color): ColorFilter {
     )
 }
 
-/** For a button that came without YouTube's colour: muted, never neon. */
+/** For a button that came without YouTube's colour, or with a grey one: a vivid hue. */
 private fun fallbackMoodColor(title: String): Color = when ((title.hashCode() and Int.MAX_VALUE) % 8) {
-    0 -> Color(0xFFCC6A55)
-    1 -> Color(0xFFC07A92)
-    2 -> Color(0xFF9C8AC0)
-    3 -> Color(0xFF8090C8)
-    4 -> Color(0xFFD0A060)
-    5 -> Color(0xFF6A88B0)
-    6 -> Color(0xFF7AAED0)
-    else -> Color(0xFF86B890)
+    0 -> Color(0xFFFF5A3C)
+    1 -> Color(0xFFFF4F8B)
+    2 -> Color(0xFF8F5BFF)
+    3 -> Color(0xFF3D7BFF)
+    4 -> Color(0xFFFFA11F)
+    5 -> Color(0xFF18B5D6)
+    6 -> Color(0xFF1FCB8A)
+    else -> Color(0xFF3FD05A)
 }
 
 /** Gap between mood cards, in both directions. */

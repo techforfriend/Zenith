@@ -60,6 +60,8 @@ import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -104,6 +106,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -127,7 +130,9 @@ import com.music.zenith.ui.haptics.Haptic
 import com.music.zenith.ui.haptics.rememberHaptics
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Hoisted so the default is one stable lambda rather than a new one per call. */
 /**
@@ -780,6 +785,9 @@ private fun SharedTransitionScope.InlineStandaloneTab(
 /** Minimum time a tap keeps the lens lifted, so a quick tap still shows it rising. */
 private const val MIN_LIFT_HOLD_MS = 260L
 
+/** How long a press waits for the tab's click to change the selection before the pill is set back down. */
+private const val TAP_SELECT_GRACE_MS = 140L
+
 /** How much the whole circle swells while the lens is lifted. */
 private const val STANDALONE_SWELL = 0.05f
 
@@ -1202,7 +1210,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                     .then(tabBarContentModifier())
                     .padding(contentPadding)
             ) {
-                if (showPill && (!glassPill || pill.isFlat || pill.blurMix > 0f)) {
+                if (showPill && (!glassPill || pill.isFlat || pill.flatVisible)) {
                     FlatSelectionPill(
                         color = colors.indicatorColor,
                         barGlass = barGlass,
@@ -1222,6 +1230,42 @@ private fun SharedTransitionScope.ExpandedTabs(
                         .fillMaxWidth()
                         .onSizeChanged { rowSize = it }
                         .layerBackdrop(tabRow)
+                        // A press lifts the pill the moment the finger lands, as a drag does,
+                        // and letting go sets it back down. Watched on the Initial pass and
+                        // never consumed, so the tabs' own clicks and the drag below still run.
+                        .pointerInput(Unit) {
+                            val slop = viewConfiguration.touchSlop
+                            var pending: Job? = null
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                if (currentSelectedTabIndex < 0 || currentTabStepPx <= 0f) return@awaitEachGesture
+                                pending?.cancel()
+                                val pressedAt = SystemClock.uptimeMillis()
+                                val x = if (currentIsRtl) size.width - down.position.x else down.position.x
+                                val tapped = (x / currentTabStepPx).toInt().coerceIn(0, scope.tabs.lastIndex)
+                                pill.startDrag()
+                                var dragged = false
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) break
+                                    if (abs(change.position.x - down.position.x) > slop) dragged = true
+                                }
+                                // Tap on the selected tab: hold the lift long enough to be seen.
+                                // Tap on another one: the click moves the selection and the travel
+                                // takes the pill over. A drag is released by its own handler below.
+                                val wait = if (!dragged && tapped == currentSelectedTabIndex) {
+                                    (MIN_LIFT_HOLD_MS - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
+                                } else {
+                                    TAP_SELECT_GRACE_MS
+                                }
+                                // Safety net: if nothing took the pill over, put it down.
+                                pending = coroutineScope.launch {
+                                    if (wait > 0L) delay(wait)
+                                    if (pill.isHeld) pill.release(currentSelectedTabIndex)
+                                }
+                            }
+                        }
                         .pointerInput(Unit) {
                             var totalDrag = 0f
                             var dragStartIndex = currentSelectedTabIndex
