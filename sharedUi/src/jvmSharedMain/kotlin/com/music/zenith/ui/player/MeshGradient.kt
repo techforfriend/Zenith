@@ -130,7 +130,13 @@ fun MeshGradientBackground(
 
     // Each colour slot crossfades independently when the track (palette) changes,
     // unless "reduce animation" is on, in which case colours snap straight to target.
-    val colorSpec: AnimationSpec<Color> = if (reduceAnimation || !animated) snap() else tween(colorFadeMillis)
+    // Palet asli pertama langsung snap, bukan fade lama dari warna bawaan ke warna cover.
+    // Perubahan berikutnya (ganti lagu) tetap fade seperti biasa.
+    val isFallbackPalette = palette.colors.isEmpty() || palette.colors == FallbackColors
+    var hasRealPalette by remember { mutableStateOf(!isFallbackPalette) }
+    LaunchedEffect(isFallbackPalette) { if (!isFallbackPalette) hasRealPalette = true }
+    val colorSpec: AnimationSpec<Color> =
+        if (reduceAnimation || !animated || !hasRealPalette) snap() else tween(colorFadeMillis)
     val animatedColors = tuned.mapIndexed { index, color ->
         animateColorAsState(color, colorSpec, label = "meshColor$index").value
     }
@@ -287,6 +293,16 @@ fun cyclingMeshPalette(
 }
 
 /**
+ * Palet cover yang sudah dihitung, per URL. Jadi nilai awal rememberArtworkColors supaya
+ * mesh yang baru masuk composition (player dibuka) langsung memakai warna cover, bukan
+ * mulai dari FallbackColors lalu fade pelan. Hanya diakses dari main thread.
+ */
+private val artworkPaletteCache = object : LinkedHashMap<String, MeshPalette>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MeshPalette>?): Boolean =
+        size > 64
+}
+
+/**
  * Loads the artwork with Coil (software bitmap, thumbnail-sized) and pulls a
  * 4-colour palette out of it. Recomputes when [imageUrl] changes.
  *
@@ -302,11 +318,15 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
     // track change fades from one real palette to the next rather than flashing
     // through the fallback purple and orange first.
     val heldPalette = remember { mutableStateOf(MeshPalette(FallbackColors)) }
-    var palette by remember(imageUrl) { mutableStateOf(heldPalette.value) }
+    var palette by remember(imageUrl) {
+        mutableStateOf(imageUrl?.let { artworkPaletteCache[it] } ?: heldPalette.value)
+    }
     LaunchedEffect(palette) { heldPalette.value = palette }
 
     LaunchedEffect(imageUrl) {
         if (imageUrl == null) return@LaunchedEffect
+        // Sudah dihitung sebelumnya: nilai awal di atas sudah benar, tak perlu muat ulang.
+        if (artworkPaletteCache.containsKey(imageUrl)) return@LaunchedEffect
         val request = ImageRequest.Builder(context)
             .data(imageUrl)
             .size(128) // palette quality is fine at thumbnail size, and it's fast
@@ -314,7 +334,9 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
             .build()
         val result = SingletonImageLoader.get(context).execute(request)
         val bitmap = (result as? SuccessResult)?.image?.toImageBitmap() ?: return@LaunchedEffect
-        palette = MeshPalette(paletteOf(bitmap))
+        val computed = MeshPalette(withContext(Dispatchers.Default) { paletteOf(bitmap) })
+        artworkPaletteCache[imageUrl] = computed
+        palette = computed
     }
 
     LaunchedEffect(canvasFrame) {
