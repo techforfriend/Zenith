@@ -1046,6 +1046,21 @@ fun SettingsScreen(
                     )
                 }
             }
+            val smartAlignmentTitle = stringResource(R.string.smart_version_alignment)
+            row(smartAlignmentTitle, "alignment", "sync", "waveform", "video", "audio", "skit", "intro") {
+                SettingsRow(
+                    icon = SfIcons.GraphicEq,
+                    title = smartAlignmentTitle,
+                    subtitle = stringResource(R.string.smart_version_alignment_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = smartVersionAlignment,
+                            onCheckedChange = AppSettings::setSmartVersionAlignment,
+                        )
+                    },
+                    onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
+                )
+            }
         }
 
         if (shows(SettingsCategory.CONTENT)) SearchableSettingsGroup(search, header = stringResource(R.string.content_feed)) {
@@ -1164,20 +1179,66 @@ fun SettingsScreen(
                     onClick = { onOpenChoice(SettingsChoiceKind.ACCENT) },
                 )
             }
-            val reduceAnimationTitle = stringResource(R.string.reduce_animation)
-            row(reduceAnimationTitle, "motion") {
-                SettingsRow(
-                    icon = SfIcons.MotionPhotosOff,
-                    title = reduceAnimationTitle,
-                    subtitle = stringResource(R.string.reduce_animation_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = reduceAnimation,
-                            onCheckedChange = AppSettings::setReduceAnimation,
-                        )
-                    },
-                    onClick = { AppSettings.setReduceAnimation(!reduceAnimation) },
-                )
+            val appIconTitle = stringResource(R.string.app_icon)
+            row(appIconTitle, "icon", "launcher", "logo") {
+                var selectedIcon by remember { mutableStateOf(AppIcon.current(context)) }
+                SettingsRow(icon = SfIcons.Apps, title = appIconTitle)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppIcon.entries.forEach { option ->
+                        val selected = option == selectedIcon
+                        Column(
+                            modifier = Modifier
+                                .width(84.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    selectedIcon = option
+                                    AppIcon.apply(context, option)
+                                }
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            // A glass foreground holds the finished icon in its own shape on the
+                            // central 72 of 108 dp: scaled 1.5× it fills the tile as designed.
+                            // Only the default goes through an adaptive mask.
+                            val preview = option.previewRes
+                            if (preview == null) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        android.widget.ImageView(ctx).apply { setImageResource(option.iconRes) }
+                                    },
+                                    modifier = Modifier
+                                        .size(68.dp)
+                                        .clip(RoundedCornerShape(22.dp)),
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(preview),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .size(68.dp)
+                                        .scale(1.5f),
+                                )
+                            }
+                            Text(
+                                text = stringResource(option.labelRes),
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
             }
             val coverSlideTitle = stringResource(R.string.cover_slide_animation)
             val coverStyleValue = stringResource(
@@ -1193,21 +1254,6 @@ fun SettingsScreen(
                     title = coverSlideTitle,
                     value = coverStyleValue,
                     onClick = { onOpenChoice(SettingsChoiceKind.COVER_ANIMATION) },
-                )
-            }
-            val reduceDynamicBlurTitle = stringResource(R.string.reduce_dynamic_blur)
-            row(reduceDynamicBlurTitle, "blur", "performance") {
-                SettingsRow(
-                    icon = SfIcons.BlurOff,
-                    title = reduceDynamicBlurTitle,
-                    subtitle = stringResource(R.string.reduce_dynamic_blur_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = reduceDynamicBlur,
-                            onCheckedChange = AppSettings::setReduceDynamicBlur,
-                        )
-                    },
-                    onClick = { AppSettings.setReduceDynamicBlur(!reduceDynamicBlur) },
                 )
             }
             val liquidGlassTitle = stringResource(R.string.liquid_glass)
@@ -1274,36 +1320,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            val canvasLiveBlurTitle = stringResource(R.string.canvas_live_blur_panels)
-            row(canvasLiveBlurTitle, "canvas", "blur", "lyrics", "queue", "player") {
-                SettingsRow(
-                    icon = SfIcons.Fullscreen,
-                    title = canvasLiveBlurTitle,
-                    subtitle = stringResource(R.string.canvas_live_blur_panels_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = canvasLiveBlurPanels,
-                            onCheckedChange = AppSettings::setCanvasLiveBlurPanels,
-                        )
-                    },
-                    onClick = { AppSettings.setCanvasLiveBlurPanels(!canvasLiveBlurPanels) },
-                )
-            }
-            val legacyMeshGradientTitle = stringResource(R.string.legacy_mesh_gradient)
-            row(legacyMeshGradientTitle, "background", "player") {
-                SettingsRow(
-                    icon = SfIcons.Gradient,
-                    title = legacyMeshGradientTitle,
-                    subtitle = stringResource(R.string.legacy_mesh_gradient_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = legacyMeshGradient,
-                            onCheckedChange = AppSettings::setLegacyMeshGradient,
-                        )
-                    },
-                    onClick = { AppSettings.setLegacyMeshGradient(!legacyMeshGradient) },
-                )
-            }
             // Sampul animasi, data seluler, dan Spotify Canvas ada di halaman Cover animation.
             val artistSignaturesTitle = stringResource(R.string.artist_signatures)
             row(artistSignaturesTitle, "signature", "artist", "logo") {
@@ -1344,121 +1360,35 @@ fun SettingsScreen(
                     }
                 }
             }
-            val syncedLyricsTitle = stringResource(R.string.synced_lyrics)
-            // Same reasoning as Animated cover art above: the lyrics source and
-            // translation rows are only here while this is on.
-            row(syncedLyricsTitle, "lyrics", "translation", "lrclib", "musixmatch") {
+            val listenTogetherTabTitle = stringResource(R.string.show_listen_together_tab)
+            row(listenTogetherTabTitle, "party", "jam", "tab", "navbar", "navigation", "listen together") {
                 SettingsRow(
-                    icon = SfIcons.Notes,
-                    title = syncedLyricsTitle,
-                    subtitle = stringResource(R.string.synced_lyrics_subtitle),
+                    icon = SfIcons.Groups,
+                    title = listenTogetherTabTitle,
+                    subtitle = stringResource(R.string.show_listen_together_tab_subtitle),
                     trailing = {
                         IosSwitch(
-                            checked = syncedLyrics,
-                            onCheckedChange = AppSettings::setSyncedLyrics,
+                            checked = listenTogetherTab,
+                            onCheckedChange = AppSettings::setShowListenTogetherTab,
                         )
                     },
-                    onClick = { AppSettings.setSyncedLyrics(!syncedLyrics) },
+                    onClick = { AppSettings.setShowListenTogetherTab(!listenTogetherTab) },
                 )
             }
-            // Nothing to choose between while the feature is off, and the
-            // sources are third-party services being reached on the user's
-            // connection — which is the part worth being able to narrow.
-            if (syncedLyrics) {
-                val lyricStripTitle = stringResource(R.string.lyric_strip)
-                row(lyricStripTitle, "lyrics", "strip", "player") {
-                    SettingsRow(
-                        icon = SfIcons.Notes,
-                        title = lyricStripTitle,
-                        subtitle = stringResource(R.string.lyric_strip_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = lyricStrip,
-                                onCheckedChange = AppSettings::setLyricStrip,
-                            )
-                        },
-                        onClick = { AppSettings.setLyricStrip(!lyricStrip) },
-                    )
-                }
-                val lyricsBlurTitle = stringResource(R.string.blur_unfocused_lyrics)
-                row(lyricsBlurTitle, "lyrics", "blur") {
-                    SettingsRow(
-                        icon = SfIcons.BlurOn,
-                        title = lyricsBlurTitle,
-                        subtitle = stringResource(R.string.blur_unfocused_lyrics_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = lyricsBlur,
-                                onCheckedChange = AppSettings::setLyricsBlur,
-                            )
-                        },
-                        onClick = { AppSettings.setLyricsBlur(!lyricsBlur) },
-                    )
-                }
-                val liquidFlowTitle = stringResource(R.string.liquid_flow)
-                row(liquidFlowTitle, "lyrics", "liquidflow", "effect") {
-                    SettingsRow(
-                        icon = SfIcons.Waves,
-                        title = liquidFlowTitle,
-                        subtitle = stringResource(R.string.liquid_flow_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = liquidFlow,
-                                onCheckedChange = AppSettings::setLiquidFlow,
-                            )
-                        },
-                        onClick = { AppSettings.setLiquidFlow(!liquidFlow) },
-                    )
-                }
-                // Sparkle adalah bagian dari efek LiquidFlow, jadi pengaturannya
-                // hanya muncul saat LiquidFlow nyala.
-                if (liquidFlow) {
-                    val lyricsSparkleTitle = stringResource(R.string.lyrics_sparkle)
-                    row(lyricsSparkleTitle, "lyrics", "sparkle", "particles", "liquidflow") {
-                        SettingsRow(
-                            icon = SfIcons.AutoAwesome,
-                            title = lyricsSparkleTitle,
-                            subtitle = stringResource(R.string.lyrics_sparkle_subtitle),
-                            trailing = {
-                                IosSwitch(
-                                    checked = lyricsSparkle,
-                                    onCheckedChange = AppSettings::setLyricsSparkle,
-                                )
-                            },
-                            onClick = { AppSettings.setLyricsSparkle(!lyricsSparkle) },
+            val searchTabSeparateTitle = stringResource(R.string.search_tab_separate)
+            row(searchTabSeparateTitle, "search", "tab", "navbar", "navigation", "pencarian", "ios") {
+                SettingsRow(
+                    icon = SfIcons.Apps,
+                    title = searchTabSeparateTitle,
+                    subtitle = stringResource(R.string.search_tab_separate_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = searchTabSeparate,
+                            onCheckedChange = AppSettings::setSearchTabSeparate,
                         )
-                    }
-                }
-                val lyricsSourcesTitle = stringResource(R.string.lyrics_sources)
-                row(lyricsSourcesTitle, "lyrics", "lrclib", "musixmatch") {
-                    SettingsRow(
-                        icon = SfIcons.Language,
-                        title = lyricsSourcesTitle,
-                        subtitle = lyricsSources
-                            .sortedBy { it.ordinal }
-                            .joinToString(", ") { it.label }
-                            .ifEmpty { stringResource(R.string.no_lyrics_sources_enabled) },
-                        trailing = { Chevron() },
-                        onClick = onLyricsSources,
-                    )
-                }
-                val translationLanguageTitle = stringResource(R.string.translation_language)
-                row(translationLanguageTitle, "lyrics", "translate") {
-                    SettingsRow(
-                        icon = SfIcons.Translate,
-                        title = translationLanguageTitle,
-                        subtitle = if (translationLanguage.isBlank()) {
-                            stringResource(R.string.translation_language_subtitle)
-                        } else {
-                            translationLanguageName(
-                                translationLanguage,
-                                AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault(),
-                            )
-                        },
-                        trailing = { Chevron() },
-                        onClick = onTranslationLanguage,
-                    )
-                }
+                    },
+                    onClick = { AppSettings.setSearchTabSeparate(!searchTabSeparate) },
+                )
             }
         }
 
@@ -1514,6 +1444,36 @@ fun SettingsScreen(
                         ),
                     )
                 }
+            }
+            val reduceAnimationTitle = stringResource(R.string.reduce_animation)
+            row(reduceAnimationTitle, "motion") {
+                SettingsRow(
+                    icon = SfIcons.MotionPhotosOff,
+                    title = reduceAnimationTitle,
+                    subtitle = stringResource(R.string.reduce_animation_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = reduceAnimation,
+                            onCheckedChange = AppSettings::setReduceAnimation,
+                        )
+                    },
+                    onClick = { AppSettings.setReduceAnimation(!reduceAnimation) },
+                )
+            }
+            val reduceDynamicBlurTitle = stringResource(R.string.reduce_dynamic_blur)
+            row(reduceDynamicBlurTitle, "blur", "performance") {
+                SettingsRow(
+                    icon = SfIcons.BlurOff,
+                    title = reduceDynamicBlurTitle,
+                    subtitle = stringResource(R.string.reduce_dynamic_blur_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = reduceDynamicBlur,
+                            onCheckedChange = AppSettings::setReduceDynamicBlur,
+                        )
+                    },
+                    onClick = { AppSettings.setReduceDynamicBlur(!reduceDynamicBlur) },
+                )
             }
         }
 
@@ -1766,7 +1726,7 @@ fun SettingsScreen(
 
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
-        if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+        if (shows(SettingsCategory.PLAYER)) SearchableSettingsGroup(search, header = stringResource(R.string.settings_player)) {
             val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
             row(playNextOnSwipeTitle, "swipe", "queue") {
                 SettingsRow(
@@ -1816,21 +1776,6 @@ fun SettingsScreen(
                     onClick = { AppSettings.setStopOnTaskRemoved(!stopOnTaskRemoved) },
                 )
             }
-            val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
-            row(hideVolumeBarTitle, "volume", "player") {
-                SettingsRow(
-                    icon = SfIcons.VolumeOff,
-                    title = hideVolumeBarTitle,
-                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = hideVolumeBar,
-                            onCheckedChange = AppSettings::setHideVolumeBar,
-                        )
-                    },
-                    onClick = { AppSettings.setHideVolumeBar(!hideVolumeBar) },
-                )
-            }
             val smoothPauseTitle = stringResource(R.string.smooth_pause)
             row(smoothPauseTitle, "pause", "fade", "smooth", "player") {
                 SettingsRow(
@@ -1861,49 +1806,19 @@ fun SettingsScreen(
                     onClick = { AppSettings.setPauseOnZeroVolume(!pauseOnZeroVolume) },
                 )
             }
-            val listenTogetherTabTitle = stringResource(R.string.show_listen_together_tab)
-            row(listenTogetherTabTitle, "party", "jam", "tab", "navbar", "navigation", "listen together") {
+            val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
+            row(hideVolumeBarTitle, "volume", "player") {
                 SettingsRow(
-                    icon = SfIcons.Groups,
-                    title = listenTogetherTabTitle,
-                    subtitle = stringResource(R.string.show_listen_together_tab_subtitle),
+                    icon = SfIcons.VolumeOff,
+                    title = hideVolumeBarTitle,
+                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
                     trailing = {
                         IosSwitch(
-                            checked = listenTogetherTab,
-                            onCheckedChange = AppSettings::setShowListenTogetherTab,
+                            checked = hideVolumeBar,
+                            onCheckedChange = AppSettings::setHideVolumeBar,
                         )
                     },
-                    onClick = { AppSettings.setShowListenTogetherTab(!listenTogetherTab) },
-                )
-            }
-            val searchTabSeparateTitle = stringResource(R.string.search_tab_separate)
-            row(searchTabSeparateTitle, "search", "tab", "navbar", "navigation", "pencarian", "ios") {
-                SettingsRow(
-                    icon = SfIcons.Apps,
-                    title = searchTabSeparateTitle,
-                    subtitle = stringResource(R.string.search_tab_separate_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = searchTabSeparate,
-                            onCheckedChange = AppSettings::setSearchTabSeparate,
-                        )
-                    },
-                    onClick = { AppSettings.setSearchTabSeparate(!searchTabSeparate) },
-                )
-            }
-            val listenTogetherButtonTitle = stringResource(R.string.show_listen_together_button)
-            row(listenTogetherButtonTitle, "party", "jam", "output", "headphones", "player") {
-                SettingsRow(
-                    icon = SfIcons.Groups,
-                    title = listenTogetherButtonTitle,
-                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = listenTogetherButton,
-                            onCheckedChange = AppSettings::setShowListenTogetherButton,
-                        )
-                    },
-                    onClick = { AppSettings.setShowListenTogetherButton(!listenTogetherButton) },
+                    onClick = { AppSettings.setHideVolumeBar(!hideVolumeBar) },
                 )
             }
             val hideStatusBarTitle = stringResource(R.string.hide_status_bar_in_player)
@@ -1951,6 +1866,166 @@ fun SettingsScreen(
                     onClick = { AppSettings.setHideSongStatus(!hideSongStatus) },
                 )
             }
+            val listenTogetherButtonTitle = stringResource(R.string.show_listen_together_button)
+            row(listenTogetherButtonTitle, "party", "jam", "output", "headphones", "player") {
+                SettingsRow(
+                    icon = SfIcons.Groups,
+                    title = listenTogetherButtonTitle,
+                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = listenTogetherButton,
+                            onCheckedChange = AppSettings::setShowListenTogetherButton,
+                        )
+                    },
+                    onClick = { AppSettings.setShowListenTogetherButton(!listenTogetherButton) },
+                )
+            }
+            val syncedLyricsTitle = stringResource(R.string.synced_lyrics)
+            // The lyrics source and translation rows are only here while this is on.
+            row(syncedLyricsTitle, "lyrics", "translation", "lrclib", "musixmatch") {
+                SettingsRow(
+                    icon = SfIcons.Notes,
+                    title = syncedLyricsTitle,
+                    subtitle = stringResource(R.string.synced_lyrics_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = syncedLyrics,
+                            onCheckedChange = AppSettings::setSyncedLyrics,
+                        )
+                    },
+                    onClick = { AppSettings.setSyncedLyrics(!syncedLyrics) },
+                )
+            }
+            // Nothing to choose between while the feature is off, and the
+            // sources are third-party services being reached on the user's
+            // connection — which is the part worth being able to narrow.
+            if (syncedLyrics) {
+                val lyricStripTitle = stringResource(R.string.lyric_strip)
+                row(lyricStripTitle, "lyrics", "strip", "player") {
+                    SettingsRow(
+                        icon = SfIcons.Notes,
+                        title = lyricStripTitle,
+                        subtitle = stringResource(R.string.lyric_strip_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = lyricStrip,
+                                onCheckedChange = AppSettings::setLyricStrip,
+                            )
+                        },
+                        onClick = { AppSettings.setLyricStrip(!lyricStrip) },
+                    )
+                }
+                val lyricsBlurTitle = stringResource(R.string.blur_unfocused_lyrics)
+                row(lyricsBlurTitle, "lyrics", "blur") {
+                    SettingsRow(
+                        icon = SfIcons.BlurOn,
+                        title = lyricsBlurTitle,
+                        subtitle = stringResource(R.string.blur_unfocused_lyrics_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = lyricsBlur,
+                                onCheckedChange = AppSettings::setLyricsBlur,
+                            )
+                        },
+                        onClick = { AppSettings.setLyricsBlur(!lyricsBlur) },
+                    )
+                }
+                val liquidFlowTitle = stringResource(R.string.liquid_flow)
+                row(liquidFlowTitle, "lyrics", "liquidflow", "effect") {
+                    SettingsRow(
+                        icon = SfIcons.Waves,
+                        title = liquidFlowTitle,
+                        subtitle = stringResource(R.string.liquid_flow_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = liquidFlow,
+                                onCheckedChange = AppSettings::setLiquidFlow,
+                            )
+                        },
+                        onClick = { AppSettings.setLiquidFlow(!liquidFlow) },
+                    )
+                }
+                // Sparkle adalah bagian dari efek LiquidFlow, jadi pengaturannya
+                // hanya muncul saat LiquidFlow nyala.
+                if (liquidFlow) {
+                    val lyricsSparkleTitle = stringResource(R.string.lyrics_sparkle)
+                    row(lyricsSparkleTitle, "lyrics", "sparkle", "particles", "liquidflow") {
+                        SettingsRow(
+                            icon = SfIcons.AutoAwesome,
+                            title = lyricsSparkleTitle,
+                            subtitle = stringResource(R.string.lyrics_sparkle_subtitle),
+                            trailing = {
+                                IosSwitch(
+                                    checked = lyricsSparkle,
+                                    onCheckedChange = AppSettings::setLyricsSparkle,
+                                )
+                            },
+                            onClick = { AppSettings.setLyricsSparkle(!lyricsSparkle) },
+                        )
+                    }
+                }
+                val lyricsSourcesTitle = stringResource(R.string.lyrics_sources)
+                row(lyricsSourcesTitle, "lyrics", "lrclib", "musixmatch") {
+                    SettingsRow(
+                        icon = SfIcons.Language,
+                        title = lyricsSourcesTitle,
+                        subtitle = lyricsSources
+                            .sortedBy { it.ordinal }
+                            .joinToString(", ") { it.label }
+                            .ifEmpty { stringResource(R.string.no_lyrics_sources_enabled) },
+                        trailing = { Chevron() },
+                        onClick = onLyricsSources,
+                    )
+                }
+                val translationLanguageTitle = stringResource(R.string.translation_language)
+                row(translationLanguageTitle, "lyrics", "translate") {
+                    SettingsRow(
+                        icon = SfIcons.Translate,
+                        title = translationLanguageTitle,
+                        subtitle = if (translationLanguage.isBlank()) {
+                            stringResource(R.string.translation_language_subtitle)
+                        } else {
+                            translationLanguageName(
+                                translationLanguage,
+                                AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault(),
+                            )
+                        },
+                        trailing = { Chevron() },
+                        onClick = onTranslationLanguage,
+                    )
+                }
+            }
+            val canvasLiveBlurTitle = stringResource(R.string.canvas_live_blur_panels)
+            row(canvasLiveBlurTitle, "canvas", "blur", "lyrics", "queue", "player") {
+                SettingsRow(
+                    icon = SfIcons.Fullscreen,
+                    title = canvasLiveBlurTitle,
+                    subtitle = stringResource(R.string.canvas_live_blur_panels_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = canvasLiveBlurPanels,
+                            onCheckedChange = AppSettings::setCanvasLiveBlurPanels,
+                        )
+                    },
+                    onClick = { AppSettings.setCanvasLiveBlurPanels(!canvasLiveBlurPanels) },
+                )
+            }
+            val legacyMeshGradientTitle = stringResource(R.string.legacy_mesh_gradient)
+            row(legacyMeshGradientTitle, "background", "player") {
+                SettingsRow(
+                    icon = SfIcons.Gradient,
+                    title = legacyMeshGradientTitle,
+                    subtitle = stringResource(R.string.legacy_mesh_gradient_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = legacyMeshGradient,
+                            onCheckedChange = AppSettings::setLegacyMeshGradient,
+                        )
+                    },
+                    onClick = { AppSettings.setLegacyMeshGradient(!legacyMeshGradient) },
+                )
+            }
         }
 
         if (shows(SettingsCategory.LANGUAGE)) SearchableSettingsGroup(search, header = stringResource(R.string.language)) {
@@ -1968,21 +2043,6 @@ fun SettingsScreen(
         }
 
         if (shows(SettingsCategory.ADVANCED)) SearchableSettingsGroup(search, header = stringResource(R.string.advanced_options)) {
-            val smartAlignmentTitle = stringResource(R.string.smart_version_alignment)
-            row(smartAlignmentTitle, "alignment", "sync", "waveform", "video", "audio", "skit", "intro") {
-                SettingsRow(
-                    icon = SfIcons.GraphicEq,
-                    title = smartAlignmentTitle,
-                    subtitle = stringResource(R.string.smart_version_alignment_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = smartVersionAlignment,
-                            onCheckedChange = AppSettings::setSmartVersionAlignment,
-                        )
-                    },
-                    onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
-                )
-            }
             val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
             row(showNerdStatsTitle, "debug", "bitrate", "codec") {
                 SettingsRow(
@@ -1997,67 +2057,6 @@ fun SettingsScreen(
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
                 )
-            }
-            val appIconTitle = stringResource(R.string.app_icon)
-            row(appIconTitle, "icon", "launcher", "logo") {
-                var selectedIcon by remember { mutableStateOf(AppIcon.current(context)) }
-                SettingsRow(icon = SfIcons.Apps, title = appIconTitle)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    AppIcon.entries.forEach { option ->
-                        val selected = option == selectedIcon
-                        Column(
-                            modifier = Modifier
-                                .width(84.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    selectedIcon = option
-                                    AppIcon.apply(context, option)
-                                }
-                                .padding(vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            // A glass foreground holds the finished icon in its own shape on the
-                            // central 72 of 108 dp: scaled 1.5× it fills the tile as designed.
-                            // Only the default goes through an adaptive mask.
-                            val preview = option.previewRes
-                            if (preview == null) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        android.widget.ImageView(ctx).apply { setImageResource(option.iconRes) }
-                                    },
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .clip(RoundedCornerShape(22.dp)),
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(preview),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .scale(1.5f),
-                                )
-                            }
-                            Text(
-                                text = stringResource(option.labelRes),
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-                        }
-                    }
-                }
             }
         }
 
@@ -3190,13 +3189,13 @@ internal fun SegmentedControl(
 enum class SettingsCategory(@param:StringRes val title: Int) {
     DOWNLOADS(R.string.downloads),
     PLAYBACK(R.string.playback),
+    PLAYER(R.string.settings_player),
     CONTENT(R.string.content_feed),
     APPEARANCE(R.string.appearance),
     PERFORMANCE(R.string.performance),
     LOCAL_MUSIC(R.string.local_music),
     STORAGE(R.string.storage),
     YOUR_DATA(R.string.your_data),
-    MISCELLANEOUS(R.string.miscellaneous),
     LANGUAGE(R.string.language),
     ADVANCED(R.string.advanced_options),
     ;
@@ -3205,13 +3204,13 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
         get() = when (this) {
             DOWNLOADS -> SfIcons.Download
             PLAYBACK -> SfIcons.PlayCircle
+            PLAYER -> SfIcons.MusicNote
             CONTENT -> SfIcons.FilterAlt
             APPEARANCE -> SfIcons.Appearance
             PERFORMANCE -> SfIcons.Performance
             LOCAL_MUSIC -> SfIcons.LibraryMusic
             STORAGE -> SfIcons.Storage
             YOUR_DATA -> SfIcons.YourData
-            MISCELLANEOUS -> SfIcons.Miscellaneous
             LANGUAGE -> SfIcons.Language
             ADVANCED -> SfIcons.Advanced
         }

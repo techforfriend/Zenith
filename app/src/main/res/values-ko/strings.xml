@@ -252,7 +252,7 @@
     <string name="appearance">화면</string>
     <string name="storage">저장 공간</string>
     <string name="your_data">내 데이터</string>
-    <string name="miscellaneous">기타</string>
+    <string name="settings_player">플레이어</string>
     <string name="lossless_hq_audio">무손실 / 고음질 오디오</string>
     <string name="on_wifi">Wi-Fi 사용 시</string>
     <string name="on_mobile_data">모바일 데이터 사용 시</string>

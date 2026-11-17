@@ -199,7 +199,7 @@
     <string name="appearance">Tampilan</string>
     <string name="storage">Penyimpanan</string>
     <string name="your_data">Data Anda</string>
-    <string name="miscellaneous">Lainnya</string>
+    <string name="settings_player">Pemutar</string>
     <string name="lossless_hq_audio">Audio Lossless / HQ</string>
     <string name="on_wifi">Saat Wi-Fi</string>
     <string name="on_mobile_data">Saat data seluler</string>

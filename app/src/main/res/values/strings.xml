@@ -263,7 +263,7 @@
     <string name="appearance">Appearance</string>
     <string name="storage">Storage</string>
     <string name="your_data">Your data</string>
-    <string name="miscellaneous">Miscellaneous</string>
+    <string name="settings_player">Player</string>
     <string name="lossless_hq_audio">Lossless / HQ Audio</string>
     <string name="on_wifi">On Wi-Fi</string>
     <string name="on_mobile_data">On mobile data</string>
