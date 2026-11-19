@@ -1391,6 +1391,8 @@
     <string name="song_info_unavailable">Not available</string>
     <string name="song_info_error">Some information could not be loaded.</string>
     <string name="song_info_retry">Retry</string>
+    <string name="song_info_copy">Copy song info</string>
+    <string name="song_info_copied">Copied</string>
     <string name="song_info_credits">Credits</string>
     <string name="song_info_writers">Writers</string>
     <string name="song_info_producers">Producers</string>

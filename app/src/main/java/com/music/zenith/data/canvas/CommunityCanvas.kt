@@ -22,7 +22,7 @@ import kotlinx.serialization.json.jsonPrimitive
 object CommunityCanvas {
 
     private const val TAG = "CommunityCanvas"
-    private const val MANIFEST = "https://vivimusicanvas.mkmdevilmi.workers.dev/canvas.json"
+    private const val MANIFEST = "https://zenith-canvas.vercel.app/canvas.json"
     private const val TTL_MS = 30L * 60 * 1000
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -97,12 +97,25 @@ object CommunityCanvas {
         )
     }
 
+    private fun signedHeaders(): Map<String, String> {
+        val headers = mutableMapOf("User-Agent" to CANVAS_UA)
+        val secret = com.music.zenith.BuildConfig.CANVAS_SECRET
+        if (secret.isNotBlank()) {
+            val time = (System.currentTimeMillis() / 1000).toString()
+            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            mac.init(javax.crypto.spec.SecretKeySpec(secret.toByteArray(), "HmacSHA256"))
+            headers["X-Zenith-Time"] = time
+            headers["X-Zenith-Sig"] = mac.doFinal(time.toByteArray()).joinToString("") { "%02x".format(it) }
+        }
+        return headers
+    }
+
     @Synchronized
     private fun manifest(): List<Entry> {
         val now = System.currentTimeMillis()
         if (entries.isNotEmpty() && now - fetchedAtMs < TTL_MS) return entries
 
-        val body = canvasGet(MANIFEST, mapOf("User-Agent" to CANVAS_UA))
+        val body = canvasGet(MANIFEST, signedHeaders())
         if (body == null) {
             // Serve whatever we already have rather than losing canvas
             // entirely for the next half hour because one fetch failed.

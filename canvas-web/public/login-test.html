@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tes login</title>
+</head>
+<body style="font:16px system-ui,sans-serif;background:#0f0f12;color:#f2f2f5;padding:20px">
+<h3>Tes login Telegram</h3>
+<script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="Kakenawu_bot" data-size="large" data-onauth="onTelegramAuth(user)"></script>
+<button onclick="testTicket()" style="padding:10px 16px;margin:12px 0">Tes izin upload</button>
+<pre id="out" style="white-space:pre-wrap">Belum login.</pre>
+<script>
+async function testTicket() {
+  const out = document.getElementById("out");
+  if (!window.sessionToken) { out.textContent = "Login dulu."; return; }
+  out.textContent = "Meminta izin...";
+  try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + window.sessionToken },
+      body: JSON.stringify({ action: "ticket" })
+    });
+    const data = await res.json();
+    if (data.uploadUrl) data.uploadUrl = "(ada)";
+    out.textContent = res.status + " " + JSON.stringify(data, null, 2);
+  } catch (error) {
+    out.textContent = "Gagal: " + error.message;
+  }
+}
+
+async function onTelegramAuth(user) {
+  const out = document.getElementById("out");
+  out.textContent = "Memeriksa...";
+  try {
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(user)
+    });
+    const data = await res.json();
+    window.sessionToken = data.token || "";
+    if (data.token) data.token = "(ada, " + data.token.length + " karakter)";
+    out.textContent = res.status + " " + JSON.stringify(data, null, 2);
+  } catch (error) {
+    out.textContent = "Gagal: " + error.message;
+  }
+}
+</script>
+</body>
+</html>

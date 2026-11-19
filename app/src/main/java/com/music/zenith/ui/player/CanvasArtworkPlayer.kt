@@ -218,6 +218,8 @@ internal fun AndroidCanvasArtworkPlayer(
     bottomFadeEndPx: Float? = null,
     /** Blur radius in px, applied as a RenderEffect on the TextureView's own node (API 31+). */
     blurPx: () -> Float = { 0f },
+    /** Pengali [bottomFade] yang dibaca tiap frame, untuk fade yang ikut animasi. */
+    bottomFadeScale: () -> Float = { 1f },
     /**
      * Halts decoding for the length of a caller-driven transition — the sleeve
      * collapsing into the queue or lyrics panel and back — rather than only at
@@ -673,11 +675,12 @@ internal fun AndroidCanvasArtworkPlayer(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 // Read here so the blur follows the panel's progress every frame.
                 val blur = blurPx().let { if (it < 0.5f) 0f else it }
-                if (applied.fadeDiffers(bottomFade, bounds, bottomFadeEndPx, blur)) {
-                    view.setBottomFade(bottomFade, bounds, bottomFadeEndPx, blur)
+                val fadeNow = bottomFade * bottomFadeScale().coerceIn(0f, 1f)
+                if (applied.fadeDiffers(fadeNow, bounds, bottomFadeEndPx, blur)) {
+                    view.setBottomFade(fadeNow, bounds, bottomFadeEndPx, blur)
                 }
             } else {
-                frame.fadeFraction = bottomFade
+                frame.fadeFraction = bottomFade * bottomFadeScale().coerceIn(0f, 1f)
                 frame.fadeEndPx = bottomFadeEndPx
             }
         },
@@ -1104,6 +1107,7 @@ internal fun AndroidCanvasVideo(spec: CanvasVideoSpec, modifier: Modifier) {
         bottomFade = spec.bottomFade,
         bottomFadeEndPx = spec.bottomFadeEndPx,
         blurPx = spec.blurPx,
+        bottomFadeScale = spec.bottomFadeScale,
         pausedForTransition = spec.pausedForTransition,
         resumeDelayMs = spec.resumeDelayMs,
         startPositionMs = spec.startPositionMs,

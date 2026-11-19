@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/canvas.json", "destination": "/api/canvas" }
+  ],
+  "crons": [
+    { "path": "/api/ping", "schedule": "0 3 * * *" }
+  ]
+}

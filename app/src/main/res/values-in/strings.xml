@@ -1401,6 +1401,8 @@
     <string name="song_info_unavailable">Tidak tersedia</string>
     <string name="song_info_error">Sebagian informasi tidak dapat dimuat.</string>
     <string name="song_info_retry">Coba lagi</string>
+    <string name="song_info_copy">Salin info lagu</string>
+    <string name="song_info_copied">Tersalin</string>
     <string name="song_info_credits">Kredit</string>
     <string name="song_info_writers">Penulis</string>
     <string name="song_info_producers">Produser</string>

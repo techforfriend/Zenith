@@ -22,6 +22,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
 import com.music.zenith.R
 import com.music.zenith.data.CreditKind
 import com.music.zenith.data.SongInfo
@@ -79,6 +83,14 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
         value = SongInfoRepository.load(song)
     }
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val context = LocalContext.current
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(1500)
+            copied = false
+        }
+    }
 
     val motion = rememberMacOSPopupState(onClosed = onDismiss)
     val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent
@@ -216,6 +228,18 @@ private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
                 AlertAction(label = stringResource(R.string.song_info_retry), emphasised = false, onClick = { retry++ })
                 AlertRule()
             }
+            AlertAction(
+                label = stringResource(if (copied) R.string.song_info_copied else R.string.song_info_copy),
+                emphasised = false,
+                onClick = {
+                    val album = (info?.album ?: song.albumName).orEmpty()
+                    val text = "Judul: ${song.title}\nArtis: ${song.artist}\nAlbum: $album"
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                    clipboard?.setPrimaryClip(ClipData.newPlainText("song_info", text))
+                    copied = true
+                },
+            )
+            AlertRule()
             AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = motion::requestClose)
             }
         }

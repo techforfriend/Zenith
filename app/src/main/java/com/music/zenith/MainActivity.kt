@@ -107,6 +107,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -5037,6 +5038,17 @@ private fun ZenithApp(
         }
 
         val playerRaised = showNowPlaying && playerSong != null
+
+        // Player dibuka di atas halaman pencarian: kolom input yang masih fokus
+        // meninggalkan handle kursor dan keyboard di atas player. Lepas fokusnya.
+        val playerFocusManager = LocalFocusManager.current
+        val playerKeyboard = LocalSoftwareKeyboardController.current
+        LaunchedEffect(playerRaised) {
+            if (playerRaised) {
+                playerKeyboard?.hide()
+                playerFocusManager.clearFocus(force = true)
+            }
+        }
 
         // ---- The page's still, for a menu hung over it ----
         // Taken as a ⋮ or ⋯ menu opens over a page, let go once it has played

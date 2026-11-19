@@ -1889,6 +1889,9 @@ fun NowPlayingScreen(
     val clipHeldForPanels = clipFullscreen && liveCanvasPanels && collapseStarted
     val clipPortrait = !clipFullscreen &&
         heroClipMounted != null && canvasAspect > 0f && canvasAspect < 1f
+    // Klip hero non-portrait yang tumbuh mulus dari banner ke layar penuh (dan kembali)
+    // mengikuti progres collapse, bukan berpindah bentuk dalam satu frame.
+    val growBox = liveCanvasPanels && !clipFullscreen && !clipPortrait && heroClipMounted != null
 
     // Lagu hampir habis. Derived: layar ini hanya recompose saat nilainya
     // berganti, bukan tiap tick posisi.
@@ -3089,11 +3092,17 @@ fun NowPlayingScreen(
                         // delegasi), supaya lambda berubah tepat saat panel dibuka/ditutup
                         // dan blok update AndroidView menerapkan blur sinkron di frame yang
                         // sama, bukan lewat handler.post yang bisa terlambat.
-                        val panelsUpNow = lyricsOpen || queueOpen
+                        // Blur dan dim mengikuti progres collapse yang sama (0..1, dua arah),
+                        // jadi naik dan turun mulus tanpa lonjakan saat panel dibuka/ditutup.
                         val panelBlur: () -> Float = {
                             if (!liveCanvasPanels) 0f
-                            else if (panelsUpNow) 1f
-                            else (p() * 4f).coerceIn(0f, 1f)
+                            else smootherStep(p().coerceIn(0f, 1f))
+                        }
+                        // Fade bawah klip hero menghilang bertahap seiring klip memenuhi layar.
+                        val fadeScale: () -> Float = if (growBox) {
+                            ({ 1f - smootherStep(p().coerceIn(0f, 1f)) })
+                        } else {
+                            ({ 1f })
                         }
                         CanvasArtworkPlayer(
                             canvas = clip,
@@ -3190,10 +3199,13 @@ fun NowPlayingScreen(
                             },
                             onCoverChanged = { canvasCover.floatValue = it },
                             bottomFade = when {
-                                clipFullscreen || clipFillsPanels -> 0f
+                                clipFullscreen -> 0f
+                                growBox -> HERO_FADE_FRACTION
+                                clipFillsPanels -> 0f
                                 clipPortrait -> clipFadeFraction
                                 else -> HERO_FADE_FRACTION
                             },
+                            bottomFadeScale = fadeScale,
                             bottomFadeEndPx = if (clipPortrait && !clipFillsPanels) with(density) { clipBottom.toPx() }
                                 else null,
                             // Blur on the TextureView itself, not a Compose layer over it.
@@ -3201,7 +3213,17 @@ fun NowPlayingScreen(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
                                 .then(
-                                    if (clipFullscreen || clipPortrait || clipFillsPanels) Modifier.fillMaxSize()
+                                    if (growBox) {
+                                        Modifier.fillMaxWidth().layout { measurable, constraints ->
+                                            val full = constraints.maxHeight
+                                            val hero = heroHeight.roundToPx().coerceIn(0, full)
+                                            val h = (hero + (full - hero) * p().coerceIn(0f, 1f)).roundToInt()
+                                            val placeable = measurable.measure(
+                                                constraints.copy(minHeight = h, maxHeight = h),
+                                            )
+                                            layout(placeable.width, h) { placeable.place(0, 0) }
+                                        }
+                                    } else if (clipFullscreen || clipPortrait || clipFillsPanels) Modifier.fillMaxSize()
                                     else Modifier.fillMaxWidth().height(heroHeight),
                                 )
                                 .drawWithContent {
@@ -3216,7 +3238,41 @@ fun NowPlayingScreen(
                                         0f
                                     }
                                     if (dimAmount > 0f) {
-                                        drawRect(Color.Black.copy(alpha = CANVAS_PANEL_DIM * dimAmount))
+                                        val dimFade = when {
+                                            clipFullscreen -> 0f
+                                            growBox -> HERO_FADE_FRACTION * (1f - smootherStep(p().coerceIn(0f, 1f)))
+                                            clipFillsPanels -> 0f
+                                            clipPortrait -> clipFadeFraction
+                                            else -> HERO_FADE_FRACTION
+                                        }
+                                        if (dimFade <= 0.001f) {
+                                            drawRect(Color.Black.copy(alpha = CANVAS_PANEL_DIM * dimAmount))
+                                        } else {
+                                            // Dim mengikuti fade bawah klip (kurva smootherStep yang
+                                            // sama), supaya tidak ada tepi flat di batas kotak hero
+                                            // saat panel lirik/antrean menutup.
+                                            val fadeEnd = if (clipPortrait && !clipFillsPanels) {
+                                                clipBottom.toPx().coerceIn(1f, size.height)
+                                            } else {
+                                                size.height
+                                            }
+                                            val fadeStart = fadeEnd * (1f - dimFade.coerceAtMost(1f))
+                                            val dimAlpha = CANVAS_PANEL_DIM * dimAmount
+                                            val steps = 8
+                                            val stops = Array(steps + 1) { i ->
+                                                val t = i / steps.toFloat()
+                                                val y = fadeStart + (fadeEnd - fadeStart) * t
+                                                (y / size.height).coerceIn(0f, 1f) to
+                                                    Color.Black.copy(alpha = dimAlpha * (1f - smootherStep(t)))
+                                            }
+                                            drawRect(
+                                                brush = Brush.verticalGradient(
+                                                    0f to Color.Black.copy(alpha = dimAlpha),
+                                                    *stops,
+                                                    1f to Color.Transparent,
+                                                ),
+                                            )
+                                        }
                                     }
                                 }
                                 .hazeSource(playerHaze),

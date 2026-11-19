@@ -428,6 +428,8 @@ class CanvasVideoSpec(
     val onStillCaptured: (ImageBitmap?, Long) -> Unit,
     val onResumed: () -> Unit,
     val frameGrab: CanvasFrameGrab?,
+    /** Pengali [bottomFade] yang dibaca tiap frame, untuk fade yang ikut animasi. */
+    val bottomFadeScale: () -> Float = { 1f },
 )
 
 /**
@@ -454,6 +456,8 @@ fun CanvasArtworkPlayer(
     bottomFadeEndPx: Float? = null,
     /** Blur radius in px applied on the video view itself; a Compose blur over a TextureView is unreliable. */
     blurPx: () -> Float = { 0f },
+    /** Pengali [bottomFade] yang dibaca tiap frame, untuk fade yang ikut animasi. */
+    bottomFadeScale: () -> Float = { 1f },
     pausedForTransition: Boolean = false,
     /** How long the clip holds still after [pausedForTransition] lifts before it plays on. */
     resumeDelayMs: Long = 0L,
@@ -490,6 +494,7 @@ fun CanvasArtworkPlayer(
             bottomFade = bottomFade,
             bottomFadeEndPx = bottomFadeEndPx,
             blurPx = blurPx,
+            bottomFadeScale = bottomFadeScale,
             pausedForTransition = pausedForTransition,
             resumeDelayMs = resumeDelayMs,
             startPositionMs = startPositionMs,
