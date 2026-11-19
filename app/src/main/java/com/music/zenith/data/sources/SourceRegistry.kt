@@ -301,8 +301,8 @@ object SourceRegistry {
      * question, and when it may be fetched is
      * [AppSettings.wifiOnlyDownloads][com.music.zenith.data.settings.AppSettings.wifiOnlyDownloads]'s.
      */
-    fun activeForPlayback(): List<MusicSource> {
-        val ceiling = AppSettings.effectiveAudioQuality
+    fun activeForPlayback(track: String? = TrackLog.current()): List<MusicSource> {
+        val ceiling = AppSettings.effectiveAudioQualityFor(track)
         return active().filter { ceiling.permits(it.kind) }
     }
 

@@ -207,7 +207,7 @@ object QualityUpgrade {
         // played. [SourceResolver.upgradeFor] applies the real quality bar.
         if (target.title.isBlank() || target.isVideo ||
             mediaId in refused ||
-            !SourceResolver.canSubstituteForYouTube()
+            !SourceResolver.canSubstituteForYouTube(mediaId)
         ) {
             inFlight?.cancel()
             return false
@@ -295,7 +295,7 @@ object QualityUpgrade {
         // Same widening as [settledForLess]: a track playing off the cache is
         // worth a second look whenever anything outranks YouTube, not only
         // when lossless was asked for.
-        return SourceResolver.canSubstituteForYouTube()
+        return SourceResolver.canSubstituteForYouTube(mediaId)
     }
 
     /**

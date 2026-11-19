@@ -470,7 +470,7 @@ object AudioCache {
                     else -> keptLosslessCopy(videoId)
                         ?.takeIf { spec.uri.getQueryParameter(WATCH_READ_PARAM) == null }
                         ?: when {
-                            SourceResolver.canSubstituteForYouTube() ->
+                            SourceResolver.canSubstituteForYouTube(videoId) ->
                                 "$videoId#alt${atmosKeySuffix()}".let { completeSibling(videoId, it) ?: it }
                             else -> completeSibling(videoId, videoId) ?: videoId
                         }
@@ -1427,7 +1427,7 @@ object AudioCache {
         // rather than waiting behind it, that walk is what a track waits on
         // whenever the modules are slow, and warming it here is what makes the
         // race worth running at all.
-        val substitutable = SourceResolver.canSubstituteForYouTube()
+        val substitutable = SourceResolver.canSubstituteForYouTube(videoIds.firstOrNull())
         job = videoIds.firstOrNull()?.let { next ->
             val target = upcoming.firstOrNull { it.mediaId == next }?.target
             // A track the listener reverted plays from its own `#original`

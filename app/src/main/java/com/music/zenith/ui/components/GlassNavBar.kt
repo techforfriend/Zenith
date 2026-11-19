@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,6 +41,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.lerp as lerpDp
+import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
@@ -347,6 +352,8 @@ private fun GlassNowPlaying(
     dock: PlayerDock?,
     pull: MiniPlayerPull?,
     jellyPush: JellyPush? = null,
+    /** When given, the density blend itself (1 = inline, 0 = expanded), read from the value that moves the bar. */
+    inlineProgress: (() -> Float)? = null,
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberHaptics()
@@ -367,8 +374,20 @@ private fun GlassNowPlaying(
         fontSize = ACCESSORY_ARTIST_SIZE,
         letterSpacing = ACCESSORY_ARTIST_TRACKING,
     )
-    val glyphSlot = if (isInline) 32.dp else 40.dp
-    val glyphSize = if (isInline) 24.dp else EXPANDED_GLYPH_SIZE
+    // The two densities are the ends of one blend, so a row that switches (the mini
+    // player leaving the collapsed bar for the search morph) glides between them
+    // instead of reflowing in one frame. A row that never switches starts and stays
+    // at its target, so nothing animates there.
+    val inlineMixSpring by animateFloatAsState(
+        targetValue = if (isInline) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.9f, stiffness = 700f),
+        label = "accessoryDensity",
+    )
+    // [inlineProgress] is the blend itself when given: no second spring that starts
+    // late or settles apart from the bar it is following.
+    val inlineMix = inlineProgress?.invoke() ?: inlineMixSpring
+    val glyphSlot = lerpDp(40.dp, 32.dp, inlineMix)
+    val glyphSize = lerpDp(EXPANDED_GLYPH_SIZE, 24.dp, inlineMix)
 
     Box(
         // Inline, the accessory is stretched to the row's height by the tab bar
@@ -423,7 +442,7 @@ private fun GlassNowPlaying(
                     // The artwork sits in the end of a capsule, which curves
                     // away from it; at 8dp its corner met the curve.
                     start = 16.dp,
-                    end = if (isInline) 8.dp else 12.dp,
+                    end = lerpDp(12.dp, 8.dp, inlineMix),
                     // Expanded, the 40dp play button and these come to the 48dp
                     // Apple's accessory is.
                     top = 4.dp,
@@ -461,7 +480,7 @@ private fun GlassNowPlaying(
                     )
                 }
             }
-            Spacer(Modifier.width(if (isInline) 8.dp else 9.dp))
+            Spacer(Modifier.width(lerpDp(9.dp, 8.dp, inlineMix)))
             // Title and artist at both densities, as Apple Music has them, in its
             // small, openly spaced type (see [ACCESSORY_TITLE_SIZE]). The inline
             // row shares its width with the tab pill and the Search circle, so
@@ -488,7 +507,7 @@ private fun GlassNowPlaying(
                     CircularProgressIndicator(
                         color = contentColor,
                         strokeWidth = 2.dp,
-                        modifier = Modifier.size(if (isInline) 18.dp else 20.dp),
+                        modifier = Modifier.size(lerpDp(20.dp, 18.dp, inlineMix)),
                     )
                 }
             } else {
@@ -506,20 +525,88 @@ private fun GlassNowPlaying(
             // Dropped inline: the collapsed row is sharing its width with the
             // tab pill and the Search circle, and the title is what has to
             // survive that, not a second transport button.
-            if (!isInline) {
-                // Glyph centres 44dp apart, as Apple's are.
-                Spacer(Modifier.width(4.dp))
-                MiniPlayerNextButton(
-                    tint = contentColor.copy(alpha = if (controlsLocked) 0.3f else 1f),
-                    enabled = !controlsLocked,
-                    slot = glyphSlot,
-                    onClick = {
-                        haptics.play(Haptic.SkipNext)
-                        onNext()
-                    },
-                )
+            // Not composed at all once fully inline. While the density blends, the skip
+            // button is revealed by width and alpha (read at layout/draw only), so it
+            // grows out of the row and the title makes way for it, never popping in.
+            if (inlineMix < 0.999f) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clipToBounds()
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints)
+                            val shown = (1f - inlineMix).coerceIn(0f, 1f)
+                            layout((placeable.width * shown).roundToInt(), placeable.height) {
+                                placeable.placeWithLayer(0, 0) { alpha = shown }
+                            }
+                        },
+                ) {
+                    // Glyph centres 44dp apart, as Apple's are.
+                    Spacer(Modifier.width(4.dp))
+                    MiniPlayerNextButton(
+                        tint = contentColor.copy(alpha = if (controlsLocked) 0.3f else 1f),
+                        enabled = !controlsLocked,
+                        slot = glyphSlot,
+                        onClick = {
+                            haptics.play(Haptic.SkipNext)
+                            onNext()
+                        },
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * The now playing pill as a standalone liquid glass surface, for screens where
+ * [GlassNavBar] is not drawn (the separate Search morph). Same row and same
+ * material as the bar's expanded accessory, so it does not fall back to the
+ * Haze-frosted [MiniPlayer].
+ */
+@Composable
+fun GlassMiniPlayer(
+    song: Song,
+    isPlaying: Boolean,
+    isLoading: Boolean,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onExpand: () -> Unit,
+    controlsLocked: Boolean = false,
+    onBlockedControl: () -> Unit = {},
+    dock: PlayerDock? = null,
+    pull: MiniPlayerPull? = null,
+    /** true = draw at the collapsed row's density; flipping it glides to the other density. */
+    inlineDensity: Boolean = false,
+    /** Drives the density blend directly (1 = inline, 0 = expanded); overrides the spring of [inlineDensity]. */
+    inlineProgress: (() -> Float)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val pillShape = remember { RoundedCornerShape(percent = 50) }
+    Box(modifier = modifier.padding(horizontal = NAV_BAR_GUTTER)) {
+        GlassNowPlaying(
+            song = song,
+            isInline = inlineDensity,
+            inlineProgress = inlineProgress,
+            isPlaying = isPlaying,
+            isLoading = isLoading,
+            contentColor = glassContentColor(),
+            onPlayPause = onPlayPause,
+            onNext = onNext,
+            onPrevious = onPrevious,
+            onExpand = onExpand,
+            controlsLocked = controlsLocked,
+            onBlockedControl = onBlockedControl,
+            dock = dock,
+            pull = pull,
+            // 48dp seperti tinggi baris tab: di nav bar, accessory inline diregangkan ke tinggi itu,
+            // sedangkan di sini tidak ada yang meregangkannya (inline 40dp, expanded 48dp).
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .then(Modifier.liquidGlass(shape = pillShape)),
+        )
     }
 }
 

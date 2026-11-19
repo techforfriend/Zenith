@@ -3,6 +3,7 @@ package com.music.zenith.ui.player
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -199,9 +200,13 @@ fun FullArtworkBlurBackdrop(
             var base by remember { mutableStateOf(image) }
             var incoming by remember { mutableStateOf<ImageBitmap?>(null) }
             val incomingAlpha = remember { Animatable(0f) }
+            val lastChangeNs = remember { longArrayOf(0L) }
             LaunchedEffect(image) {
                 val next = image ?: return@LaunchedEffect
                 if (next === base || next === incoming) return@LaunchedEffect
+                val now = System.nanoTime()
+                val gapMs = (now - lastChangeNs[0]) / 1_000_000L
+                lastChangeNs[0] = now
                 if (base == null) {
                     base = next
                     return@LaunchedEffect
@@ -209,7 +214,16 @@ fun FullArtworkBlurBackdrop(
                 incoming?.let { base = it }
                 incoming = next
                 incomingAlpha.snapTo(0f)
-                incomingAlpha.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+                // Frames of a playing clip arrive several times a second: each
+                // one fades in over just under the gap before the next, linearly,
+                // so the blur keeps moving instead of easing in and stopping per
+                // frame. A track change or a stray refresh keeps the slow ease.
+                val spec = if (gapMs < LIVE_BLUR_GAP_MS) {
+                    tween<Float>((gapMs * 0.9f).toInt().coerceIn(LIVE_FADE_MIN_MS, 700), easing = LinearEasing)
+                } else {
+                    tween<Float>(700, easing = FastOutSlowInEasing)
+                }
+                incomingAlpha.animateTo(1f, spec)
                 base = next
                 incoming = null
             }
@@ -594,6 +608,12 @@ private val FallbackBackdrop = Color(0xFF121212)
 
 /** A screen cannot recover detail discarded here; small is the performance feature. */
 private const val FULL_BLUR_SOURCE_PX = 128
+
+/** Image changes closer together than this are a live clip's frames, not a new track. */
+private const val LIVE_BLUR_GAP_MS = 1_000L
+
+/** The shortest fade between two live frames. */
+private const val LIVE_FADE_MIN_MS = 80
 private const val FULL_BLUR_PASSES = 3
 
 /** A handful of recent covers; each entry is only 64 KiB at 128x128 ARGB. */

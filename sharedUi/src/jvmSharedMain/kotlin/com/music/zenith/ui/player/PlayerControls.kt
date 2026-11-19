@@ -56,6 +56,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1110,22 +1111,12 @@ private fun OutputPartyPill(
     val badge = rememberPartyBadge()
     val shown by PlayerSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val output = rememberOutputGlyph()
-    // Lit in a colour opposite the sleeve's own while the sound leaves by
-    // another device, so it reads as "connected" on any cover.
-    val external = rememberOutputIsExternal()
-    val outputAccent by animateColorAsState(
-        targetValue = outputAccentFor(LocalPlayerTint.current),
-        animationSpec = tween(durationMillis = 300),
-        label = "outputAccent",
-    )
-    val outputTint = if (external) outputAccent else null
     // Party half hidden only outside a party: once in one, this is the way to
     // who's in it. Without it the output glyph stands alone, drawn like the
     // lyrics and queue glyphs either side rather than as half a capsule.
     if (!shown && !badge.inParty) {
         BottomGlyph(
             icon = output.icon,
-            tintOverride = outputTint,
             iconSize = output.size * (BOTTOM_ICON_SIZE / PILL_OUTPUT_SIZE),
             fluidPress = true,
             contentDescription = stringResource(Res.string.audio_output),
@@ -1136,7 +1127,6 @@ private fun OutputPartyPill(
     Pill {
         PillSegment(
             icon = output.icon,
-            tintOverride = outputTint,
             iconSize = output.size,
             fluidPress = true,
             contentDescription = stringResource(Res.string.audio_output),
@@ -1971,6 +1961,8 @@ private fun LosslessOrStats(
             // confirmed. It is what makes the badge read as an achievement
             // rather than a label, which only one of these two is.
             animated = true,
+            // Lossless and Hi-Res Lossless sit in a chip, as in Apple Music.
+            chip = true,
             modifier = modifier,
         )
         nerdStats?.isDolbyAtmos == true || dolbyAtmosActive -> LosslessLabel(
@@ -2007,6 +1999,8 @@ private fun LosslessLabel(
     pulsing: Boolean = false,
     /** Unspecified draws [iconPainter] at its own size. */
     iconSize: Dp = Dp.Unspecified,
+    /** Wraps the label in a small rounded chip tinted by the player tint. */
+    chip: Boolean = false,
 ) {
     // Only while asked for, and not at all under "Reduce animation": the
     // label then just holds still, which says "waiting" well enough.
@@ -2029,10 +2023,25 @@ private fun LosslessLabel(
         // label — no recomposition, no relayout. ModulateAlpha fades each draw
         // call in place rather than through an offscreen buffer: the glyph and
         // the word never overlap, so there is nothing a buffer would fix.
-        modifier = modifier.graphicsLayer {
-            alpha = pulse?.value ?: 1f
-            compositingStrategy = CompositingStrategy.ModulateAlpha
-        },
+        modifier = modifier
+            .graphicsLayer {
+                alpha = pulse?.value ?: 1f
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            }
+            .then(
+                if (chip) {
+                    // The slot is only as tall as the timestamp row, so the chip
+                    // is measured without a height cap and centred in it; capped,
+                    // the label's padding clipped the bottom of the text.
+                    Modifier
+                        .wrapContentHeight(align = Alignment.CenterVertically, unbounded = true)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(LocalPlayerTint.current.copy(alpha = 0.16f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                } else {
+                    Modifier
+                },
+            ),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {

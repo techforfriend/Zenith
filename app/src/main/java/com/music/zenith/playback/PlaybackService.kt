@@ -1575,7 +1575,7 @@ class PlaybackService : MediaLibraryService() {
             // [raceYouTubeOrModule]. Only worth the extra lookup when
             // something actually outranks YouTube; otherwise this is the
             // plain resolve every build before this one made.
-            if (!SourceResolver.canSubstituteForYouTube()) {
+            if (!SourceResolver.canSubstituteForYouTube(videoId)) {
                 // Reached only when nothing outranks YouTube — which, with
                 // YouTube switched off, means nothing at all is on. Playing
                 // it from YouTube here would undo the switch, so the track
@@ -6049,6 +6049,14 @@ class PlaybackService : MediaLibraryService() {
             else ->
                 NerdStats.sourceBitrate(mediaId) { measuredStreamKbps(player) }
                     ?: Pair(null, TelemetryProvenance.UNKNOWN)
+        }
+
+        if (mediaId != null && !isLocalPlayback(mediaId, player.currentMediaItem)) {
+            com.music.zenith.data.settings.TrackQualityMemory.noteSeen(
+                track = mediaId,
+                lossless = isLossless,
+                sourceName = currentSourceName(mediaId, player.currentMediaItem),
+            )
         }
 
         NerdStats.publish(NerdStats.Snapshot(

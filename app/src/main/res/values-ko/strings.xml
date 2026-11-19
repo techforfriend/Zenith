@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="playback_channel_name">지금 재생 중</string>
-    <string name="download_channel_name">다운로드</string>
-    <string name="download_channel_description">음악 폴더에 저장 중인 곡</string>
+
     <string name="download_notification_title">다운로드 중</string>
     <string name="download_notification_starting">시작 중</string>
-    <string name="download_notification_queued">%1$s · %2$d개 더 대기 중</string>
+
     <string name="upload_channel_name">업로드</string>
     <string name="upload_channel_description">WebDAV 서버로 전송 중인 곡</string>
     <string name="upload_notification_title">업로드 중</string>
@@ -74,23 +73,18 @@
     <string name="download_all">모두 다운로드</string>
     <string name="top_songs">인기 곡</string>
     <string name="suggested">추천</string>
-    <string name="song_count">곡 %1$d개</string>
+
     <plurals name="song_count_plural">
         <item quantity="other">곡 %1$d개</item>
     </plurals>
     <plurals name="track_count_plural">
         <item quantity="other">트랙 %1$d개</item>
     </plurals>
-    <plurals name="artist_count">
-        <item quantity="other">아티스트 %1$d명</item>
-    </plurals>
-    <plurals name="album_count">
-        <item quantity="other">앨범 %1$d개</item>
-    </plurals>
+
     <string name="songs">곡</string>
     <string name="artists">아티스트</string>
     <string name="albums">앨범</string>
-    <string name="no_album_metadata">이 트랙들 중 어떤 앨범에 속하는지 알려 주는 곡이 없어요.</string>
+
     <string name="search_empty">YouTube Music에서 수백만 곡을 검색하세요.</string>
     <string name="recent_searches">최근 검색어</string>
     <string name="clear">지우기</string>
@@ -101,7 +95,7 @@
     <string name="recent_search_remove">최근 검색어에서 “%1$s” 삭제</string>
     <string name="storage_required_save">곡을 저장하려면 저장소 접근 권한이 필요해요</string>
     <string name="storage_required_read">로컬 오디오 파일을 읽으려면 저장소 권한이 필요해요</string>
-    <string name="sharing_coming_soon">공유 기능이 곧 제공돼요</string>
+
     <string name="already_downloaded">이미 다운로드됨</string>
     <plurals name="downloading_song_count">
         <item quantity="other">곡 %1$d개 다운로드 중</item>
@@ -109,11 +103,9 @@
     <string name="source">소스</string>
     <string name="direct_source_stream">직접 소스 스트림</string>
     <string name="direct_source_stream_in_party">함께 듣기 파티 중에는 꺼져 있어요</string>
-    <string name="lossless_audio">무손실 오디오</string>
-    <string name="prefer_lossless">무손실 우선</string>
-    <string name="lossless_source_subtitle">소스에서 바로 FLAC 및 ALAC</string>
+
     <string name="overridden">재정의됨</string>
-    <string name="add_module_source">모듈 소스 추가</string>
+
     <string name="remove_source">이 소스 삭제</string>
     <string name="test">테스트</string>
     <string name="testing">테스트 중…</string>
@@ -125,7 +117,7 @@
     <string name="spotify_disconnect">연결 해제</string>
     <string name="spotify_empty_playlists">이 계정에는 재생목록이 없어요</string>
     <string name="spotify_empty_tracks">이 재생목록에는 트랙이 없어요</string>
-    <string name="spotify_track_unavailable">YouTube Music에서 해당 곡을 찾을 수 없어요</string>
+
     <string name="account_scrobbling">계정 &amp; 스크로블링</string>
     <string name="scrobbling">스크로블링</string>
     <string name="now_playing">지금 재생 중</string>
@@ -137,8 +129,7 @@
     <string name="song_cache_cleared">곡 캐시를 삭제했어요</string>
     <string name="image_cache_cleared">이미지 캐시를 삭제했어요</string>
     <string name="no_equalizer">이 기기에는 시스템 이퀄라이저가 없어요</string>
-    <string name="no_dolby_atmos">이 기기에는 Dolby Atmos 패널이 없어요</string>
-    <string name="dolby_atmos_open_failed">Dolby Atmos 설정을 열 수 없어요</string>
+
     <string name="update_available">업데이트 가능: v%1$s</string>
     <string name="software_update">소프트웨어 업데이트</string>
     <string name="update_available_body">Zenith %1$s을(를) 다운로드할 수 있어요.</string>
@@ -153,14 +144,9 @@
     <string name="try_again">다시 시도</string>
     <string name="open_releases_page">릴리스 페이지 열기</string>
     <string name="whats_new">새로운 기능</string>
-    <string name="log_copied">로그를 복사했어요 · %1$d줄</string>
+
     <string name="sign_in_youtube_music">YouTube Music에 로그인</string>
-    <string name="choose_a_channel">채널 선택</string>
-    <string name="channel_session_unavailable">이 페이지에 아직 세션이 없어요 — 먼저 YouTube Music을 여세요</string>
-    <string name="channel_switch_instructions">아바타로 전환한 후 ‘이 채널 사용’을 탭하세요</string>
-    <string name="use_this_channel">이 채널 사용</string>
-    <string name="sign_in_discord">Discord에 로그인</string>
-    <string name="personalized_recommendations">맞춤 추천 받기</string>
+
     <string name="play_next">다음에 재생</string>
     <string name="queue">대기열</string>
     <string name="source_unrecognised">Zenith가 해당 링크가 무엇인지 알 수 없어요</string>
@@ -180,7 +166,7 @@
     <string name="widget_previous">이전</string>
     <string name="widget_artwork">앨범 아트</string>
     <string name="widget_nothing_played">아직 재생한 곡이 없어요</string>
-    <string name="widget_open_zenith">Zenith 열기</string>
+
     <string name="widget_preview_title">곡 제목</string>
     <string name="widget_preview_artist">아티스트</string>
     <string name="widget_pill_label">지금 재생 중 4×1</string>
@@ -197,7 +183,7 @@
     <string name="playback_tempo">템포</string>
     <string name="playback_tempo_hint">빠르게 또는 느리게, 음높이는 유지돼요</string>
     <string name="playback_reset">기본값으로 재설정</string>
-    <string name="converting_to_audio">오디오로 변환 중…</string>
+
     <string name="revert_to_original">원본으로 되돌리기</string>
     <string name="upgrade_quality">음질 업그레이드</string>
     <string name="dolby_atmos_subtitle">있을 때 곡의 더 몰입감 있는 서라운드 버전을 재생해요.</string>
@@ -225,25 +211,15 @@
     <string name="app_language">앱 언어</string>
     <string name="app_language_description">Zenith에서 사용할 언어를 선택해 주세요.</string>
     <string name="english">영어</string>
-    <string name="spanish">스페인어</string>
-    <string name="french">프랑스어</string>
-    <string name="german">독일어</string>
+
     <string name="polish">폴란드어</string>
-    <string name="portuguese">포르투갈어</string>
+
     <string name="indonesian">인도네시아어</string>
     <string name="hindi">힌디어</string>
-    <string name="russian">러시아어</string>
-    <string name="chinese">중국어(간체)</string>
-    <string name="chinese_simplified">중국어(간체)</string>
-    <string name="chinese_traditional">중국어(번체)</string>
-    <string name="hebrew">히브리어</string>
-    <string name="italian">이탈리아어</string>
-    <string name="turkish">튀르키예어</string>
-    <string name="thai">태국어</string>
+
     <string name="korean">한국어</string>
     <string name="show_all">모두 보기</string>
-    <string name="grid_view">그리드</string>
-    <string name="list_view">목록</string>
+
     <string name="switch_to_grid_view">그리드 보기로 전환</string>
     <string name="switch_to_list_view">목록 보기로 전환</string>
     <string name="audio_quality">음질</string>
@@ -254,7 +230,7 @@
     <string name="storage">저장 공간</string>
     <string name="your_data">내 데이터</string>
     <string name="settings_player">플레이어</string>
-    <string name="lossless_hq_audio">무손실 / 고음질 오디오</string>
+
     <string name="on_wifi">Wi-Fi 사용 시</string>
     <string name="on_mobile_data">모바일 데이터 사용 시</string>
     <string name="in_use">사용 중</string>
@@ -281,15 +257,15 @@
     <string name="auto_music_only_subtitle">뮤직비디오를 자동으로 오디오로 재생해요</string>
     <string name="content_feed">콘텐츠 및 피드</string>
     <string name="hide_home_recents">최근 재생 숨기기</string>
-    <string name="hide_home_recents_subtitle">홈에서 최근 재생 줄을 없애요. 기록은 그대로 남아요</string>
+
     <string name="hide_home_videos">홈에서 비디오 숨기기</string>
     <string name="hide_home_videos_subtitle">비디오로만 된 줄도 함께 사라져요. 검색, 아티스트, 플레이리스트에는 계속 표시돼요</string>
     <string name="hide_home_branding">홈 브랜딩 숨기기</string>
     <string name="hide_home_branding_subtitle">로고 없이 홈 제목만 표시해요</string>
     <string name="hide_home_top_picks">추천 선곡 숨기기</string>
-    <string name="hide_home_top_picks_subtitle">홈에서 나를 위한 추천 선곡 줄을 없애요</string>
+
     <string name="hide_home_moods">무드 숨기기</string>
-    <string name="hide_home_moods_subtitle">홈에서 무드 줄을 없애요. 탐색의 무드는 그대로 쓸 수 있어요</string>
+
     <string name="customize_home">홈 구성 맞추기</string>
     <string name="customize_home_subtitle">줄 순서를 바꾸고 보일 줄을 골라요</string>
     <string name="home_layout_description">손잡이를 끌어 줄을 옮겨요. 체크를 해제하면 홈에서 숨겨져요.</string>
@@ -403,10 +379,7 @@
     <string name="glass_footer_ready_presets">여러 값을 한 번에 바꿔요. 아래 슬라이더로 더 다듬을 수 있어요.</string>
     <string name="glass_preset_default">기본</string>
     <string name="glass_preset_default_subtitle">Zenith 기본 글래스</string>
-    <string name="glass_preset_liquid">리퀴드 글래스</string>
-    <string name="glass_preset_liquid_subtitle">Kyant0 backdrop 스타일: 진한 컨테이너, 선명한 굴절, 무지개 없음</string>
-    <string name="glass_preset_bottom_bar">글래스 바텀 바</string>
-    <string name="glass_preset_bottom_bar_subtitle">Kyant0 튜토리얼 스타일: 약한 블러, 강하게 휘는 가장자리, 표면 50%</string>
+
     <string name="glass_section_color">블러 &amp; 색상</string>
     <string name="glass_section_refraction">굴절</string>
     <string name="glass_section_edge">테두리 &amp; 그림자</string>
@@ -638,7 +611,7 @@
     <string name="saved_to_zenith_folder">Music/Zenith에 저장했어요</string>
     <string name="nothing_downloading">다운로드 중인 항목이 없어요</string>
     <string name="nothing_to_explore">지금은 둘러볼 항목이 없어요</string>
-    <string name="no_youtube_music_results">YouTube Music 결과가 없어요</string>
+
     <string name="library_empty">보관함이 비어 있어요</string>
     <string name="history_sign_in_required">로그인하면 들은 기록을 볼 수 있어요</string>
     <string name="history_empty">아직 재생한 곡이 없어요</string>
@@ -674,12 +647,7 @@
     <string name="nothing_matches">“%1$s”에 해당하는 항목이 없어요</string>
     <string name="close_search">검색 닫기</string>
     <string name="less">간략히</string>
-    <string name="song_count_with_minutes">%1$s, %2$d분</string>
-    <string name="song_count_with_duration">%1$s, %2$s</string>
-    <string name="song_count_with_hours_minutes">%1$s, %2$s %3$d분</string>
-    <plurals name="hour_count">
-        <item quantity="other">%1$d시간</item>
-    </plurals>
+
     <plurals name="songs_will_play_next">
         <item quantity="other">곡 %1$d개를 다음에 재생해요</item>
     </plurals>
@@ -769,7 +737,7 @@
     <string name="scrobble_tracks_subtitle">재생 기록을 Last.fm 타임라인에 남겨요</string>
     <string name="scrobbling_footer">청취 기록을 Last.fm과 ListenBrainz에 스크로블해요.</string>
     <string name="scrobbling_paused_footer">이번 릴리스에서는 Last.fm과 ListenBrainz가 일시 중지되며 나중에 다시 제공돼요. 기존 연결은 그대로 유지돼요.</string>
-    <string name="search_this_folder">이 폴더에서 검색</string>
+
     <string name="search_this_list">이 목록에서 검색</string>
     <string name="second_button">두 번째 버튼</string>
     <string name="share">공유</string>
@@ -816,7 +784,7 @@
     <string name="tap_to_sign_in_discord">탭하여 Discord로 로그인</string>
     <string name="token">토큰</string>
     <string name="turn_off_timer">타이머 끄기</string>
-    <string name="undo_dislike">싫어요 취소</string>
+
     <string name="verb_competing">경쟁 중</string>
     <string name="verb_listening">듣는 중</string>
     <string name="verb_playing">하는 중</string>
@@ -869,7 +837,7 @@
     <string name="top_song">인기 곡</string>
     <string name="when_you_listen_the_most">가장 많이 듣는 시간대</string>
     <string name="your_biggest_day">가장 많이 들은 날: %1$s</string>
-    <string name="your_listening_experience">나의 청취 경험</string>
+
     <string name="your_lyrics_card">나의 가사 카드</string>
     <string name="your_replay">나의 Replay</string>
     <plurals name="replay_artist_count">
@@ -901,7 +869,7 @@
     <string name="webdav_not_configured">소스에서 서버를 연결하세요</string>
     <string name="webdav_empty">WebDAV 서버에서 오디오 파일을 찾지 못했어요. 설정에서 URL을 확인하세요.</string>
     <string name="webdav_description">Zenith를 WebDAV 음악 폴더(Nextcloud Music 디렉터리 또는 WebDAV를 지원하는 서버)에 연결하세요.</string>
-    <string name="webdav_server_url">서버 URL</string>
+
     <string name="webdav_disconnect">연결 해제</string>
     <string name="webdav_test_failed">연결할 수 없어요: %1$s</string>
     <string name="upload_to_webdav">WebDAV에 업로드</string>
@@ -934,23 +902,14 @@
     <string name="delete_playlist_confirmation">“%1$s” 삭제할까요? 확인하려면 다시 탭하세요.</string>
     <string name="delete_download_confirmation">이 기기에서 “%1$s” 삭제할까요? 확인하려면 다시 탭하세요.</string>
     <string name="running">실행 중</string>
-    <string name="version_cut_not_fetched">가져오지 않음</string>
-    <string name="version_cut_fetching">가져오는 중</string>
-    <string name="version_cut_measuring">분석 중</string>
-    <string name="version_cut_aligned">정렬됨</string>
+
     <string name="automix_enabled_subtitle">곡 자체를 분석해 모든 전환의 타이밍과 블렌딩을 맞춰요. 기기가 뜨거워지거나 재생이 끊기면 꺼 주세요.</string>
     <string name="automix_model_title">Automix 모델 다운로드</string>
     <string name="automix_model_message">Automix에는 작은 분석 모델 두 개(약 30MB)가 필요해요. 한 번만 다운로드하며 이 기기에 저장돼요.</string>
     <string name="automix_model_download">다운로드</string>
-    <string name="automix_model_downloading_title">모델 다운로드 중…</string>
-    <string name="automix_model_downloading_message">%1$d%% 완료</string>
-    <string name="automix_model_hide">숨기기</string>
-    <string name="automix_model_failed_title">다운로드 실패</string>
-    <string name="automix_model_failed_message">Automix 모델을 다운로드하지 못했어요. 연결을 확인하고 다시 시도하세요.</string>
-    <string name="automix_model_retry">다시 시도</string>
+
     <string name="automix_disabled_subtitle">슬라이더 없이 전환의 타이밍과 블렌딩을 자동으로 맞춰요. 느린 기기에서는 성능이 달라질 수 있어요.</string>
-    <string name="advanced_automix">고급 Automix</string>
-    <string name="advanced_automix_subtitle">DJ처럼 믹스해요: 비트를 맞추고, 비트에 맞춰 전환하며, 어울리지 않는 곡 사이는 컷으로 이어요. 추가 처리는 없어요.</string>
+
     <string name="no_lyrics_sources_enabled">없음. 가사를 가져오지 않아요.</string>
     <string name="song_cache_large_subtitle">다운로드한 오디오를 디스크에 최대 %1$s까지 보관해요. 여유 공간을 상당히 차지할 수 있어요.</string>
     <string name="song_cache_limit_subtitle">다운로드한 오디오를 디스크에 보관해 즉시 탐색하고 다시 재생할 수 있어요</string>
@@ -988,8 +947,7 @@
     <string name="brand_account">브랜드 계정</string>
     <string name="add_account">계정 추가</string>
     <string name="manage_accounts">계정 관리</string>
-    <string name="current_account">현재 계정</string>
-    <string name="current_profile">현재 프로필</string>
+
     <string name="selected_account">선택한 계정</string>
     <string name="listen_as">청취 프로필</string>
     <string name="edit_profile">프로필 편집</string>
@@ -1007,22 +965,20 @@
     <string name="listen_together_subtitle">코드를 공유해 같은 음악을 동시에 재생해요</string>
     <string name="listen_together_in_party">파티 참여 중 · %1$s</string>
     <string name="listen_together_sign_in_footer">함께 듣기에는 계정이 필요해요. 파티의 모든 사람이 누가 참여 중인지 볼 수 있어요.</string>
-    <string name="listen_together_server">파티 서버</string>
+
     <string name="listen_together_server_online">온라인 · %1$d ms</string>
-    <string name="listen_together_server_online_fallback">온라인 (기본 서버로 대체) · %1$d ms</string>
+
     <string name="listen_together_server_offline">지금은 연결할 수 없어요</string>
     <string name="listen_together_server_checking">확인 중…</string>
-    <string name="listen_together_server_unknown">탭하여 확인</string>
+
     <string name="listen_together_custom_server">내 서버 사용</string>
     <string name="listen_together_custom_server_footer">기본 서버를 사용하려면 비워 두세요. 직접 운영하는 서버를 쓴다면 파티의 모든 사람이 같은 서버를 지정해야 해요.</string>
     <string name="listen_together_using_default">기본 서버 사용 중</string>
     <string name="listen_together_remove_server">서버 삭제</string>
     <string name="listen_together_switched_to_default">기본 서버로 전환했어요</string>
-    <string name="listen_together_custom_server_saved">사용자 지정 서버를 저장했어요</string>
+
     <string name="listen_together_create">파티 만들기</string>
-    <string name="listen_together_create_subtitle">친구와 공유할 코드를 받아요</string>
-    <string name="listen_together_create_footer">6자리 코드가 발급돼요. 코드가 있는 사람은 누구나 참여할 수 있으며, 내 기기를 포함해 최대 %1$d대까지 가능해요.</string>
-    <string name="listen_together_profile">내 파티 프로필</string>
+
     <string name="listen_together_nickname_hint">이 파티에서 쓸 닉네임</string>
     <string name="listen_together_party_size">파티 인원</string>
     <string name="listen_together_party_size_subtitle">2~10명의 청취자를 선택하세요</string>
@@ -1030,18 +986,6 @@
     <string name="listen_together_remove">삭제</string>
     <string name="listen_together_activity">최근 활동</string>
     <string name="listen_together_activity_footer">이번 세션만 · 최신순 · 최대 100개 작업</string>
-    <string name="listen_together_activity_played">재생을 시작했어요</string>
-    <string name="listen_together_activity_paused">재생을 일시정지했어요</string>
-    <string name="listen_together_activity_seeked">트랙에서 위치를 이동했어요</string>
-    <string name="listen_together_activity_skipped">앞으로 건너뛰었어요</string>
-    <string name="listen_together_activity_went_back">뒤로 돌아갔어요</string>
-    <string name="listen_together_activity_added">대기열에 추가했어요</string>
-    <string name="listen_together_activity_removed_track">대기열의 트랙을 삭제했어요</string>
-    <string name="listen_together_activity_cleared">다음 트랙을 비웠어요</string>
-    <string name="listen_together_activity_reordered">대기열 순서를 바꿨어요</string>
-    <string name="listen_together_activity_removed_member">청취자를 내보냈어요</string>
-    <string name="listen_together_activity_changed_size">파티 인원을 변경했어요</string>
-    <string name="listen_together_activity_updated">파티를 업데이트했어요</string>
     <string name="listen_together_join">파티 참여</string>
     <string name="listen_together_join_action">참여</string>
     <string name="listen_together_code_hint">6자리 영문 또는 숫자</string>
@@ -1072,7 +1016,7 @@
     <string name="listen_together_share_link">링크 공유</string>
     <string name="listen_together_scan_qr">QR 코드 스캔</string>
     <string name="listen_together_scan_qr_subtitle">친구가 이 코드를 스캔하면 참여할 수 있어요.</string>
-    <string name="listen_together_invite">초대</string>
+
     <string name="listen_together_host_only">나만 음악 제어</string>
     <string name="listen_together_host_only_subtitle">다른 사람은 함께 듣고, 자신의 기기에서 일시정지할 수 있어요</string>
     <string name="listen_together_host_only_notice">호스트만 음악을 제어할 수 있어요</string>
@@ -1086,8 +1030,7 @@
     <string name="listen_together_custom_server_switch_and_join">전환 후 참여</string>
     <string name="listen_together_official_server_dialog_title">공식 서버로 전환할까요?</string>
     <string name="listen_together_official_server_dialog_message">이 파티는 공식 Zenith 서버에서 호스팅돼요.\n\n공식 서버로 다시 전환하고 파티 %1$s에 참여할까요?</string>
-    <string name="listen_together_switch_failed_stayed_in_party">파티에 참여할 수 없어요: %1$s. 파티 %2$s에 계속 남아 있어요.</string>
-    <string name="listen_together_switch_failed">파티에 참여할 수 없어요: %1$s.</string>
+
     <string name="listen_together_invalid_server_url">서버 URL이 올바르지 않아요. 올바른 주소를 입력하세요 (예: https://your-server.com)</string>
     <string name="listen_together_err_whitespace">서버 URL에는 공백을 넣을 수 없어요</string>
     <string name="listen_together_err_invalid_path">서버 URL에 올바르지 않은 경로가 있어요</string>
@@ -1101,8 +1044,7 @@
     <string name="listen_together_status_custom_fallback">사용자 지정 서버에 연결할 수 없음 · 기본 서버로 대체 (%1$d ms)</string>
     <string name="listen_together_status_all_offline">사용자 지정 서버와 기본 서버가 모두 오프라인이에요</string>
     <string name="listen_together_top_bar_fallback">대체 · %1$s</string>
-    <string name="vietnamese">베트남어</string>
-    <string name="miscellaneous_footer">켜면 최근 앱 화면에서 앱을 닫을 때 음악 재생도 중지돼요.</string>
+
     <string name="export_compatible_downloads">호환되는 다운로드 내보내기</string>
     <string name="sync_downloaded_playlists">플레이리스트 최신 상태 유지</string>
     <string name="sync_downloaded_playlists_subtitle">하루에 두 번 확인해 다운로드한 플레이리스트에 새로 추가된 곡을 다운로드해요</string>
@@ -1142,21 +1084,18 @@
     <string name="loudness_normalization">음량 평준화</string>
     <string name="loudness_normalization_subtitle">모든 트랙을 같은 음량으로 맞춰요</string>
     <string name="loudness_off_on_speaker">휴대폰 스피커에서 끄기</string>
-    <string name="loudness_target">목표 음량</string>
-    <string name="loudness_target_subtitle">낮은 값은 헤드폰에, 높은 값은 자동차나 휴대폰 스피커에 적합해요</string>
-    <string name="pipeline_loudness">음량</string>
+
     <string name="pipeline_loudness_gain">게인</string>
     <string name="pipeline_loudness_measured">측정값</string>
     <string name="pipeline_bit_exact">비트 정확</string>
-    <string name="loudness_measuring">측정 중…</string>
+
     <string name="blur_unfocused_lyrics">비활성 가사 흐리게</string>
     <string name="blur_unfocused_lyrics_subtitle">현재 줄에 집중할 수 있게 해요</string>
     <string name="liquid_flow_subtitle">모션 가사 효과와 함께 부드럽게 단어가 흐르듯 표시돼요. 끄면 기본 가사 효과를 사용해요</string>
     <string name="lyrics_sparkle">가사 반짝임</string>
     <string name="lyrics_sparkle_subtitle">LiquidFlow에서 길게 끄는 글자 주변에 작은 반짝임을 표시해요</string>
     <string name="advanced_options">고급 및 실험 옵션</string>
-    <string name="lyrics_debug_logs">가사 디버그 로그</string>
-    <string name="lyrics_debug_logs_subtitle">가사 패널에 실시간 API 쿼리와 스크레이퍼 활동을 표시해요</string>
+
     <string name="subscriptions">구독</string>
     <string name="source_needs_lossless_output">무손실 출력이 필요해요 · 무손실을 지원하는 기기를 사용하세요</string>
     <string name="source_needs_lossless_bt_codec">무손실 출력이 필요해요 · Bluetooth가 %1$s를 사용 중이에요. 무손실을 지원하는 기기를 사용하세요</string>
@@ -1231,39 +1170,6 @@
     <string name="song_info_sample">샘플</string>
     <string name="footer_github">GitHub</string>
     <string name="footer_developer">개발자</string>
-    <string name="wear_os_section">Wear OS용 Zenith</string>
-    <string name="wear_os_page_title">Wear OS</string>
-    <string name="wear_os_your_watches">내 시계</string>
-    <string name="wear_os_value_none">시계 없음</string>
-    <string name="wear_os_value_not_installed">설치 안 됨</string>
-    <string name="wear_os_value_up_to_date">최신 버전</string>
-    <string name="wear_os_looking">시계를 찾는 중…</string>
-    <string name="wear_os_no_watch">연결된 시계가 없어요</string>
-    <string name="wear_os_no_watch_subtitle">먼저 시계의 컴패니언 앱에서 Wear OS 시계를 이 휴대폰과 페어링하세요.</string>
-    <string name="wear_os_checking">확인 중…</string>
-    <string name="wear_os_not_installed">이 시계에 Zenith가 설치되어 있지 않아요</string>
-    <string name="wear_os_up_to_date">최신 버전 · %1$s</string>
-    <string name="wear_os_update_available">업데이트 가능</string>
-    <string name="wear_os_unknown">설치됨 · 버전을 확인하지 못했어요</string>
-    <string name="wear_os_sending">시계로 보내는 중…</string>
-    <string name="wear_os_sent">전송했어요. 시계에서 요청하면 마무리하세요</string>
-    <string name="wear_os_send_failed">업데이트를 보내지 못했어요 (%1$s)</string>
-    <string name="wear_os_install">설치</string>
-    <string name="wear_os_update">업데이트</string>
-    <string name="wear_os_install_title">시계에 설치</string>
-    <string name="wear_os_step_wifi">시계를 이 휴대폰과 같은 Wi-Fi에 연결하세요.</string>
-    <string name="wear_os_step_developer">시계에서 개발자 옵션을 켜세요. Galaxy Watch: 설정 → 시계 정보 → 소프트웨어 정보 → 소프트웨어 버전을 5번 탭하세요. Pixel Watch: 설정 → 시스템 → 정보 → 빌드 번호를 7번 탭하세요.</string>
-    <string name="wear_os_step_debugging">개발자 옵션에서 ADB 디버깅과 무선 디버깅을 켜세요.</string>
-    <string name="wear_os_step_pair">새 기기 페어링을 탭한 다음 시계에 표시되는 6자리 코드를 입력하세요.</string>
-    <string name="wear_os_searching">Wi-Fi에서 시계를 찾는 중…</string>
-    <string name="wear_os_found">시계를 찾았어요</string>
-    <string name="wear_os_pairing">페어링 중…</string>
-    <string name="wear_os_installing">시계에 Zenith를 설치하는 중…</string>
-    <string name="wear_os_installed">설치했어요. 무선 디버깅은 다시 꺼도 돼요.</string>
-    <string name="wear_os_failed">작동하지 않았어요 (%1$s). 코드를 확인하고 다시 시도하세요.</string>
-    <string name="wear_os_unsupported">시계에 설치하려면 이 휴대폰이 Android 11 이상이어야 해요.</string>
-    <string name="wear_os_code_hint">페어링 코드</string>
-    <string name="wear_os_done">완료</string>
     <string name="signed_by">%1$s 서명</string>
     <string name="find_your_mood">기분에 맞는 음악 찾기</string>
     <string name="no_audio_version">이 동영상의 오디오 버전을 찾지 못했어요</string>

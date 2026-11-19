@@ -19,7 +19,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.music.zenith.ui.player.LocalLyricsMenuPopover
+import com.music.zenith.ui.player.LyricsMenuEntry
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -76,7 +82,12 @@ fun SearchField(
     chrome: Modifier? = null,
     /** Reports whether the field has focus, for a host that shows something else while it has none. */
     onFocusChange: ((Boolean) -> Unit)? = null,
+    /** false = no leading magnifier, for a host that already shows the search affordance elsewhere. */
+    showSearchIcon: Boolean = true,
+    /** Opens the source picker from the globe; gets the globe's bounds in window. Null hides the globe. */
+    onSourceMenuClick: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
 ) {
+    var sourceAnchor by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     // Teks yang diganti dari luar (panah saran, riwayat) membawa kursor ke akhir;
@@ -107,24 +118,26 @@ fun SearchField(
             // Asymmetric: the magnifier is a button now and wants a real touch
             // target, so it's given the room by pulling the field's own start
             // padding in rather than by pushing the glyph and the text along.
-            .padding(start = 8.dp, end = 12.dp),
+            .padding(start = if (showSearchIcon) 8.dp else 4.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The search button. It reads as one — a magnifier at the head of a
         // text field is the search affordance on every platform — and now that
         // pressing it is the only thing that runs a search, leaving it
         // decorative would mean the keyboard's own key was the single way in.
-        Icon(
-            Icons.Rounded.Search,
-            contentDescription = stringResource(Res.string.search),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .clickable(enabled = query.isNotBlank(), onClick = submit)
-                .padding(6.dp),
-        )
-        Spacer(Modifier.width(4.dp))
+        if (showSearchIcon) {
+            Icon(
+                Icons.Rounded.Search,
+                contentDescription = stringResource(Res.string.search),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = query.isNotBlank(), onClick = submit)
+                    .padding(6.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+        }
         Box(Modifier.weight(1f)) {
             if (query.isEmpty()) {
                 Text(
@@ -177,6 +190,30 @@ fun SearchField(
                     contentDescription = stringResource(Res.string.clear_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        if (onSourceMenuClick != null) {
+            Spacer(Modifier.width(4.dp))
+            val globe = rememberGlobeTouch()
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .onGloballyPositioned { sourceAnchor = it.boundsInWindow() }
+                    .clickable(
+                        interactionSource = globe.interactionSource,
+                        indication = null,
+                        onClick = globe.onTap { sourceAnchor?.let { onSourceMenuClick?.invoke(it) } },
+                    )
+                    .padding(6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.Public,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp).globeTouch(globe),
                 )
             }
         }

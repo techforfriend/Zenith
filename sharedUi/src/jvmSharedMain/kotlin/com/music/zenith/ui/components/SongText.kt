@@ -196,7 +196,9 @@ fun TrackTextSwitch(song: Song, modifier: Modifier = Modifier, content: @Composa
  */
 @Composable
 fun FadingLine(text: String, style: TextStyle, color: Color, modifier: Modifier = Modifier) {
-    var overflowing by remember { mutableStateOf(false) }
+    // Read at draw time only: the fade layer stays in place while the text
+    // slides, so it no longer flickers as the overflow is measured.
+    var fadeAmount by remember { mutableStateOf(0f) }
     Text(
         text = text,
         style = style,
@@ -204,10 +206,8 @@ fun FadingLine(text: String, style: TextStyle, color: Color, modifier: Modifier 
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Clip,
-        onTextLayout = { overflowing = it.didOverflowWidth },
-        // Only where it overflows: the fade is a layer of its own, and a line
-        // that fits has nothing to fade.
-        modifier = modifier.then(if (overflowing) Modifier.fadingEdges(LINE_FADE, end = FullFade) else Modifier),
+        onTextLayout = { fadeAmount = if (it.didOverflowWidth) 1f else 0f },
+        modifier = modifier.fadingEdges(LINE_FADE, end = { fadeAmount }),
     )
 }
 
@@ -246,8 +246,6 @@ fun FadingText(text: String, style: TextStyle, color: Color, maxLines: Int, modi
  * Music's mini player, about 37pt, ending at the edge of the line's space.
  */
 val LINE_FADE = 36.dp
-
-private val FullFade = { 1f }
 
 /**
  * The explicit mark, as Apple Music draws it: a filled tile with the E cut

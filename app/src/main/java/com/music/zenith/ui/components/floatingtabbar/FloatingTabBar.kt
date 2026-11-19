@@ -889,29 +889,8 @@ private fun SharedTransitionScope.StandaloneTabBody(
             )
         }
 
-        if (w > 0f && !pill.isFlat) {
-            val pillModifier = Modifier
-                .matchParentSize()
-                .pillPlacement(
-                    center = { Offset(w / 2f, h / 2f) },
-                    size = { pill.liveSize(restSize, liftedSize) },
-                )
-            if (glassPill) {
-                GlassSelectionPill(
-                    motion = pill,
-                    fillColor = Color.Transparent,
-                    barGlass = barGlass,
-                    tabRow = iconLayer,
-                    modifier = pillModifier,
-                    iconTint = colors.selectedContentColor,
-                )
-            } else {
-                FlatSelectionPill(
-                    color = colors.indicatorColor,
-                    modifier = pillModifier.graphicsLayer { alpha = pill.material },
-                )
-            }
-        }
+        // No selection pill / lens on the standalone Search tab: pressing it only
+        // gives the light swell above, never the indicator drawn over the circle.
     }
 }
 
@@ -1138,6 +1117,8 @@ private fun SharedTransitionScope.ExpandedTabs(
     val currentTabStepPx by rememberUpdatedState(tabStepPx)
     val currentIsRtl by rememberUpdatedState(isRtl)
     val currentTabWidthPx by rememberUpdatedState(tabWidthPx)
+    // The tab a finger last landed on, so a drag can tell whether it began on the selected one.
+    val pressedTab = remember { IntArray(1) { -1 } }
 
     // The pill rests in its tab's cell and lifts to stand [PILL_GROW_HEIGHT]
     // taller than the whole bar, keeping the cell's proportions as it grows.
@@ -1243,6 +1224,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 val pressedAt = SystemClock.uptimeMillis()
                                 val x = if (currentIsRtl) size.width - down.position.x else down.position.x
                                 val tapped = (x / currentTabStepPx).toInt().coerceIn(0, scope.tabs.lastIndex)
+                                pressedTab[0] = tapped
+                                // Only the selected tab's pill lifts under a finger; pressing
+                                // another tab leaves the indicator alone until the tap carries it over.
+                                if (tapped != currentSelectedTabIndex) return@awaitEachGesture
                                 pill.startDrag()
                                 var dragged = false
                                 while (true) {
@@ -1278,7 +1263,8 @@ private fun SharedTransitionScope.ExpandedTabs(
                             detectHorizontalDragGestures(
                                 onDragStart = {
                                     step = currentTabStepPx
-                                    holding = currentSelectedTabIndex >= 0 && step > 0f
+                                    holding = currentSelectedTabIndex >= 0 && step > 0f &&
+                                        pressedTab[0] == currentSelectedTabIndex
                                     if (!holding) return@detectHorizontalDragGestures
                                     // In tab order, whichever way the row runs.
                                     direction = if (currentIsRtl) -1f else 1f
@@ -1293,9 +1279,22 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 onDragEnd = {
                                     if (!holding) return@detectHorizontalDragGestures
                                     holding = false
+                                    val standalone = scope.standaloneTab
+                                    val dragMax = scope.tabs.lastIndex.toFloat() +
+                                        (if (standalone != null) STANDALONE_DRAG_REACH else 0f)
                                     val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
-                                        .coerceIn(0f, scope.tabs.lastIndex.toFloat())
+                                        .coerceIn(0f, dragMax)
+                                    // Carried past the last tab, the indicator was dragged onto
+                                    // the standalone tab (Search): choose it.
+                                    if (standalone != null &&
+                                        absoluteIndexFloat > scope.tabs.lastIndex + 0.5f
+                                    ) {
+                                        pill.release(scope.tabs.lastIndex)
+                                        standalone.onClick()
+                                        return@detectHorizontalDragGestures
+                                    }
                                     val newIndex = absoluteIndexFloat.roundToInt()
+                                        .coerceAtMost(scope.tabs.lastIndex)
                                     pill.release(newIndex)
                                     if (newIndex != currentSelectedTabIndex) {
                                         scope.tabs[newIndex].onClick()
@@ -1304,8 +1303,10 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 onHorizontalDrag = { _, delta ->
                                     if (!holding) return@detectHorizontalDragGestures
                                     totalDrag += delta * direction
+                                    val dragMax = scope.tabs.lastIndex.toFloat() +
+                                        (if (scope.standaloneTab != null) STANDALONE_DRAG_REACH else 0f)
                                     val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
-                                        .coerceIn(0f, scope.tabs.lastIndex.toFloat())
+                                        .coerceIn(0f, dragMax)
                                     pill.dragTo(absoluteIndexFloat)
 
                                     val approximateTab = absoluteIndexFloat.roundToInt()
@@ -1564,6 +1565,9 @@ private fun Modifier.animateEnterExitTab(
         }
     }
 }
+
+/** How far past the last tab, in tab steps, a drag may carry the indicator towards the standalone tab. */
+private const val STANDALONE_DRAG_REACH = 1f
 
 private class FloatingTabBarScopeImpl(
     private val inlineSplitLast: Boolean = false,

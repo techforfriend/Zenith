@@ -19,6 +19,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import com.music.zenith.ui.components.glassJelly
 import com.music.zenith.ui.components.liquidGlassRim
 import com.music.zenith.ui.components.continuous
 import com.music.zenith.ui.components.FadingText
@@ -2067,6 +2068,7 @@ private fun CircleIconButton(
     val haptics = rememberHaptics()
     Box(
         modifier = Modifier
+            .then(if (enabled) Modifier.glassJelly() else Modifier)
             .size(size)
             .alpha(if (enabled) 1f else DISABLED_ACTION_ALPHA)
             .clip(CircleShape)

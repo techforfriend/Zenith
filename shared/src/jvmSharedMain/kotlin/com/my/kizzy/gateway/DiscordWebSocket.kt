@@ -471,8 +471,6 @@ open class DiscordWebSocket(
         return sinceAckMs > interval + STALE_GRACE.inWholeMilliseconds
     }
 
-    fun isWebSocketConnected(): Boolean = isSocketConnectedToAccount()
-
     /** Returns whether the frame was handed to a live socket. */
     private suspend inline fun <reified T> send(op: OpCode, d: T?): Boolean {
         val socket = websocket?.takeIf { it.isActive } ?: return false

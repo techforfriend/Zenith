@@ -338,6 +338,8 @@ fun IosMenuRow(
     labelColor: Color? = null,
     valueColor: Color? = null,
     enabled: Boolean = true,
+    /** Baris lebih rapat (tinggi minimum 36dp) untuk menu pendek. */
+    compact: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = iosMenuColors()
@@ -365,8 +367,13 @@ fun IosMenuRow(
                     Modifier
                 },
             )
-            .heightIn(min = 44.dp)
-            .padding(start = 12.dp, end = 14.dp, top = 11.dp, bottom = 11.dp),
+            .heightIn(min = if (compact) 36.dp else 44.dp)
+            .padding(
+                start = 12.dp,
+                end = 14.dp,
+                top = if (compact) 7.dp else 11.dp,
+                bottom = if (compact) 7.dp else 11.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
@@ -450,6 +457,8 @@ fun <T : Any> IosMenuPopover(
     frostAlpha: Float? = null,
     /** Shifts an [IosMenuPlacement.AboveStart] panel sideways from the anchor's leading edge; negative is left. */
     startOffset: Dp = 0.dp,
+    /** Panel lebih pendek: padding atas-bawah panel dikurangi. */
+    compact: Boolean = false,
     content: @Composable (T) -> Unit,
 ) {
     var last by remember { mutableStateOf<Pair<T, Rect?>?>(null) }
@@ -598,7 +607,7 @@ fun <T : Any> IosMenuPopover(
                             }
                         }
                         .iosMenuTouchHost(touch, pressedColor)
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = if (compact) 5.dp else 8.dp),
                 ) {
                     IosMenuScrollEnvironment(touch) {
                         CompositionLocalProvider(LocalMenuBackdrop provides backdrop) {

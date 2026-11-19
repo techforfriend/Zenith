@@ -1611,12 +1611,8 @@ internal fun Modifier.lyricsGlassDisc(
     // null berarti kaca mati / Reduce dynamic blur, jadi disc Haze di bawah dipakai.
     val appGlass = LocalLyricsGlassDisc.current?.invoke(active)
     if (appGlass != null) {
-        return this
-            .graphicsLayer {
-                scaleX = press
-                scaleY = press
-            }
-            .then(appGlass)
+        // Squash dan jelly sudah ditangani glassJelly di dalam appGlass.
+        return this.then(appGlass)
     }
     return this
         .graphicsLayer {

@@ -58,6 +58,7 @@ import com.composables.sfsymbols.monochrome.SFLine3Horizontal
 import com.composables.sfsymbols.monochrome.SFLine3HorizontalDecreaseCircle
 import com.composables.sfsymbols.monochrome.SFLivephotoSlash
 import com.composables.sfsymbols.monochrome.SFLock
+import com.composables.sfsymbols.monochrome.SFMagnifyingglass
 import com.composables.sfsymbols.monochrome.SFMoonZzz
 import com.composables.sfsymbols.monochrome.SFMusicMicrophone
 import com.composables.sfsymbols.monochrome.SFMusicNote
@@ -186,6 +187,7 @@ object SfIcons {
     val PlayCircle: ImageVector by lazy { bold(SfSymbols.Monochrome.SFPlayCircle) }
     val PlaylistPlay: ImageVector by lazy { bold(SfSymbols.Monochrome.SFMusicNoteList) }
     val RadioButtonChecked: ImageVector by lazy { bold(SfSymbols.Monochrome.SFRecordCircle) }
+    val Search: ImageVector by lazy { bold(SfSymbols.Monochrome.SFMagnifyingglass) }
     val Settings: ImageVector by lazy { bold(SfSymbols.Monochrome.SFGearshape) }
     val Share: ImageVector by lazy { bold(SfSymbols.Monochrome.SFSquareAndArrowUp) }
     val ShowChart: ImageVector by lazy { bold(SfSymbols.Monochrome.SFChartLineUptrendXyaxis) }

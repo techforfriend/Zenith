@@ -18,10 +18,6 @@ internal object MotionTuning {
     const val RiseDistanceEm = 0.14f
     const val SwellScale = 0.05f
     const val BloomStrength = 1.6f
-    const val BloomRadiusEm = 0.45f
-    const val BloomLagChars = 1.2f
-    const val BloomSpanChars = 7f
-    const val CharWidthEm = 0.55f
     const val NearGapMs = 80L
     const val WordReachFraction = 0.86f
     const val SpaceShare = 0.15f

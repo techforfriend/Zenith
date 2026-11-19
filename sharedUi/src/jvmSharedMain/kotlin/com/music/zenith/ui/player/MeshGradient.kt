@@ -51,6 +51,7 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 private val FallbackColors = listOf(
     Color(0xFF3A1C71),
@@ -226,12 +227,13 @@ fun MeshGradientBackground(
             )
         }
 
-        // Gentle scrim so white text stays legible over bright art.
+        // Light scrim only: the colours are already deep, so a heavy one
+        // would turn the mesh muddy instead of Apple Music's dark plum.
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color.Black.copy(alpha = 0.10f),
-                    Color.Black.copy(alpha = 0.38f),
+                    Color.Black.copy(alpha = 0.04f),
+                    Color.Black.copy(alpha = 0.20f),
                 ),
             ),
         )
@@ -379,13 +381,14 @@ private fun paletteOf(source: ImageBitmap): List<Color> {
     val bitmap = source.bottomWeighted()
     fun swatchesOf(clearFilters: Boolean): List<Color> {
         val all = paletteSwatches(bitmap, 24, clearFilters)
-            .sortedByDescending { it.population }
         val total = all.sumOf { it.population }.coerceAtLeast(1)
-        // A colour covering only a sliver of the sleeve (a dress, a logo) must not
-        // get a whole blob; the backdrop follows what dominates the picture.
-        val minorShare = 0.10f
-        val major = all.filter { it.population >= total * minorShare }
-        return major.ifEmpty { all }.map { Color(it.rgb) }
+        // Only specks are dropped; a small but vivid accent (the orange of a logo)
+        // still deserves a blob. Ranking is by share weighted by vividness, so a
+        // dominant black sleeve no longer pushes the coloured notes out.
+        val major = all.filter { it.population >= total * MIN_SWATCH_SHARE }
+        return major.ifEmpty { all }
+            .sortedByDescending { swatchScore(it.rgb, it.population.toFloat() / total) }
+            .map { Color(it.rgb) }
     }
 
     val found = swatchesOf(clearFilters = false).ifEmpty {
@@ -400,6 +403,20 @@ private fun paletteOf(source: ImageBitmap): List<Color> {
         distinct.size >= 4 -> distinct.take(4)
         else -> distinct.expandedToFour()
     }
+}
+
+/** A swatch below this share of the sleeve is treated as noise. */
+private const val MIN_SWATCH_SHARE = 0.03f
+
+/**
+ * Ranks a swatch by how much of the sleeve it covers and how visible its colour
+ * is. Near-black and washed-out swatches score low however common they are, so
+ * the mesh follows the colours the eye actually reads on the cover.
+ */
+private fun swatchScore(rgb: Int, share: Float): Float {
+    val hsl = FloatArray(3).also { ColorUtils.colorToHSL(rgb, it) }
+    val vividness = hsl[1] * (1f - abs(2f * hsl[2] - 1f))
+    return sqrt(share) * (0.25f + vividness)
 }
 
 /** Drop near-duplicates, so the four blobs don't collapse into one wash. */
@@ -431,7 +448,7 @@ private fun List<Color>.expandedToFour(): List<Color> {
 private const val BOTTOM_PALETTE_SHARE = 0.4f
 
 /** How many extra times that foot is counted, so the colours track where the cover meets the backdrop. */
-private const val BOTTOM_PALETTE_COPIES = 2
+private const val BOTTOM_PALETTE_COPIES = 1
 
 /**
  * The same picture with its bottom rows repeated, so the quantiser sees more of
@@ -462,12 +479,17 @@ private fun Color.shifted(hue: Float, lightness: Float): Color {
 private fun Color.hsl(): FloatArray =
     FloatArray(3).also { ColorUtils.colorToHSL(toArgb(), it) }
 
-/** Boost saturation and clamp lightness so any artwork yields a rich, non-muddy mesh. */
+/**
+ * Apple Music's Now Playing mesh: the cover's own hues, taken down to a deep,
+ * moderately saturated band instead of a luminous one. Lightness keeps the
+ * source's ordering (brighter notes stay brighter) inside 0.16..0.32, and
+ * neutral swatches stay neutral rather than being given a hue.
+ */
 private fun Color.tuned(): Color {
     val hsl = FloatArray(3)
     ColorUtils.colorToHSL(toArgb(), hsl)
-    hsl[1] = (hsl[1] * 1.12f).coerceAtMost(1f)
-    hsl[2] = hsl[2].coerceIn(0.28f, 0.58f)
+    hsl[1] = if (hsl[1] < 0.12f) hsl[1] else (hsl[1] * 0.85f).coerceIn(0.35f, 0.62f)
+    hsl[2] = 0.16f + 0.16f * hsl[2].coerceIn(0f, 1f)
     return Color(ColorUtils.HSLToColor(hsl))
 }
 

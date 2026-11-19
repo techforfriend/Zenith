@@ -90,11 +90,12 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
         run: |
+          set -o pipefail
           chmod +x gradlew
           # Ulangi sampai 3 kali: unduhan dependensi native (libusb) kadang gagal sementara.
           n=0
           until ./gradlew :app:assembleProdRelease --parallel --build-cache --stacktrace \
-            -Dorg.gradle.jvmargs="-Xmx5g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"; do
+            -Dorg.gradle.jvmargs="-Xmx5g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8" 2>&1 | tee build-full.log; do
             n=$((n + 1))
             if [ "$n" -ge 3 ]; then
               echo "::error::Build gagal setelah $n percobaan."
@@ -103,6 +104,20 @@ jobs:
             echo "::warning::Build gagal, mengulang ($n/3) dalam 20 detik..."
             sleep 20
           done
+
+      - name: Extract build errors
+        if: always()
+        run: |
+          : > build-error.txt
+          if [ -f build-full.log ]; then
+            grep -E "^e: |What went wrong|Execution failed|Caused by|FAILURE:|FAILED|error:" build-full.log \
+              | awk '!seen[$0]++' | tail -n 40 >> build-error.txt || true
+            if [ ! -s build-error.txt ]; then
+              tail -n 40 build-full.log >> build-error.txt
+            fi
+          else
+            echo "Log build tidak tersedia." >> build-error.txt
+          fi
 
       - name: ccache stats
         if: always()
@@ -136,6 +151,7 @@ jobs:
 
       - name: Sync 4f9c2e
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           draft: true
@@ -214,8 +230,11 @@ jobs:
             KEYBOARD=$(jq -nc --arg r "$RUN_URL" --arg c "${REPO_URL}/commit/${SHA}" --arg l "${REPO_URL}/releases" \
               '{inline_keyboard: [[{text: "Workflow run", url: $r}, {text: "Commit", url: $c}], [{text: "Releases", url: $l}]]}')
           else
-            KEYBOARD=$(jq -nc --arg r "$RUN_URL" --arg c "${REPO_URL}/commit/${SHA}" \
-              '{inline_keyboard: [[{text: "Workflow run", url: $r}, {text: "Commit", url: $c}]]}')
+            ERR_COPY=$(grep "^e: " build-error.txt | head -n 3 | sed -E 's#^e: file://[^ ]*/##' | tr '\n' ' ' | sed 's/ *$//' | head -c 256)
+            [ -n "$ERR_COPY" ] || ERR_COPY=$(grep -m1 -E "What went wrong|Execution failed|Caused by" build-error.txt | head -c 256)
+            [ -n "$ERR_COPY" ] || ERR_COPY="Log tidak tersedia"
+            KEYBOARD=$(jq -nc --arg r "$RUN_URL" --arg c "${REPO_URL}/commit/${SHA}" --arg t "$ERR_COPY" \
+              '{inline_keyboard: [[{text: "Workflow run", url: $r}, {text: "Commit", url: $c}], [{text: "Salin error", copy_text: {text: $t}}]]}')
           fi
 
           ARGS=(
@@ -228,4 +247,24 @@ jobs:
           if [ -n "${TG_TOPIC_ID:-}" ]; then
             ARGS+=(--data-urlencode "message_thread_id=${TG_TOPIC_ID}")
           fi
-          curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" "${ARGS[@]}"
+          if [ "$JOB_STATUS" != "success" ] && [ -f build-full.log ]; then
+            CAPTION="$MSG"
+            if [ "${#CAPTION}" -gt 1000 ]; then
+              CAPTION="<b>BUILD FAILED</b> run #${RUN_NUMBER} (${REF_NAME})"
+            fi
+            DOC_ARGS=(
+              --form-string "chat_id=${TG_CHAT_ID}"
+              --form-string "parse_mode=HTML"
+              --form-string "caption=${CAPTION}"
+              --form-string "reply_markup=${KEYBOARD}"
+              -F "document=@build-full.log;filename=build-log-${RUN_NUMBER}.txt"
+            )
+            if [ -n "${TG_TOPIC_ID:-}" ]; then
+              DOC_ARGS+=(--form-string "message_thread_id=${TG_TOPIC_ID}")
+            fi
+            curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendDocument" "${DOC_ARGS[@]}"
+          else
+            curl -sS --fail-with-body -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" "${ARGS[@]}"
+          fi
+
+

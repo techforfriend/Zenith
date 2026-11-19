@@ -884,8 +884,8 @@ object SourceResolver {
      * [AudioCache][com.music.zenith.playback.AudioCache] decide how to treat
      * a YouTube id before anyone has asked a source for it.
      */
-    fun canSubstituteForYouTube(): Boolean {
-        val active = SourceRegistry.activeForPlayback()
+    fun canSubstituteForYouTube(track: String? = TrackLog.current()): Boolean {
+        val active = SourceRegistry.activeForPlayback(track)
         val youtubeIndex = active.indexOfFirst { it.kind == SourceKind.YOUTUBE }
         // No YouTube in the walk means every enabled source outranks it: a
         // YouTube track is worth offering around whenever anything is on.

@@ -78,6 +78,12 @@ private const val TAG = "CanvasArtworkPlayer"
  */
 private const val REPAINT_TIMEOUT_MS = 700L
 
+/** A periodic capture slower than this doubles the wait before the next one. */
+private const val FRAME_CAPTURE_BUDGET_MS = 8L
+
+/** The longest the capture loop backs off to when readbacks are running slow. */
+private const val FRAME_CAPTURE_MAX_WAIT_MS = 1_000L
+
 /**
  * Sisi terpanjang frame yang disalin tiap frame selagi cover terbang ke/dari mini
  * player dan klip tetap berjalan: cukup tajam untuk gerakan, murah untuk disalin.
@@ -474,21 +480,32 @@ internal fun AndroidCanvasArtworkPlayer(
     // folded into the one above: that one is keyed on [rendered] so it fires
     // again on every fade-in, and this one only needs to start once a fade-in
     // has actually happened and then keep going for as long as it holds.
+    // Read through rememberUpdatedState: at a few captures a second the loop
+    // must hand frames to the caller's current lambda, not the one it started with.
+    val currentOnFrameCaptured by rememberUpdatedState(onFrameCaptured)
     LaunchedEffect(rendered, refreshFrameEveryMs, frameCapturePx, clipAspect, contentMode, alignPortraitTop) {
         val interval = refreshFrameEveryMs ?: return@LaunchedEffect
         if (frameCapturePx <= 0) return@LaunchedEffect
         Log.d(TAG, "periodic frame refresh started, interval=$interval")
         if (!rendered) return@LaunchedEffect
+        val maxWait = maxOf(interval, FRAME_CAPTURE_MAX_WAIT_MS)
+        var wait = interval
         while (isActive) {
-            delay(interval)
+            delay(wait)
+            // Waits for a real frame, so nothing is read back while the app is
+            // in the background or the screen is off.
+            withFrameMillis { }
             val view = textureView ?: continue
+            val startNs = System.nanoTime()
             val bitmap = view.captureAt(frameCapturePx, clipAspect, contentMode, alignPortraitTop)
+            val costMs = (System.nanoTime() - startNs) / 1_000_000L
             if (bitmap != null) {
-                Log.d(TAG, "periodic frame captured, size=${bitmap.width}x${bitmap.height}")
-                onFrameCaptured(bitmap.asImageBitmap())
+                currentOnFrameCaptured(bitmap.asImageBitmap())
             } else {
                 Log.w(TAG, "periodic frame capture returned null")
             }
+            // A slow readback stalls the main thread: back off instead of piling on.
+            wait = if (costMs > FRAME_CAPTURE_BUDGET_MS) (wait * 2).coerceAtMost(maxWait) else interval
         }
     }
 

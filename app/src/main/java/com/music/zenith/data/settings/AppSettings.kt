@@ -1283,12 +1283,24 @@ object AppSettings {
 
     /** The ceiling that applies to a stream started right now. */
     val effectiveAudioQuality: AudioQuality
-        get() = ceilingFor(
+        get() = effectiveAudioQualityFor(com.music.zenith.data.TrackLog.current())
+
+    /**
+     * [effectiveAudioQuality] for one track: never below the best rung that
+     * track has already played at — see [TrackQualityMemory]. The watch's cap
+     * still wins, because its link cannot carry more.
+     */
+    fun effectiveAudioQualityFor(track: String?): AudioQuality {
+        val base = ceilingFor(
             wifi = audioQualityWifi.value,
             cellular = audioQualityCellular.value,
             metered = meteredConnection.value,
             override = streamCeilingOverride.value,
         )
+        if (streamCeilingOverride.value != null) return base
+        val kept = TrackQualityMemory.floorFor(track) ?: return base
+        return if (kept.ordinal > base.ordinal) kept else base
+    }
 
     /**
      * [effectiveAudioQuality] from values a caller already holds — a screen
@@ -1324,6 +1336,7 @@ object AppSettings {
     fun init(context: Context, authStore: AuthStore) {
         prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         seedFirstInstallDefaults(context)
+        TrackQualityMemory.init(context)
         this.authStore = authStore
         com.music.zenith.data.spotify.LocalPlaylistStore.init(context)
         com.music.zenith.data.OfflinePlaylists.init(
@@ -2553,21 +2566,6 @@ object AppSettings {
     fun setLastfmSessionKey(value: String) {
         lastfmSessionKey.value = value
         prefs.edit().putString(KEY_LASTFM_SESSION_KEY, value).apply()
-    }
-
-    fun setLastfmApiKey(value: String) {
-        lastfmApiKey.value = value
-        prefs.edit().putString(KEY_LASTFM_API_KEY, value).apply()
-    }
-
-    fun setLastfmSecret(value: String) {
-        lastfmSecret.value = value
-        prefs.edit().putString(KEY_LASTFM_SECRET, value).apply()
-    }
-
-    fun setLastfmEndpoint(value: String) {
-        lastfmEndpoint.value = value
-        prefs.edit().putString(KEY_LASTFM_ENDPOINT, value).apply()
     }
 
     fun setSpotifySpdcToken(value: String) {

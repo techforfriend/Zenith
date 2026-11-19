@@ -113,6 +113,9 @@ object TrackLog {
     /** The track whose work this thread is doing, if it is doing any. */
     private val working = ThreadLocal<String?>()
 
+    /** The track the calling thread (or coroutine) is currently working for, if any. */
+    fun current(): String? = working.get()
+
     /**
      * A coroutine context that files everything logged inside it against [id].
      *

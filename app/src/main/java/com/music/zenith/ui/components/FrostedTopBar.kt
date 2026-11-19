@@ -50,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -186,6 +187,8 @@ fun FrostedTopBar(
     accessory: (@Composable () -> Unit)? = null,
     /** True while the account popup is up: the actions pill, glass circle included, steps aside for the card. */
     actionsHidden: Boolean = false,
+    /** Search results are up: the profile pill folds away (scale + fade) so the page's filter control can take the top. */
+    actionsCollapsed: Boolean = false,
     actions: @Composable () -> Unit = {},
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -196,6 +199,14 @@ fun FrostedTopBar(
         targetValue = if (actionsHidden) 0f else 1f,
         animationSpec = tween(durationMillis = if (actionsHidden) 70 else 180),
         label = "topBarActionsAlpha",
+    )
+    val actionsCollapse by animateFloatAsState(
+        targetValue = if (actionsCollapsed) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "topBarActionsCollapse",
     )
     val titleAlpha by animateFloatAsState(
         targetValue = if (scrolled() || trailingTitle != null) 1f else 0f,
@@ -366,11 +377,23 @@ fun FrostedTopBar(
                     Spacer(Modifier.width(ACCESSORY_GAP))
                 }
                 if (useFloatingChrome) {
-                    ArtworkPageActions(
-                        hazeState = backButtonHazeState,
-                        modifier = Modifier.graphicsLayer { alpha = actionsAlpha },
-                        content = actions,
-                    )
+                    // Removed once fully folded: a hidden pill that stayed composed
+                    // would still swallow the taps meant for the control under it.
+                    if (!actionsCollapsed || actionsCollapse < 0.99f) {
+                        ArtworkPageActions(
+                            hazeState = backButtonHazeState,
+                            modifier = Modifier.graphicsLayer {
+                                val fold = actionsCollapse
+                                alpha = actionsAlpha * (1f - fold)
+                                val s = 1f - 0.35f * fold
+                                scaleX = s
+                                scaleY = s
+                                translationY = -10.dp.toPx() * fold
+                                transformOrigin = TransformOrigin(1f, 0f)
+                            },
+                            content = actions,
+                        )
+                    }
                 } else {
                     actions()
                 }
@@ -400,6 +423,7 @@ private fun ArtworkPageBackButton(
     IconButton(
         onClick = onClick,
         modifier = modifier
+            .glassJelly()
             .size(TOP_CONTROL_SIZE)
             .then(artworkPageSurface(shape = shape, hazeState = hazeState)),
     ) {
@@ -461,6 +485,7 @@ private fun ArtworkPageActions(
     val readExtraActions = remember { { extraActions.floatValue } }
     ActionsRow(
         modifier = modifier
+            .glassJelly()
             .then(artworkPageSurface(shape = CircleShape, hazeState = hazeState))
             // Keep the right edge fixed while a new action opens room to its
             // left. The surface itself therefore grows instead of jumping to

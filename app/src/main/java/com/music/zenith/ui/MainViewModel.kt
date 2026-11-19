@@ -2171,22 +2171,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val again = feed.indexOfFirst { key(it) == "shelf:listen-again" }
         if (again < 0) return feed
         val skipTitles = setOf("recents", "recently played", "my speed dial", "speed dial")
+        val listenAgainIds = feed[again].items.mapNotNull { it.videoId }.toSet()
         val songs = feed
             .filter { key(it) != "shelf:listen-again" && it.title.trim().lowercase(Locale.ROOT) !in skipTitles }
             .flatMap { it.items }
             .filter { it.videoId != null && !it.isVideo && !it.thumbnailUrl.isNullOrBlank() }
+            .filter { it.videoId !in listenAgainIds }
             .distinctBy { it.videoId }
             .shuffled()
             .take(20)
-            .let { picked ->
-                if (picked.size >= 6) {
-                    picked
-                } else {
-                    (picked + feed[again].items.filter { it.videoId != null && !it.isVideo && !it.thumbnailUrl.isNullOrBlank() })
-                        .distinctBy { it.videoId }
-                        .take(20)
-                }
-            }
         if (songs.size < 4) return feed
         val shelf = HomeShelf(title = "Quick picks", items = songs)
         return feed.toMutableList().also { it.add(again + 1, shelf) }
@@ -2986,20 +2979,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         const val TYPEAHEAD_MAX_RESULTS = 15
 
         const val SEARCH_CACHE_ENTRIES = 100
-
-        /**
-         * How long any one source gets to answer a search.
-         *
-         * Short on purpose: these run alongside the YouTube search, and their
-         * only job is to be *there* when it lands. A home server reached over
-         * a VPN that takes eight seconds has effectively not answered, and
-         * holding the whole result list for it would make search feel worse
-         * for the sake of results the user can still get by searching again.
-         */
-        const val SOURCE_SEARCH_TIMEOUT_MS = 4000L
-
-        /** Enough to be worth scrolling, short enough not to bury YouTube's own rows. */
-        const val SOURCE_SEARCH_LIMIT = 12
 
         /**
          * What a page with an empty listing says.

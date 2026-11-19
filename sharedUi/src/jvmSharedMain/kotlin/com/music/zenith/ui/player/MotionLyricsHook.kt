@@ -45,6 +45,8 @@ class LyricsMenuEntry(
     val label: String,
     val icon: ImageVector,
     val enabled: Boolean,
+    /** Opsi yang sedang aktif: teksnya memakai warna theme dan diberi tanda centang. */
+    val selected: Boolean = false,
     val onClick: () -> Unit,
 )
 

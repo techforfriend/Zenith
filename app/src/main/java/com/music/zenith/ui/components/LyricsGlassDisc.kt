@@ -63,6 +63,7 @@ fun lyricsGlassDiscSurface(active: Boolean, source: Backdrop): Modifier? {
     val shape = CircleShape
     val tintAlpha = ((lyricsClarity.tintAlpha + 0.10f * lift) * lyricsCustom.tint).coerceIn(0f, 1f)
     return Modifier
+        .glassJelly()
         .clip(shape)
         .liquidGlass(
             shape = shape,

@@ -109,6 +109,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.animation.core.snap
@@ -312,6 +313,16 @@ private const val SUBVIEW_STATUS_SCRIM_MIN_ALPHA = 0.40f
  * over well inside the gap, which leaves the backdrop still for most of it.
  */
 private const val MESH_REFRESH_MS = 3_000L
+
+/**
+ * How often the live blur re-reads a playing Canvas clip. About six frames a
+ * second reads as continuous behind a blur this wide; the capture is a small
+ * readback and the player backs the cadence off by itself if it runs slow.
+ */
+private const val LIVE_BLUR_REFRESH_MS = 160L
+
+/** Longest edge of a live blur frame: it is blurred and stretched, so small is enough. */
+private const val LIVE_BLUR_CAPTURE_PX = 96
 
 /** How long a full-screen Spotify Canvas holds still after the player has opened. */
 private const val SPOTIFY_CANVAS_RESUME_DELAY_MS = 1_000L
@@ -1211,7 +1222,16 @@ fun NowPlayingScreen(
     // CanvasArtworkPlayer's refreshFrameEveryMs. Null otherwise: the blurred
     // still cover under every other phone player has nothing to re-tint, and
     // each read is a GPU readback.
-    val meshRefreshMs: Long? = MESH_REFRESH_MS
+    // Live blur follows the clip in near real time; "Reduce animation" and
+    // "Reduce dynamic blur" fall back to the slow cadence, and the legacy
+    // mesh keeps its own (its colours are quantised, not blurred).
+    val liveReduceBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val liveReduceMotion by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val meshRefreshMs: Long? = if (legacyMesh || liveReduceBlur || liveReduceMotion) {
+        MESH_REFRESH_MS
+    } else {
+        LIVE_BLUR_REFRESH_MS
+    }
 
     val scrub = rememberPlayerScrub(song.videoId, position, durationMs)
     // Read by the scrubber itself — see [PlayerScrubber.shown].
@@ -3143,7 +3163,11 @@ fun NowPlayingScreen(
                             onRenderedChanged = { canvasRendered = it },
                             // Frames only for the legacy mesh, the one backdrop still
                             // tinted off the clip.
-                            frameCapturePx = if (legacyMesh || !clipFullscreen) CANVAS_FRAME_CAPTURE_PX else 0,
+                            frameCapturePx = when {
+                                legacyMesh -> CANVAS_FRAME_CAPTURE_PX
+                                !clipFullscreen -> LIVE_BLUR_CAPTURE_PX
+                                else -> 0
+                            },
                             onFrameCaptured = {
                                 if (!clipFullscreen && !tabletArtworkBackdrop &&
                                     !lyricsOpen && !queueOpen && !queueDragging
@@ -4337,6 +4361,33 @@ fun NowPlayingScreen(
                                 .drawWithContent {
                                     drawContent()
                                     val shown = sleeveShown()
+                                    // A hairline rim light on the card's edge, like Apple
+                                    // Music: tinted by the cover, brightest at the top-left
+                                    // corner and fainter at the bottom-right, almost gone
+                                    // between. Card only: it fades out with the shadow
+                                    // as the banner or the mini player takes over.
+                                    val rimAlpha = if (art.loaded) {
+                                        (1f - 2f * shown).coerceAtLeast(0f) * dockT()
+                                    } else {
+                                        0f
+                                    }
+                                    if (rimAlpha > 0f) {
+                                        // Centred on the edge, so half falls outside the
+                                        // clip: 2dp drawn leaves a 1dp line inside.
+                                        drawOutline(
+                                            outline = dockFrame.cornerShape(sleeveCorner())
+                                                .createOutline(size, layoutDirection, this),
+                                            brush = Brush.linearGradient(
+                                                0f to playerTint.copy(alpha = 0.34f * rimAlpha),
+                                                0.35f to playerTint.copy(alpha = 0.06f * rimAlpha),
+                                                0.65f to playerTint.copy(alpha = 0.06f * rimAlpha),
+                                                1f to playerTint.copy(alpha = 0.22f * rimAlpha),
+                                                start = Offset.Zero,
+                                                end = Offset(size.width, size.height),
+                                            ),
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+                                        )
+                                    }
                                     if (shown > 0f) {
                                         drawRect(
                                             // Along smootherstep, not a straight ramp,
@@ -4692,7 +4743,7 @@ fun NowPlayingScreen(
                                         onResumed = onClipResumed,
                                         frameGrab = canvasFrameGrab,
                                         onRenderedChanged = { canvasRendered = it },
-                                        frameCapturePx = CANVAS_FRAME_CAPTURE_PX,
+                                        frameCapturePx = if (legacyMesh) CANVAS_FRAME_CAPTURE_PX else LIVE_BLUR_CAPTURE_PX,
                                         onFrameCaptured = {
                                             if (!tabletArtworkBackdrop && !lyricsOpen && !queueOpen) {
                                                 canvasFrame = it

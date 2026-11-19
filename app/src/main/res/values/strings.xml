@@ -1,11 +1,10 @@
 <resources>
     <string name="app_name">Zenith</string>
     <string name="playback_channel_name">Now playing</string>
-    <string name="download_channel_name">Downloads</string>
-    <string name="download_channel_description">Songs being saved to your Music folder</string>
+
     <string name="download_notification_title">Downloading</string>
     <string name="download_notification_starting">Starting</string>
-    <string name="download_notification_queued">%1$s · %2$d more queued</string>
+
     <string name="upload_channel_name">Uploads</string>
     <string name="upload_channel_description">Songs being sent to your WebDAV server</string>
     <string name="upload_notification_title">Uploading</string>
@@ -76,7 +75,7 @@
     <string name="download_all">Download all</string>
     <string name="top_songs">Top songs</string>
     <string name="suggested">Suggested</string>
-    <string name="song_count">%1$d song</string>
+
     <plurals name="song_count_plural">
         <item quantity="one">%1$d song</item>
         <item quantity="other">%1$d songs</item>
@@ -85,18 +84,11 @@
         <item quantity="one">%1$d track</item>
         <item quantity="other">%1$d tracks</item>
     </plurals>
-    <plurals name="artist_count">
-        <item quantity="one">%1$d artist</item>
-        <item quantity="other">%1$d artists</item>
-    </plurals>
-    <plurals name="album_count">
-        <item quantity="one">%1$d album</item>
-        <item quantity="other">%1$d albums</item>
-    </plurals>
+
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
-    <string name="no_album_metadata">None of these tracks say what album they are from.</string>
+
     <string name="search_empty">Search millions of songs on YouTube Music.</string>
     <string name="recent_searches">Recent searches</string>
     <string name="clear">Clear</string>
@@ -107,7 +99,7 @@
     <string name="recent_search_remove">Remove “%1$s” from recent searches</string>
     <string name="storage_required_save">Storage access is needed to save songs</string>
     <string name="storage_required_read">Storage permission is required to read local audio files</string>
-    <string name="sharing_coming_soon">Sharing is coming soon</string>
+
     <string name="already_downloaded">Already downloaded</string>
     <plurals name="downloading_song_count">
         <item quantity="one">Downloading %1$d song</item>
@@ -116,11 +108,9 @@
     <string name="source">Sources</string>
     <string name="direct_source_stream">Direct Source Stream</string>
     <string name="direct_source_stream_in_party">Off while you\'re in a Listen Together party</string>
-    <string name="lossless_audio">Lossless audio</string>
-    <string name="prefer_lossless">Prefer lossless</string>
-    <string name="lossless_source_subtitle">FLAC and ALAC straight from the source</string>
+
     <string name="overridden">Overridden</string>
-    <string name="add_module_source">Add a module source</string>
+
     <string name="remove_source">Remove this source</string>
     <string name="test">Test</string>
     <string name="testing">Testing…</string>
@@ -133,7 +123,7 @@
     <string name="spotify_disconnect">Disconnect</string>
     <string name="spotify_empty_playlists">No playlists on this account</string>
     <string name="spotify_empty_tracks">This playlist has no tracks</string>
-    <string name="spotify_track_unavailable">Couldn\'t find that song on YouTube Music</string>
+
     <string name="account_scrobbling">Account &amp; scrobbling</string>
     <string name="rich_presence">Rich presence</string>
     <string name="scrobbling">Scrobbling</string>
@@ -146,8 +136,7 @@
     <string name="song_cache_cleared">Song cache cleared</string>
     <string name="image_cache_cleared">Image cache cleared</string>
     <string name="no_equalizer">No system equalizer on this device</string>
-    <string name="no_dolby_atmos">No Dolby Atmos panel on this device</string>
-    <string name="dolby_atmos_open_failed">Couldn’t open Dolby Atmos settings</string>
+
     <string name="update_available">Update available: v%1$s</string>
     <string name="software_update">Software Update</string>
     <string name="update_available_body">Zenith %1$s is available to download.</string>
@@ -162,14 +151,9 @@
     <string name="try_again">Try Again</string>
     <string name="open_releases_page">Open Releases Page</string>
     <string name="whats_new">What’s new</string>
-    <string name="log_copied">Log copied · %1$d lines</string>
+
     <string name="sign_in_youtube_music">Sign in to YouTube Music</string>
-    <string name="choose_a_channel">Choose a channel</string>
-    <string name="channel_session_unavailable">No session on this page yet — open YouTube Music first</string>
-    <string name="channel_switch_instructions">Switch with the avatar, then tap Use this channel</string>
-    <string name="use_this_channel">Use this channel</string>
-    <string name="sign_in_discord">Sign in to Discord</string>
-    <string name="personalized_recommendations">Get personalized recommendations for you</string>
+
     <string name="play_next">Play next</string>
     <string name="queue">Queue</string>
     <string name="source_unrecognised">Zenith could not tell what that link is</string>
@@ -189,7 +173,7 @@
     <string name="widget_previous">Previous</string>
     <string name="widget_artwork">Album art</string>
     <string name="widget_nothing_played">Nothing played yet</string>
-    <string name="widget_open_zenith">Open Zenith</string>
+
     <string name="widget_preview_title">Song title</string>
     <string name="widget_preview_artist">Artist</string>
     <string name="widget_pill_label">Now playing 4×1</string>
@@ -206,7 +190,7 @@
     <string name="playback_tempo">Tempo</string>
     <string name="playback_tempo_hint">Faster or slower, pitch stays the same</string>
     <string name="playback_reset">Reset to normal</string>
-    <string name="converting_to_audio">Converting to audio…</string>
+
     <string name="revert_to_original">Revert to original</string>
     <string name="upgrade_quality">Upgrade quality</string>
     <string name="dolby_atmos">Dolby Atmos</string>
@@ -235,26 +219,16 @@
     <string name="app_language">App language</string>
     <string name="app_language_description">Choose the language used by Zenith.</string>
     <string name="english">English</string>
-    <string name="spanish">Spanish</string>
-    <string name="french">French</string>
-    <string name="german">German</string>
+
     <string name="polish">Polish</string>
-    <string name="portuguese">Portuguese</string>
+
     <string name="indonesian">Indonesian</string>
     <string name="hindi">Hindi</string>
     <string name="japanese">Japanese</string>
-    <string name="russian">Russian</string>
-    <string name="chinese">Chinese (Simplified)</string>
-    <string name="chinese_simplified">Chinese (Simplified)</string>
-    <string name="chinese_traditional">Chinese (Traditional)</string>
-    <string name="hebrew">Hebrew</string>
-    <string name="italian">Italian</string>
-    <string name="turkish">Turkish</string>
-    <string name="thai">Thai</string>
+
     <string name="korean">Korean</string>
     <string name="show_all">Show all</string>
-    <string name="grid_view">Grid</string>
-    <string name="list_view">List</string>
+
     <string name="switch_to_grid_view">Switch to grid view</string>
     <string name="switch_to_list_view">Switch to list view</string>
     <string name="audio_quality">Audio quality</string>
@@ -265,7 +239,7 @@
     <string name="storage">Storage</string>
     <string name="your_data">Your data</string>
     <string name="settings_player">Player</string>
-    <string name="lossless_hq_audio">Lossless / HQ Audio</string>
+
     <string name="on_wifi">On Wi-Fi</string>
     <string name="on_mobile_data">On mobile data</string>
     <string name="in_use">In use</string>
@@ -293,15 +267,15 @@
     <string name="auto_music_only_subtitle">Music videos play as audio automatically</string>
     <string name="content_feed">Content &amp; Feed</string>
     <string name="hide_home_recents">Hide recently played</string>
-    <string name="hide_home_recents_subtitle">Removes the Recents row from Home. Your history stays as it is</string>
+
     <string name="hide_home_videos">Hide videos on Home</string>
     <string name="hide_home_videos_subtitle">Rows made only of videos go too. Search, artists and playlists still list them</string>
     <string name="hide_home_branding">Hide Home branding</string>
     <string name="hide_home_branding_subtitle">Shows only the Home title, without the logo</string>
     <string name="hide_home_top_picks">Hide Top Picks</string>
-    <string name="hide_home_top_picks_subtitle">Removes the Top Picks for You row from Home</string>
+
     <string name="hide_home_moods">Hide Moods</string>
-    <string name="hide_home_moods_subtitle">Removes the mood row from Home. Moods in Explore stay available</string>
+
     <string name="customize_home">Customize Home</string>
     <string name="customize_home_subtitle">Reorder rows and choose which ones show</string>
     <string name="home_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Home.</string>
@@ -378,28 +352,8 @@
     <string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string>
     <string name="app_icon">App icon</string>
     <string name="app_icon_default">Default</string>
-    <string name="app_icon_monochrome" translatable="false">Monochrome</string>
+
     <string name="app_icon_liquid_glass" translatable="false">Liquid Glass</string>
-    <string name="app_icon_liquid_glass_dark" translatable="false">Liquid Glass Dark</string>
-    <string name="app_icon_liquid_glass_clear" translatable="false">Liquid Glass Clear</string>
-    <string name="app_icon_liquid_glass_clear_dark" translatable="false">Liquid Glass Clear Dark</string>
-    <string name="app_icon_samsung_glass" translatable="false">Samsung Glass</string>
-    <string name="app_icon_samsung_glass_dark" translatable="false">Samsung Glass Dark</string>
-    <string name="app_icon_samsung_glass_clear" translatable="false">Samsung Glass Clear</string>
-    <string name="app_icon_samsung_glass_clear_dark" translatable="false">Samsung Glass Clear Dark</string>
-    <string name="app_icon_pixel_glass" translatable="false">Pixel Glass</string>
-    <string name="app_icon_pixel_glass_dark" translatable="false">Pixel Glass Dark</string>
-    <string name="app_icon_pixel_glass_clear" translatable="false">Pixel Glass Clear</string>
-    <string name="app_icon_pixel_glass_clear_dark" translatable="false">Pixel Glass Clear Dark</string>
-    <string name="app_icon_neon_silver" translatable="false">Neon Silver</string>
-    <string name="app_icon_neon_cyan" translatable="false">Neon Cyan</string>
-    <string name="app_icon_neon_violet" translatable="false">Neon Violet</string>
-    <string name="app_icon_samsung_neon_silver" translatable="false">Samsung Neon Silver</string>
-    <string name="app_icon_samsung_neon_cyan" translatable="false">Samsung Neon Cyan</string>
-    <string name="app_icon_samsung_neon_violet" translatable="false">Samsung Neon Violet</string>
-    <string name="app_icon_pixel_neon_silver" translatable="false">Pixel Neon Silver</string>
-    <string name="app_icon_pixel_neon_cyan" translatable="false">Pixel Neon Cyan</string>
-    <string name="app_icon_pixel_neon_violet" translatable="false">Pixel Neon Violet</string>
     <string name="theme">Theme</string>
     <string name="font">Font</string>
     <string name="font_default">Default</string>
@@ -453,10 +407,7 @@
     <string name="glass_footer_ready_presets">Applies several values at once. The sliders below can still fine-tune it.</string>
     <string name="glass_preset_default">Default</string>
     <string name="glass_preset_default_subtitle">Zenith\'s default glass</string>
-    <string name="glass_preset_liquid">Liquid Glass</string>
-    <string name="glass_preset_liquid_subtitle">Kyant0 backdrop style: denser container, sharp refraction, no rainbow edge</string>
-    <string name="glass_preset_bottom_bar">Glass Bottom Bar</string>
-    <string name="glass_preset_bottom_bar_subtitle">Kyant0 tutorial style: light blur, strongly bent edges, 50% surface</string>
+
     <string name="glass_section_color">Blur &amp; color</string>
     <string name="glass_section_refraction">Refraction</string>
     <string name="glass_section_edge">Edge &amp; shadow</string>
@@ -696,7 +647,7 @@
     <string name="saved_to_zenith_folder">Saved to Music/Zenith</string>
     <string name="nothing_downloading">Nothing downloading</string>
     <string name="nothing_to_explore">Nothing to explore right now</string>
-    <string name="no_youtube_music_results">No results from YouTube Music</string>
+
     <string name="library_empty">Nothing in your library yet</string>
     <string name="history_sign_in_required">Sign in to see what you have been listening to</string>
     <string name="history_empty">Nothing played yet</string>
@@ -737,13 +688,7 @@
     <string name="nothing_matches">Nothing here matches “%1$s”</string>
     <string name="close_search">Close search</string>
     <string name="less">Less</string>
-    <string name="song_count_with_minutes">%1$s, %2$d minutes</string>
-    <string name="song_count_with_duration">%1$s, %2$s</string>
-    <string name="song_count_with_hours_minutes">%1$s, %2$s %3$d minutes</string>
-    <plurals name="hour_count">
-        <item quantity="one">%1$d hour</item>
-        <item quantity="other">%1$d hours</item>
-    </plurals>
+
     <plurals name="songs_will_play_next">
         <item quantity="one">%1$d song will play next</item>
         <item quantity="other">%1$d songs will play next</item>
@@ -839,7 +784,7 @@
     <string name="scrobble_tracks_subtitle">Log plays to your Last.fm timeline</string>
     <string name="scrobbling_footer">Scrobble your listens to Last.fm and ListenBrainz.</string>
     <string name="scrobbling_paused_footer">Last.fm and ListenBrainz are paused for this release and will return later. Existing connections remain saved.</string>
-    <string name="search_this_folder">Search this folder</string>
+
     <string name="search_this_list">Search this list</string>
     <string name="second_button">Second button</string>
     <string name="share">Share</string>
@@ -887,7 +832,7 @@
     <string name="tap_to_sign_in_discord">Tap to sign in with Discord</string>
     <string name="token">Token</string>
     <string name="turn_off_timer">Turn off timer</string>
-    <string name="undo_dislike">Undo dislike</string>
+
     <string name="verb_competing">Competing in</string>
     <string name="verb_listening">Listening to</string>
     <string name="verb_playing">Playing</string>
@@ -987,7 +932,7 @@
     <string name="top_song">Top song</string>
     <string name="when_you_listen_the_most">When you listen the most</string>
     <string name="your_biggest_day">Your biggest day: %1$s</string>
-    <string name="your_listening_experience">Your listening experience</string>
+
     <string name="your_lyrics_card">Your lyrics card</string>
     <string name="your_replay">Your Replay</string>
     <plurals name="replay_artist_count">
@@ -1023,7 +968,7 @@
     <string name="webdav_not_configured">Connect a server under Sources</string>
     <string name="webdav_empty">No audio files found on the WebDAV server. Check the URL in Settings.</string>
     <string name="webdav_description">Point Zenith at a WebDAV music folder — your Nextcloud Music directory or any server speaking WebDAV.</string>
-    <string name="webdav_server_url">Server URL</string>
+
     <string name="webdav_server_url_hint">https://cloud.example.com/remote.php/dav/files/user/Music</string>
     <string name="webdav_disconnect">Disconnect</string>
     <string name="webdav_test_failed">Couldn’t reach it: %1$s</string>
@@ -1058,24 +1003,14 @@
     <string name="delete_playlist_confirmation">Delete “%1$s”? Tap again to confirm.</string>
     <string name="delete_download_confirmation">Remove “%1$s” from this device? Tap again to confirm.</string>
     <string name="running">Running</string>
-    <string name="version_alignment_status">%1$s · %2$s</string>
-    <string name="version_cut_not_fetched">not fetched</string>
-    <string name="version_cut_fetching">fetching</string>
-    <string name="version_cut_measuring">analyzing</string>
-    <string name="version_cut_aligned">aligned</string>
+
     <string name="automix_enabled_subtitle">Times and blends every transition from the tracks themselves. Turn it off if the phone gets hot or playback stutters.</string>
     <string name="automix_model_title">Download Automix models</string>
     <string name="automix_model_message">Automix needs two small analysis models (about 30 MB). They download once and stay on this device.</string>
     <string name="automix_model_download">Download</string>
-    <string name="automix_model_downloading_title">Downloading models…</string>
-    <string name="automix_model_downloading_message">%1$d%% complete</string>
-    <string name="automix_model_hide">Hide</string>
-    <string name="automix_model_failed_title">Download failed</string>
-    <string name="automix_model_failed_message">Couldn\'t download the Automix models. Check your connection and try again.</string>
-    <string name="automix_model_retry">Retry</string>
+
     <string name="automix_disabled_subtitle">Times and blends transitions automatically, without a slider. Performance may vary on slower devices.</string>
-    <string name="advanced_automix">Advanced Automix</string>
-    <string name="advanced_automix_subtitle">Mixes like a DJ: keeps the beats locked, makes each move on the beat, and cuts between songs that won\'t blend. No extra processing.</string>
+
     <string name="no_lyrics_sources_enabled">None. Lyrics will not be fetched.</string>
     <string name="song_cache_large_subtitle">Keeps up to %1$s of downloaded audio on disk. This can take a noticeable share of your free space.</string>
     <string name="song_cache_limit_subtitle">Keeps downloaded audio on disk for instant seeking and replays</string>
@@ -1114,8 +1049,7 @@
     <string name="brand_account">Brand account</string>
     <string name="add_account">Add account</string>
     <string name="manage_accounts">Manage accounts</string>
-    <string name="current_account">Current account</string>
-    <string name="current_profile">Current profile</string>
+
     <string name="selected_account">Selected account</string>
     <string name="listen_as">Listen as</string>
     <string name="edit_profile">Edit profile</string>
@@ -1135,22 +1069,20 @@
     <string name="listen_together_subtitle">Share a code and play the same music, in time</string>
     <string name="listen_together_in_party">In a party · %1$s</string>
     <string name="listen_together_sign_in_footer">Listening together needs an account, so everyone in the party can see who else is in it.</string>
-    <string name="listen_together_server">Party server</string>
+
     <string name="listen_together_server_online">Online · %1$d ms</string>
-    <string name="listen_together_server_online_fallback">Online (default fallback) · %1$d ms</string>
+
     <string name="listen_together_server_offline">Can’t be reached right now</string>
     <string name="listen_together_server_checking">Checking…</string>
-    <string name="listen_together_server_unknown">Tap to check</string>
+
     <string name="listen_together_custom_server">Use your own server</string>
     <string name="listen_together_custom_server_footer">Leave this empty to use the default server. If you run your own copy, everyone in the party has to be pointed at the same one.</string>
     <string name="listen_together_using_default">Using default server</string>
     <string name="listen_together_remove_server">Remove server</string>
     <string name="listen_together_switched_to_default">Switched to default server</string>
-    <string name="listen_together_custom_server_saved">Custom server saved</string>
+
     <string name="listen_together_create">Create a party</string>
-    <string name="listen_together_create_subtitle">Get a code to share with friends</string>
-    <string name="listen_together_create_footer">You get a six-character code. Anyone who has it can join, up to %1$d devices including yours.</string>
-    <string name="listen_together_profile">Your party profile</string>
+
     <string name="listen_together_nickname_hint">Nickname for this party</string>
     <string name="listen_together_party_size">Party size</string>
     <string name="listen_together_party_size_subtitle">Choose 2–10 listeners</string>
@@ -1158,18 +1090,6 @@
     <string name="listen_together_remove">Remove</string>
     <string name="listen_together_activity">Recent activity</string>
     <string name="listen_together_activity_footer">This session only · latest first · up to 100 actions</string>
-    <string name="listen_together_activity_played">Started playback</string>
-    <string name="listen_together_activity_paused">Paused playback</string>
-    <string name="listen_together_activity_seeked">Sought in the track</string>
-    <string name="listen_together_activity_skipped">Skipped ahead</string>
-    <string name="listen_together_activity_went_back">Went back</string>
-    <string name="listen_together_activity_added">Added to the queue</string>
-    <string name="listen_together_activity_removed_track">Removed a queued track</string>
-    <string name="listen_together_activity_cleared">Cleared upcoming tracks</string>
-    <string name="listen_together_activity_reordered">Reordered the queue</string>
-    <string name="listen_together_activity_removed_member">Removed a listener</string>
-    <string name="listen_together_activity_changed_size">Changed party size</string>
-    <string name="listen_together_activity_updated">Updated the party</string>
     <string name="listen_together_join">Join a party</string>
     <string name="listen_together_join_action">Join</string>
     <string name="listen_together_code_hint">Six letters or digits</string>
@@ -1200,7 +1120,7 @@
     <string name="listen_together_share_link">Share link</string>
     <string name="listen_together_scan_qr">Scan QR code</string>
     <string name="listen_together_scan_qr_subtitle">Let friends scan this to join.</string>
-    <string name="listen_together_invite">Invite</string>
+
     <string name="listen_together_host_only">Only I control the music</string>
     <string name="listen_together_host_only_subtitle">Everyone else listens along and can pause on their own device</string>
     <string name="listen_together_host_only_notice">Only the host can control the music</string>
@@ -1214,8 +1134,7 @@
     <string name="listen_together_custom_server_switch_and_join">Switch &amp; Join</string>
     <string name="listen_together_official_server_dialog_title">Switch to official server?</string>
     <string name="listen_together_official_server_dialog_message">This party is hosted on the official Zenith server.\n\nDo you want to switch back to the official server and join party %1$s?</string>
-    <string name="listen_together_switch_failed_stayed_in_party">Couldn’t join party: %1$s. Remaining in party %2$s.</string>
-    <string name="listen_together_switch_failed">Couldn’t join party: %1$s.</string>
+
     <string name="listen_together_ping">%1$d ms</string>
     <string name="listen_together_server_offline_dash">—</string>
     <string name="listen_together_invalid_server_url">Invalid server URL. Please enter a valid address (e.g. https://your-server.com)</string>
@@ -1232,9 +1151,9 @@
     <string name="listen_together_status_all_offline">Both custom server and default server are offline</string>
     <string name="listen_together_top_bar_fallback">Fallback · %1$s</string>
 
-    <string name="vietnamese">Vietnamese</string>
 
-    <string name="miscellaneous_footer">When enabled, closing the app from the recent apps screen will also stop music playback.</string>
+
+
 
     <string name="export_compatible_downloads">Export compatible downloads</string>
     <string name="sync_downloaded_playlists">Keep playlists updated</string>
@@ -1281,13 +1200,13 @@
     <string name="loudness_normalization_subtitle">Levels every track to the same loudness</string>
     <string name="loudness_off_on_speaker">Disable on Phone Speaker</string>
 
-    <string name="loudness_target">Target loudness</string>
 
-    <string name="loudness_target_subtitle">Quieter suits headphones; louder suits a car or a phone speaker</string>
 
-    <string name="loudness_target_value">%1$s LUFS</string>
 
-    <string name="pipeline_loudness">Loudness</string>
+
+
+
+
 
     <string name="pipeline_loudness_gain">Gain</string>
 
@@ -1295,7 +1214,7 @@
 
     <string name="pipeline_bit_exact">Bit-exact</string>
 
-    <string name="loudness_measuring">Measuring…</string>
+
 
     <string name="loudness_gain_db">%1$s dB</string>
 
@@ -1313,9 +1232,9 @@
 
     <string name="advanced_options">Advanced &amp; experimental options</string>
 
-    <string name="lyrics_debug_logs">Lyrics debug logs</string>
 
-    <string name="lyrics_debug_logs_subtitle">Show live API queries and scraper activity in the lyrics panel</string>
+
+
 
     <string name="shelf_trending_community_playlists">Trending community playlists</string>
 
@@ -1343,27 +1262,27 @@
 
     <string name="shelf_for_you">For you</string>
 
-    <string name="shelf_energy_boosters">Energy boosters</string>
 
-    <string name="shelf_feel_good">Feel good</string>
 
-    <string name="shelf_commute">Commute</string>
 
-    <string name="shelf_workout">Workout</string>
 
-    <string name="shelf_focus">Focus</string>
 
-    <string name="shelf_relax">Relax</string>
 
-    <string name="shelf_sleep">Sleep</string>
 
-    <string name="shelf_party">Party</string>
 
-    <string name="shelf_romance">Romance</string>
 
-    <string name="shelf_sad">Sad</string>
 
-    <string name="shelf_100_on_repeat">100% on repeat</string>
+
+
+
+
+
+
+
+
+
+
+
 
     <string name="shelf_new_albums_singles">New albums &amp; singles</string>
 
@@ -1480,39 +1399,6 @@
     <!-- Settings: Zenith for Wear OS -->
     <string name="footer_github">GitHub</string>
     <string name="footer_developer">Developer</string>
-    <string name="wear_os_section">Zenith for Wear OS</string>
-    <string name="wear_os_page_title">Wear OS</string>
-    <string name="wear_os_your_watches">Your watches</string>
-    <string name="wear_os_value_none">No watch</string>
-    <string name="wear_os_value_not_installed">Not installed</string>
-    <string name="wear_os_value_up_to_date">Up to date</string>
-    <string name="wear_os_looking">Looking for watches…</string>
-    <string name="wear_os_no_watch">No watch connected</string>
-    <string name="wear_os_no_watch_subtitle">Pair a Wear OS watch with this phone in its companion app first.</string>
-    <string name="wear_os_checking">Checking…</string>
-    <string name="wear_os_not_installed">Zenith isn’t on this watch</string>
-    <string name="wear_os_up_to_date">Up to date · %1$s</string>
-    <string name="wear_os_update_available">Update available</string>
-    <string name="wear_os_unknown">Installed · couldn’t check the version</string>
-    <string name="wear_os_sending">Sending to your watch…</string>
-    <string name="wear_os_sent">Sent — finish on your watch if it asks</string>
-    <string name="wear_os_send_failed">Couldn’t send the update (%1$s)</string>
-    <string name="wear_os_install">Install</string>
-    <string name="wear_os_update">Update</string>
-    <string name="wear_os_install_title">Install on your watch</string>
-    <string name="wear_os_step_wifi">Connect your watch to the same Wi-Fi as this phone.</string>
-    <string name="wear_os_step_developer">Turn on Developer options on the watch. Galaxy Watch: Settings → About watch → Software information → tap Software version five times. Pixel Watch: Settings → System → About → tap Build number seven times.</string>
-    <string name="wear_os_step_debugging">In Developer options, turn on ADB debugging and Wireless debugging.</string>
-    <string name="wear_os_step_pair">Tap Pair new device, then enter the six-digit code the watch shows.</string>
-    <string name="wear_os_searching">Looking for your watch on Wi-Fi…</string>
-    <string name="wear_os_found">Found your watch</string>
-    <string name="wear_os_pairing">Pairing…</string>
-    <string name="wear_os_installing">Installing Zenith on your watch…</string>
-    <string name="wear_os_installed">Installed. You can turn Wireless debugging off again.</string>
-    <string name="wear_os_failed">That didn’t work (%1$s). Check the code and try again.</string>
-    <string name="wear_os_unsupported">Installing on a watch needs Android 11 or later on this phone.</string>
-    <string name="wear_os_code_hint">Pairing code</string>
-    <string name="wear_os_done">Done</string>
     <string name="signed_by">Signed by %1$s</string>
     <string name="find_your_mood">Find Your Mood</string>
     <string name="no_audio_version">No audio version found for this video</string>
