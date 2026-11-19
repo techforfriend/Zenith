@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
+import com.music.zenith.ui.theme.rememberPlayerRim
 import com.music.zenith.ui.theme.rememberPlayerTint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
@@ -2486,6 +2487,9 @@ fun NowPlayingScreen(
         animationSpec = tween(durationMillis = 360, easing = FastOutSlowInEasing),
         label = "playerTint",
     )
+    // Rim cover dari warna sudut cover sendiri; null = pakai tint tunggal di atas.
+    val rimSource = rememberPlayerRim(remoteArt, ART_PX)
+    val artworkRim = if (spotifyCanvasPresentation) null else rimSource
     // The ⋯ menu's frost for the drawers and popups over the player — see
     // [FrostedPlayerFrame], which records the player for it and draws them
     // beside it. None under "reduce dynamic blur": the panels go opaque, and a
@@ -4378,10 +4382,10 @@ fun NowPlayingScreen(
                                             outline = dockFrame.cornerShape(sleeveCorner())
                                                 .createOutline(size, layoutDirection, this),
                                             brush = Brush.linearGradient(
-                                                0f to playerTint.copy(alpha = 0.34f * rimAlpha),
-                                                0.35f to playerTint.copy(alpha = 0.06f * rimAlpha),
-                                                0.65f to playerTint.copy(alpha = 0.06f * rimAlpha),
-                                                1f to playerTint.copy(alpha = 0.22f * rimAlpha),
+                                                0f to (artworkRim?.topLeft ?: playerTint).copy(alpha = 0.34f * rimAlpha),
+                                                0.35f to (artworkRim?.middle ?: playerTint).copy(alpha = 0.06f * rimAlpha),
+                                                0.65f to (artworkRim?.middle ?: playerTint).copy(alpha = 0.06f * rimAlpha),
+                                                1f to (artworkRim?.bottomRight ?: playerTint).copy(alpha = 0.22f * rimAlpha),
                                                 start = Offset.Zero,
                                                 end = Offset(size.width, size.height),
                                             ),

@@ -110,7 +110,7 @@ fun AccountProfileSelector(
 
     // pop: the card's scale, which may overshoot — that is the bounce.
     // fade: its alpha and the scrim's. reveal: the avatars' own, a beat behind.
-    val pop = remember { Animatable(if (reduceMotion) 1f else 0.55f) }
+    val pop = remember { Animatable(if (reduceMotion) 1f else 0.3f) }
     val fade = remember { Animatable(0f) }
     val reveal = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
@@ -122,10 +122,10 @@ fun AccountProfileSelector(
             fade.animateTo(1f, tween(120))
         } else {
             launch { fade.animateTo(1f, tween(160, easing = FastOutSlowInEasing)) }
-            launch { pop.animateTo(1f, spring(dampingRatio = 0.58f, stiffness = 460f)) }
+            launch { pop.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 380f)) }
             launch {
-                delay(70)
-                if (!closing) reveal.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 520f))
+                delay(110)
+                if (!closing) reveal.animateTo(1f, spring(dampingRatio = 0.62f, stiffness = 420f))
             }
         }
     }
@@ -141,10 +141,9 @@ fun AccountProfileSelector(
                     fade.animateTo(0f, tween(110))
                 } else {
                     launch { reveal.animateTo(0f, tween(130, easing = FastOutLinearInEasing)) }
-                    launch { fade.animateTo(0f, tween(210, delayMillis = 60, easing = FastOutLinearInEasing)) }
-                    // A small swell first, then it drops away: the bounce of the exit.
-                    pop.animateTo(1.045f, tween(90, easing = FastOutSlowInEasing))
-                    pop.animateTo(0.82f, tween(200, easing = FastOutLinearInEasing))
+                    launch { fade.animateTo(0f, tween(200, delayMillis = 30, easing = FastOutLinearInEasing)) }
+                    // Folds back toward the profile button in one continuous motion.
+                    pop.animateTo(0.6f, tween(220, easing = FastOutSlowInEasing))
                 }
                 after()
             }

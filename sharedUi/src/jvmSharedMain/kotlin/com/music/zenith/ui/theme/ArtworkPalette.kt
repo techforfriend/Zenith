@@ -262,6 +262,7 @@ private data class Seed(
     val vibrant: Color,
     val edge: Color,
     val topBandLuminance: Float,
+    val rim: ArtworkRim? = null,
 )
 
 private fun seedOf(bitmap: ImageBitmap): Seed? {
@@ -292,6 +293,7 @@ private fun seedOf(bitmap: ImageBitmap): Seed? {
         vibrant = Color(vibrant.rgb),
         edge = bitmap.bottomEdgeColor(),
         topBandLuminance = bitmap.topBandRelativeLuminance(),
+        rim = bitmap.rimColors(),
     )
 }
 
@@ -339,6 +341,85 @@ private fun ImageBitmap.bottomEdgeColor(): Color {
 
 /** How much of the artwork's height the edge colour is read from. */
 private const val EDGE_BAND = 0.18f
+
+/**
+ * Warna rim tipis di tepi cover player, dibaca dari sudut cover itu sendiri:
+ * kiri atas, kanan bawah, dan tengah (rata-rata kanan atas dan kiri bawah).
+ */
+@Immutable
+data class ArtworkRim(
+    val topLeft: Color,
+    val middle: Color,
+    val bottomRight: Color,
+)
+
+/** Null sampai cover terbaca. Pemanggil jatuh ke tint tunggal ([rememberPlayerTint]). */
+@Composable
+fun rememberPlayerRim(imageUrl: String?, artPx: Int = CARD_ART_PX): ArtworkRim? {
+    val seed = rememberArtworkSeed(imageUrl, artPx)
+    return remember(seed) { seed?.rim }
+}
+
+private fun ImageBitmap.rimColors(): ArtworkRim {
+    val side = (minOf(width, height) * RIM_SAMPLE).toInt().coerceAtLeast(1)
+    val topLeft = meanColor(0, 0, side, side)
+    val topRight = meanColor(width - side, 0, side, side)
+    val bottomLeft = meanColor(0, height - side, side, side)
+    val bottomRight = meanColor(width - side, height - side, side, side)
+    val middle = Color(
+        (topRight.red + bottomLeft.red) / 2f,
+        (topRight.green + bottomLeft.green) / 2f,
+        (topRight.blue + bottomLeft.blue) / 2f,
+    )
+    return ArtworkRim(
+        topLeft = topLeft.liftedForRim(),
+        middle = middle.liftedForRim(),
+        bottomRight = bottomRight.liftedForRim(),
+    )
+}
+
+/** Rata-rata warna satu area kecil bitmap. */
+private fun ImageBitmap.meanColor(x: Int, y: Int, w: Int, h: Int): Color {
+    val pixels = IntArray(w * h)
+    readPixels(pixels, startX = x, startY = y, width = w, height = h)
+    var red = 0L
+    var green = 0L
+    var blue = 0L
+    pixels.forEach { pixel ->
+        red += (pixel shr 16) and 0xFF
+        green += (pixel shr 8) and 0xFF
+        blue += pixel and 0xFF
+    }
+    val count = pixels.size.coerceAtLeast(1)
+    return Color(
+        red = (red / count).toInt(),
+        green = (green / count).toInt(),
+        blue = (blue / count).toInt(),
+    )
+}
+
+/**
+ * Mengangkat warna sudut jadi cahaya tipis yang terbaca di atas cover gelap.
+ * Sudut yang nyaris hitam atau abu tidak diberi hue karangan: saturasinya
+ * diperkecil sesuai chroma yang benar-benar terlihat.
+ */
+private fun Color.liftedForRim(): Color {
+    val visible = (chroma() / RIM_CHROMA_FULL).coerceIn(0f, 1f)
+    return withHsl(
+        saturation = { (it * visible).coerceAtMost(RIM_MAX_SATURATION) },
+        lightness = { it.coerceIn(RIM_MIN_LIGHTNESS, RIM_MAX_LIGHTNESS) },
+    )
+}
+
+/** Sisi area sudut yang dirata-rata, sebagai pecahan sisi terpendek cover. */
+private const val RIM_SAMPLE = 0.28f
+
+/** Chroma yang dianggap warna penuh; di bawahnya saturasi rim diperkecil. */
+private const val RIM_CHROMA_FULL = 0.12f
+
+private const val RIM_MAX_SATURATION = 0.7f
+private const val RIM_MIN_LIGHTNESS = 0.72f
+private const val RIM_MAX_LIGHTNESS = 0.9f
 
 /**
  * The status inset occupies only the upper sliver of the full-bleed hero on a

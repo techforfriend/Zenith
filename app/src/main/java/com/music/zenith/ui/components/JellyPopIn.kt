@@ -14,6 +14,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import kotlin.math.abs
+import kotlin.math.sign
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -40,41 +44,56 @@ internal fun Modifier.jellyPopIn(animateIn: Boolean = true, startAt: Float = 0f)
             progress.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 500f))
         }
     }
-    // Rubber-band: the card follows a drag a little, with growing resistance,
-    // and springs back on release. Events are only observed, never consumed, and
-    // movement a child already took (a scrolling list) is ignored, so taps and
-    // scrolling inside the card behave as before.
+    // Jelly drag: the same physics as the menus (see IosMenuTouch), so every popup
+    // wobbles alike: the card shifts and stretches toward the finger, then rebounds
+    // on release. Events are only observed, never consumed, and movement a child
+    // already took (a slider, a scrolling list) is ignored, so taps and gestures
+    // inside the card behave as before.
     val scope = rememberCoroutineScope()
     val pullX = remember { Animatable(0f) }
     val pullY = remember { Animatable(0f) }
-    val maxPull = with(LocalDensity.current) { 14.dp.toPx() }
-    val soft = maxPull * 6f
+    val stretchX = remember { Animatable(1f) }
+    val stretchY = remember { Animatable(1f) }
+    val coords = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val dead = with(LocalDensity.current) { 6.dp.toPx() }
+    val maxShift = with(LocalDensity.current) { 12.dp.toPx() }
     return this
+        .onGloballyPositioned { coords[0] = it }
         .pointerInput(reduce) {
             if (reduce) return@pointerInput
-            val slop = viewConfiguration.touchSlop
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                var total = Offset.Zero
+                // Window space: a card that is itself moving under the finger must
+                // not read as the finger dragging.
+                fun window(p: Offset): Offset =
+                    coords[0]?.takeIf { it.isAttached }?.localToWindow(p) ?: p
+                val origin = window(down.position)
+                val follow = spring<Float>(dampingRatio = 0.6f, stiffness = 500f)
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Final)
                     val change = event.changes.firstOrNull { it.id == down.id }
                     if (change == null || !change.pressed) break
-                    if (!change.isConsumed) total += change.positionChange()
-                    val dist = total.getDistance()
-                    val past = (dist - slop).coerceAtLeast(0f)
-                    val target = if (dist == 0f || past == 0f) {
-                        Offset.Zero
-                    } else {
-                        total * (past / dist) * (maxPull / (past + soft))
-                    }
-                    scope.launch {
-                        pullX.snapTo(target.x)
-                        pullY.snapTo(target.y)
-                    }
+                    if (change.isConsumed) continue
+                    val pos = window(change.position)
+                    fun soft(d: Float): Float = if (abs(d) <= dead) 0f else (abs(d) - dead) * sign(d)
+                    val dx = soft(pos.x - origin.x)
+                    val dy = soft(pos.y - origin.y)
+                    val w = size.width.coerceAtLeast(1).toFloat()
+                    val h = size.height.coerceAtLeast(1).toFloat()
+                    val tx = (dx * 0.07f).coerceIn(-maxShift, maxShift)
+                    val ty = (dy * 0.07f).coerceIn(-maxShift, maxShift)
+                    val ax = (abs(dx) / w * 0.22f).coerceAtMost(0.06f)
+                    val ay = (abs(dy) / h * 0.22f).coerceAtMost(0.06f)
+                    scope.launch { pullX.animateTo(tx, follow) }
+                    scope.launch { pullY.animateTo(ty, follow) }
+                    scope.launch { stretchX.animateTo(1f + ax - ay * 0.5f, follow) }
+                    scope.launch { stretchY.animateTo(1f + ay - ax * 0.5f, follow) }
                 }
-                scope.launch { pullX.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 380f)) }
-                scope.launch { pullY.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 380f)) }
+                val rebound = spring<Float>(dampingRatio = 0.34f, stiffness = 260f)
+                scope.launch { pullX.animateTo(0f, rebound) }
+                scope.launch { pullY.animateTo(0f, rebound) }
+                scope.launch { stretchX.animateTo(1f, rebound) }
+                scope.launch { stretchY.animateTo(1f, rebound) }
             }
         }
         .graphicsLayer {
@@ -84,7 +103,7 @@ internal fun Modifier.jellyPopIn(animateIn: Boolean = true, startAt: Float = 0f)
         alpha = (p * 3f).coerceIn(0f, 1f)
         val scale = 0.92f + 0.08f * p
         val wobble = (p - 1f) * p * p * 0.12f
-        scaleX = scale - wobble
-        scaleY = scale + wobble
+        scaleX = (scale - wobble) * stretchX.value
+        scaleY = (scale + wobble) * stretchY.value
     }
 }

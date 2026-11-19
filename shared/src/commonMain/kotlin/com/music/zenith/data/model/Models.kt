@@ -21,6 +21,23 @@ data class ArtistRef(
     val browseId: String? = null,
 )
 
+/**
+ * Lagu paling populer di sebuah album, untuk titik penanda seperti Apple Music.
+ * Dipilih dari jumlah putar yang dinyatakan baris album: sepertiga teratas
+ * (minimal 1, maksimal 5). Kosong bila album terlalu pendek atau jumlah putar
+ * tersedia untuk kurang dari separuh barisnya.
+ */
+fun List<Song>.popularTrackIds(): Set<String> {
+    if (size < POPULAR_MIN_TRACKS) return emptySet()
+    val counted = filter { (it.playCount ?: 0L) > 0L }
+    if (counted.size * 2 < size) return emptySet()
+    val take = (size / 3).coerceIn(1, POPULAR_MAX_TRACKS)
+    return counted.sortedByDescending { it.playCount }.take(take).mapTo(HashSet()) { it.videoId }
+}
+
+private const val POPULAR_MIN_TRACKS = 4
+private const val POPULAR_MAX_TRACKS = 5
+
 /** A playable YouTube Music track. */
 data class Song(
     val videoId: String,
@@ -141,6 +158,8 @@ data class Song(
      * non-history rows (e.g. search results, library).
      */
     val feedbackToken: String? = null,
+    /** Jumlah putar yang dinyatakan baris album YouTube Music; null bila baris tidak menyebutnya. */
+    val playCount: Long? = null,
 ) {
     /** Legacy derived property: true if and only if [queueTier] is [QueueTier.AUTOPLAY]. */
     val fromAutoplay: Boolean get() = queueTier == QueueTier.AUTOPLAY

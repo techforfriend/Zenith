@@ -101,7 +101,7 @@ fun ReorderPlaylistPage(
                 .padding(start = 8.dp, end = 22.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onClose) {
+            IconButton(onClick = onClose, modifier = Modifier.glassJelly()) {
                 Icon(
                     Icons.Rounded.Close,
                     contentDescription = stringResource(R.string.back),

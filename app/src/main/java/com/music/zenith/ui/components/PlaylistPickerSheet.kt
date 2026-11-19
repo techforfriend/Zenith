@@ -804,7 +804,7 @@ internal fun RenamePlaylistForm(
                 .padding(start = 8.dp, end = 22.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = onBack, modifier = Modifier.glassJelly()) {
                 Icon(
                     SfIcons.ArrowBack,
                     contentDescription = stringResource(R.string.back),

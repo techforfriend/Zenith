@@ -68,6 +68,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -390,6 +391,8 @@ fun SongRow(
     hideArtistOf: String? = null,
     /** False drops the trailing duration, which Apple Music's album listings omit. */
     showDuration: Boolean = true,
+    /** Menandai lagu populer album dengan titik kecil di sebelah nomor trek, seperti Apple Music. */
+    popular: Boolean = false,
 ) {
     SwipeToQueueBox(
         onSwipeToQueue = onSwipeToQueue,
@@ -413,6 +416,7 @@ fun SongRow(
             trailing = trailing,
             hideArtistOf = hideArtistOf,
             showDuration = showDuration,
+            popular = popular,
         )
     }
 }
@@ -691,6 +695,7 @@ private fun SongRowContent(
     trailing: (@Composable () -> Unit)? = null,
     hideArtistOf: String? = null,
     showDuration: Boolean = true,
+    popular: Boolean = false,
 ) {
     val titleColor by animateColorAsState(
         targetValue = if (isCurrent && !searchPlayingStyle) activeTint else MaterialTheme.colorScheme.onBackground,
@@ -730,6 +735,17 @@ private fun SongRowContent(
                 Modifier.width(TRACK_NUMBER_WIDTH).height(52.dp),
                 contentAlignment = Alignment.Center,
             ) {
+                if (popular) {
+                    // Penanda lagu populer: titik kecil di gutter kiri nomor.
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .offset(x = -(PAGE_GUTTER / 2) - 2.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(subtitleColor.copy(alpha = 0.7f)),
+                    )
+                }
                 if (searchPlayingStyle && isCurrent && isPlaying) {
                     SearchPlayingBars()
                 } else if (isCurrent) {

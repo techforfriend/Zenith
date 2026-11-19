@@ -326,7 +326,10 @@ fun FrostedTopBar(
                 } else {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp),
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 4.dp)
+                            .glassJelly(),
                     ) {
                         Icon(
                             SfIcons.ArrowBack,
@@ -485,7 +488,7 @@ private fun ArtworkPageActions(
     val readExtraActions = remember { { extraActions.floatValue } }
     ActionsRow(
         modifier = modifier
-            .glassJelly()
+            .glassJelly(GLASS_JELLY_PRESS_WIDE)
             .then(artworkPageSurface(shape = CircleShape, hazeState = hazeState))
             // Keep the right edge fixed while a new action opens room to its
             // left. The surface itself therefore grows instead of jumping to
@@ -496,7 +499,7 @@ private fun ArtworkPageActions(
             // tab change, even though its place on screen never changed.
             .animateContentSize(
                 animationSpec = spring(
-                    dampingRatio = 0.7f,
+                    dampingRatio = 0.9f,
                     stiffness = Spring.StiffnessMediumLow,
                 ),
                 alignment = Alignment.CenterEnd,
@@ -690,7 +693,7 @@ fun TopBarAccountButton(
         snapshotFlow { rawExtraActions().coerceIn(0f, 1f) }.collectLatest { target ->
             extraSmooth.animateTo(
                 target,
-                spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+                spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow),
             )
         }
     }

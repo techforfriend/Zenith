@@ -6999,13 +6999,13 @@ private fun ActionReveal(visible: Boolean, bounce: Boolean = false, content: @Co
     AnimatedVisibility(
         visible = visible,
         enter = if (bounce) {
-            fadeIn(tween(140)) +
-                expandHorizontally(spring(dampingRatio = 0.55f, stiffness = 420f)) +
-                scaleIn(spring(dampingRatio = 0.35f, stiffness = 380f), initialScale = 0.3f)
+            fadeIn(tween(200)) +
+                expandHorizontally(spring(dampingRatio = 1f, stiffness = 400f)) +
+                scaleIn(spring(dampingRatio = 0.7f, stiffness = 400f), initialScale = 0.7f)
         } else {
-            fadeIn(tween(180)) + expandHorizontally(tween(220))
+            fadeIn(tween(200)) + expandHorizontally(spring(dampingRatio = 1f, stiffness = 400f))
         },
-        exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+        exit = fadeOut(tween(140)) + shrinkHorizontally(spring(dampingRatio = 1f, stiffness = 400f)),
     ) {
         content()
     }

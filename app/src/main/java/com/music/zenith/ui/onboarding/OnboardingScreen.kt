@@ -1,5 +1,7 @@
 package com.music.zenith.ui.onboarding
 
+import com.music.zenith.ui.components.glassJelly
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -416,6 +418,7 @@ private fun PillButton(
 private fun BackButton(onClick: () -> Unit) {
     Box(
         Modifier
+            .glassJelly()
             .size(40.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.16f))

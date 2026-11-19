@@ -913,7 +913,23 @@ object YtMusicRepository {
         val related = InnertubeParser.parseRelatedShelves(albumResponse)
         val playlist = albumPlaylistOf(albumResponse, metadata.songs.size)
             ?: return metadata.copy(related = related)
-        return pageOf(playlist).copy(
+        // Baris playlist pengganti tidak membawa jumlah putar; hanya baris album
+        // yang punya. Dipindahkan per videoId supaya titik lagu populer tetap muncul.
+        val playCounts = metadata.songs
+            .mapNotNull { song -> song.playCount?.let { song.videoId to it } }
+            .toMap()
+        val playlistPage = pageOf(playlist).let { page ->
+            if (playCounts.isEmpty()) {
+                page
+            } else {
+                page.copy(
+                    songs = page.songs.map { song ->
+                        playCounts[song.videoId]?.let { song.copy(playCount = it) } ?: song
+                    },
+                )
+            }
+        }
+        return playlistPage.copy(
             library = metadata.library,
             header = metadata.header,
             description = metadata.description,

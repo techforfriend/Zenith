@@ -365,7 +365,7 @@ fun SearchScreen(
                     modifier = Modifier.padding(
                         start = PAGE_GUTTER,
                         end = PAGE_GUTTER,
-                        bottom = if (filterBarTopPadding != null) 16.dp else 6.dp,
+                        bottom = 6.dp,
                     ),
                 )
             }
@@ -636,7 +636,7 @@ fun SearchScreen(
 private val ANCHORED_FADE_HEIGHT = 24.dp
 
 /** Height of the soft fade below the frosted header band behind the filter control. */
-private val HEADER_FADE_HEIGHT = 28.dp
+private val HEADER_FADE_HEIGHT = 48.dp
 
 /** Blur radius of the frosted header band. */
 private val HEADER_BLUR_RADIUS = 24.dp
@@ -667,10 +667,17 @@ private fun Modifier.frostedHeaderBand(
     }
     val bandH = (solidH + fadePx).coerceAtMost(size.height)
     val bandSize = androidx.compose.ui.geometry.Size(size.width, bandH)
+    // Fade dimulai sedikit di bawah tepi kontrol dan memakai kurva smoothstep,
+    // bukan garis lurus, supaya tidak ada tepi datar yang terasa.
+    val fadeStart = ((solidH - fadePx * 0.3f) / bandH).coerceIn(0f, 0.95f)
+    val fadeSpan = 1f - fadeStart
     val mask = androidx.compose.ui.graphics.Brush.verticalGradient(
         colorStops = arrayOf(
             0f to Color.Black,
-            (solidH / bandH).coerceIn(0f, 0.99f) to Color.Black,
+            fadeStart to Color.Black,
+            fadeStart + fadeSpan * 0.25f to Color.Black.copy(alpha = 0.84f),
+            fadeStart + fadeSpan * 0.5f to Color.Black.copy(alpha = 0.5f),
+            fadeStart + fadeSpan * 0.75f to Color.Black.copy(alpha = 0.16f),
             1f to Color.Transparent,
         ),
         startY = 0f,
@@ -704,9 +711,9 @@ private fun Modifier.frostedHeaderBand(
     blurLayer.alpha = a
     blurLayer.record(size = IntSize(w, sampleH)) { drawLayer(contentLayer) }
     masked {
-        drawRect(fill.copy(alpha = a), size = bandSize)
+        drawRect(fill.copy(alpha = 0.7f * a), size = bandSize)
         drawLayer(blurLayer)
-        drawRect(fill.copy(alpha = 0.4f * a), size = bandSize)
+        drawRect(fill.copy(alpha = 0.3f * a), size = bandSize)
     }
 }
 

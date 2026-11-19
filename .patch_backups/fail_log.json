@@ -190,5 +190,11 @@
     "block": 1,
     "layer": "not_found_in_project",
     "file": "app/src/main/res/values-ko/strings.xml"
+  },
+  {
+    "timestamp": "2026-11-19 10:34:47",
+    "block": 2,
+    "layer": "not_found_in_project",
+    "file": "app/src/main/java/com/music/zenith/ui/components/AddSongsDialog.kt"
   }
 ]

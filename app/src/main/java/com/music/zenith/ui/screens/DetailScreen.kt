@@ -19,6 +19,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import com.music.zenith.ui.components.GLASS_JELLY_PRESS_WIDE
 import com.music.zenith.ui.components.glassJelly
 import com.music.zenith.ui.components.liquidGlassRim
 import com.music.zenith.ui.components.continuous
@@ -173,6 +174,7 @@ import com.music.zenith.data.model.DetailPage
 import com.music.zenith.data.model.CARD_ART_PX
 import com.music.zenith.data.model.HEADER_ART_PX
 import com.music.zenith.data.model.ROW_ART_PX
+import com.music.zenith.data.model.popularTrackIds
 import com.music.zenith.data.model.HomeShelf
 import com.music.zenith.data.model.ShelfItem
 import com.music.zenith.data.settings.SongSort
@@ -412,6 +414,10 @@ fun DetailScreen(
     val originalTrackNumbers = remember(rawSongs) {
         val byTag = rawSongs.useTrackTags()
         rawSongs.withIndex().associate { (i, s) -> s.videoId to ((if (byTag) s.trackNumber else null) ?: (i + 1)) }
+    }
+    // Lagu paling populer di album ini (jumlah putar tertinggi), ditandai titik kecil.
+    val popularIds = remember(rawSongs, page.type) {
+        if (page.type == BrowseType.ALBUM) rawSongs.popularTrackIds() else emptySet()
     }
     val isArtist = page.type == BrowseType.ARTIST
     // Whether the top release card's album is already saved isn't on the shelf
@@ -879,6 +885,7 @@ fun DetailScreen(
                             // The track's place on the release, not its place in
                             // what the filter — or a sort — left standing.
                             trackNumber = originalTrackNumbers[song.videoId].takeIf { numbered },
+                            popular = numbered && song.videoId in popularIds,
                             subtitleColor = palette.onBackgroundVariant,
                             // Apple Music: no artist line when it is the album's own
                             // artist, and no per-row duration on an album.
@@ -1427,6 +1434,7 @@ private fun DetailSearchField(
             .fillMaxWidth()
             .padding(horizontal = HEADER_GUTTER)
             .padding(bottom = 10.dp)
+            .glassJelly(GLASS_JELLY_PRESS_WIDE)
             .height(46.dp)
             .clip(CircleShape)
             // The recipe the Play, Shuffle and Add songs pills above it wear:
@@ -1956,6 +1964,7 @@ private fun ActionPill(
     val content = if (filled) Color.Black else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = modifier
+            .glassJelly(GLASS_JELLY_PRESS_WIDE)
             .height(size)
             .clip(CircleShape)
             .then(
@@ -2007,6 +2016,7 @@ private fun PlayCircle(
     val description = stringResource(R.string.play)
     Box(
         modifier = Modifier
+            .glassJelly()
             .size(size)
             .clip(CircleShape)
             .clickable {

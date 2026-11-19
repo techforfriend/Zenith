@@ -3,6 +3,7 @@ package com.music.zenith.ui.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -10,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -63,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -144,6 +147,19 @@ fun AddSongsDialog(
     }
     var added by remember { mutableStateOf(emptySet<String>()) }
     LaunchedEffect(open) { if (!open) added = emptySet() }
+    // Morph macOS: popup tumbuh dari tombol/ketukan terakhir dan melipat kembali saat ditutup.
+    val morphSpec = remember { MacOSPopupSpec() }
+    val progress = remember { Animatable(0f) }
+    var present by remember { mutableStateOf(open) }
+    LaunchedEffect(open) {
+        if (open) {
+            present = true
+            progress.animateTo(1f, if (reduceMotion) tween<Float>(120) else morphSpec.openSpring)
+        } else {
+            progress.animateTo(0f, if (reduceMotion) tween<Float>(100) else morphSpec.closeSpring)
+            present = false
+        }
+    }
     val colors = iosMenuColors()
     val scrim = Color.Black.copy(alpha = if (colors.dark) 0.34f else 0.16f)
 
@@ -170,43 +186,47 @@ fun AddSongsDialog(
             .then(if (open) Modifier.containSheetGestures() else Modifier)
             .imePadding(),
     ) {
-        AnimatedVisibility(
-            visible = open,
-            enter = fadeIn(tween(if (reduceMotion) 90 else 180)),
-            exit = fadeOut(tween(if (reduceMotion) 90 else 150)),
-        ) {
+        if (present) {
             Box(
                 Modifier
                     .fillMaxSize()
+                    .graphicsLayer { alpha = progress.value.coerceIn(0f, 1f) }
                     .background(scrim)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
+                        enabled = open,
                         onClick = onDismiss,
                     ),
             )
         }
-        AnimatedVisibility(
-            visible = open,
-            modifier = Modifier.align(Alignment.Center),
-            enter = fadeIn(tween(160)) +
-                (if (reduceMotion) EnterTransition.None else scaleIn(
-                    animationSpec = spring(dampingRatio = 0.82f, stiffness = 520f),
-                    initialScale = 0.9f,
-                )),
-            exit = fadeOut(tween(120)) +
-                (if (reduceMotion) ExitTransition.None else scaleOut(tween(140), targetScale = 0.94f)),
-        ) {
+        if (present) Box(Modifier.align(Alignment.Center)) {
+            val touch = rememberJellyMenuTouch()
+            IosMenuScrollEnvironment(touch) {
             Column(
                 Modifier
                     .padding(horizontal = 20.dp)
                     .widthIn(max = 420.dp)
                     .fillMaxWidth()
                     .fillMaxHeight(0.66f)
+                    // Window morph macOS: tumbuh dari titik ketukan, melipat kembali saat ditutup.
+                    .macOSPopupMorph(progress = { progress.value }, cornerRadius = 30.dp, spec = morphSpec)
+                    // Panel bergoyang jelly mengikuti jari, seperti popup titik tiga.
+                    .iosMenuJelly(touch, 0.5f, 0.5f)
                     // Ketukan di panel tidak boleh jatuh ke scrim di bawahnya.
                     .pointerInput(Unit) {}
-                    .iosMenuPanel(translucent = true, backdrop = backdrop, hazeState = hazeState),
+                    .iosMenuPanel(translucent = true, backdrop = backdrop, hazeState = hazeState)
+                    .touchGlow()
+                    .iosMenuTouchHost(touch, colors.pressed),
             ) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val span = (morphSpec.contentFadeEnd - morphSpec.contentFadeStart).coerceAtLeast(0.01f)
+                            alpha = ((progress.value - morphSpec.contentFadeStart) / span).coerceIn(0f, 1f)
+                        },
+                ) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -335,6 +355,8 @@ fun AddSongsDialog(
                         }
                     }
                 }
+                }
+            }
             }
         }
     }
@@ -347,7 +369,15 @@ private fun AddSongRow(song: Song, added: Boolean, colors: IosMenuColors, onClic
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !added, onClick = onClick)
+            // Terdaftar ke pil sentuhan panel; tanpa ripple bila host jelly aktif.
+            .iosMenuTouchTarget(!added, 14.dp, onClick)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                enabled = !added,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = if (LocalIosMenuTouch.current == null) LocalIndication.current else null,
+                onClick = onClick,
+            )
             .padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

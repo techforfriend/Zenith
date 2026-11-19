@@ -144,6 +144,8 @@ import com.music.zenith.ui.components.isGlassSupported
 import com.music.zenith.ui.components.languageDisplayNameRes
 import com.music.zenith.ui.components.MessageState
 import com.music.zenith.ui.components.SearchField
+import com.music.zenith.ui.components.GLASS_JELLY_PRESS_WIDE
+import com.music.zenith.ui.components.glassJelly
 import com.music.zenith.ui.components.liquidGlassRim
 import com.music.zenith.ui.components.thumbnailBorder
 import com.music.zenith.ui.performance.resolvePerformanceRefreshRate
@@ -552,6 +554,7 @@ fun SettingsScreen(
                 // the floating bars have, and a bright edge. Tinted from the
                 // theme's own text colour so it reads on a light page too.
                 chrome = Modifier
+                    .glassJelly(GLASS_JELLY_PRESS_WIDE)
                     .height(46.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), CircleShape)
