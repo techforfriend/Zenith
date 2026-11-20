@@ -3216,7 +3216,8 @@ fun NowPlayingScreen(
                                     if (growBox) {
                                         Modifier.fillMaxWidth().layout { measurable, constraints ->
                                             val full = constraints.maxHeight
-                                            val hero = heroHeight.roundToPx().coerceIn(0, full)
+                                            val hero = (heroHeight + CanvasFadeTuning.offsetDp.floatValue.coerceAtLeast(0f).dp)
+                                                .roundToPx().coerceIn(0, full)
                                             val h = (hero + (full - hero) * p().coerceIn(0f, 1f)).roundToInt()
                                             val placeable = measurable.measure(
                                                 constraints.copy(minHeight = h, maxHeight = h),
@@ -3224,7 +3225,9 @@ fun NowPlayingScreen(
                                             layout(placeable.width, h) { placeable.place(0, 0) }
                                         }
                                     } else if (clipFullscreen || clipPortrait || clipFillsPanels) Modifier.fillMaxSize()
-                                    else Modifier.fillMaxWidth().height(heroHeight),
+                                    else Modifier.fillMaxWidth().height(
+                                        heroHeight + CanvasFadeTuning.offsetDp.floatValue.coerceAtLeast(0f).dp,
+                                    ),
                                 )
                                 .drawWithContent {
                                     drawContent()

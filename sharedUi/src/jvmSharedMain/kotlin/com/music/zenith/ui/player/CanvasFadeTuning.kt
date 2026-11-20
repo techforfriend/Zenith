@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,6 +55,9 @@ object CanvasFadeTuning {
     const val DEFAULT_HEIGHT_SCALE = 0.6f
     const val DEFAULT_CURVE = 0.8f
     const val DEFAULT_POWER = 1.3f
+    const val DEFAULT_OFFSET_DP = 0f
+    const val DEFAULT_CURVE_EXP = 2f
+    const val DEFAULT_BLUR_SCALE = 1f
 
     /** Panjang fade: makin besar, batas blur makin naik. */
     val heightScale = mutableFloatStateOf(DEFAULT_HEIGHT_SCALE)
@@ -62,15 +68,50 @@ object CanvasFadeTuning {
     /** Kekuatan kurva alpha di dalam band yang sama. */
     val power = mutableFloatStateOf(DEFAULT_POWER)
 
+    /** Geser seluruh band fade ke bawah (+) atau ke atas (-), dalam dp. */
+    val offsetDp = mutableFloatStateOf(DEFAULT_OFFSET_DP)
+
+    /** Eksponen bentuk V: 1 = V lancip, 2 = parabola, makin besar makin datar di tengah. */
+    val curveExp = mutableFloatStateOf(DEFAULT_CURVE_EXP)
+
+    /** Pengali kekuatan blur klip. */
+    val blurScale = mutableFloatStateOf(DEFAULT_BLUR_SCALE)
+
     fun reset() {
         heightScale.floatValue = DEFAULT_HEIGHT_SCALE
         curve.floatValue = DEFAULT_CURVE
         power.floatValue = DEFAULT_POWER
+        offsetDp.floatValue = DEFAULT_OFFSET_DP
+        curveExp.floatValue = DEFAULT_CURVE_EXP
+        blurScale.floatValue = DEFAULT_BLUR_SCALE
     }
+
+    /**
+     * Respons cepat di awal: nilai slider rendah sudah memberi efek besar, lalu
+     * melandai mendekati maksimum. Memetakan 0..[max] ke 0..[max] secara ease-out.
+     */
+    private fun fastCurve(value: Float, max: Float): Float {
+        val n = (value / max).coerceIn(0f, 1f)
+        val inv = 1f - n
+        return max * (1f - inv * inv * inv)
+    }
+
+    /** Tinggi fade efektif yang dipakai klip. */
+    fun effectiveHeight(): Float = fastCurve(heightScale.floatValue, 2f)
+
+    /** Lekuk V efektif yang dipakai klip. */
+    fun effectiveCurve(): Float = fastCurve(curve.floatValue, 3f)
 
     /** Berubah setiap kali salah satu nilai berubah; dibaca blok update view klip. */
     fun signature(): Int =
-        java.util.Objects.hash(heightScale.floatValue, curve.floatValue, power.floatValue)
+        java.util.Objects.hash(
+            heightScale.floatValue,
+            curve.floatValue,
+            power.floatValue,
+            offsetDp.floatValue,
+            curveExp.floatValue,
+            blurScale.floatValue,
+        )
 }
 
 private fun fmt(value: Float): String = String.format(Locale.US, "%.2f", value)
@@ -114,10 +155,15 @@ private fun FadeTunerPanel() {
     val height = CanvasFadeTuning.heightScale
     val curve = CanvasFadeTuning.curve
     val power = CanvasFadeTuning.power
+    val offset = CanvasFadeTuning.offsetDp
+    val curveExp = CanvasFadeTuning.curveExp
+    val blurScale = CanvasFadeTuning.blurScale
     Column(
         modifier = Modifier
             .width(320.dp)
+            .heightIn(max = 460.dp)
             .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -127,19 +173,24 @@ private fun FadeTunerPanel() {
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
         )
-        TunerRow("Tinggi (batas blur)", height.floatValue, 0.30f..1.0f) { height.floatValue = it }
-        TunerRow("Lekuk V (sisi)", curve.floatValue, 0f..1.5f) { curve.floatValue = it }
-        TunerRow("Power (kekuatan)", power.floatValue, 0.6f..3.0f) { power.floatValue = it }
+        TunerRow("Tinggi (batas blur)", height.floatValue, 0f..2.0f) { height.floatValue = it }
+        TunerRow("Geser Y (dp, + turun)", offset.floatValue, -200f..400f) { offset.floatValue = it }
+        TunerRow("Lekuk V (sisi)", curve.floatValue, 0f..3.0f) { curve.floatValue = it }
+        TunerRow("Bentuk V (eksponen)", curveExp.floatValue, 1f..4f) { curveExp.floatValue = it }
+        TunerRow("Power (kekuatan)", power.floatValue, 0.3f..4.0f) { power.floatValue = it }
+        TunerRow("Kekuatan blur", blurScale.floatValue, 0f..3.0f) { blurScale.floatValue = it }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "T ${fmt(height.floatValue)}  C ${fmt(curve.floatValue)}  P ${fmt(power.floatValue)}",
+                text = "T ${fmt(height.floatValue)} Y ${fmt(offset.floatValue)} C ${fmt(curve.floatValue)} " +
+                    "E ${fmt(curveExp.floatValue)} P ${fmt(power.floatValue)} B ${fmt(blurScale.floatValue)}",
                 color = Color.White,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
             )
             Text(
                 text = "Reset",
