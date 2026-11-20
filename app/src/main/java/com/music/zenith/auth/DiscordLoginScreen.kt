@@ -55,6 +55,29 @@ private const val TOKEN_SNIPPET = """
 private const val MAX_TOKEN_ATTEMPTS = 12
 private const val TOKEN_RETRY_MS = 500L
 
+/**
+ * WebView cannot complete WebAuthn (passkeys, security keys). With it exposed,
+ * Discord defaults the MFA step to a passkey prompt that always fails with
+ * "An error occurred". Hiding the API makes it offer authenticator app, SMS
+ * and backup codes instead.
+ */
+private const val NO_WEBAUTHN_SNIPPET = """
+    (function () {
+      try {
+        Object.defineProperty(window, 'PublicKeyCredential', {
+          value: undefined, configurable: true, writable: true
+        });
+      } catch (e) {}
+      try {
+        if (navigator.credentials) {
+          navigator.credentials.get = function () {
+            return Promise.reject(new DOMException('Not supported', 'NotSupportedError'));
+          };
+        }
+      } catch (e) {}
+    })()
+"""
+
 private val WEBVIEW_VERSION_TOKEN = Regex("""Version/\d+(\.\d+)*\s*""")
 
 /**
@@ -163,6 +186,11 @@ fun DiscordLoginScreen(
                 }
 
                 webViewClient = object : WebViewClient() {
+                    override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                        super.onPageStarted(view, url, favicon)
+                        view.evaluateJavascript(NO_WEBAUTHN_SNIPPET, null)
+                    }
+
                     @Deprecated("Deprecated in Java")
                     override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                         if (isSignedIn(url)) harvestToken()
@@ -186,6 +214,7 @@ fun DiscordLoginScreen(
                     }
 
                     override fun onPageFinished(view: WebView?, url: String?) {
+                        view?.evaluateJavascript(NO_WEBAUTHN_SNIPPET, null)
                         canGoBack = view?.canGoBack() == true
                         if (isSignedIn(url)) harvestToken()
                     }
