@@ -2526,6 +2526,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun clearSearchHistory() = SearchHistory.clear()
 
     fun onQueryChange(newValue: String) {
+        val debugSecret = com.music.zenith.BuildConfig.DEBUG_SECRET
+        if (debugSecret.isNotBlank() && newValue.trim() == debugSecret) {
+            com.music.zenith.ui.player.CanvasFadeTuning.unlocked.value = true
+            onQueryChange("")
+            return
+        }
         _query.value = newValue
         if (newValue.isBlank()) {
             searchSubmitted = false

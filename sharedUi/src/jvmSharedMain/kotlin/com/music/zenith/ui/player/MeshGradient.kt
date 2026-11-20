@@ -23,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -50,6 +52,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -62,7 +65,11 @@ private val FallbackColors = listOf(
 
 /** The four mesh colours, wrapped so the backdrop can skip recomposition. */
 @Immutable
-data class MeshPalette(val colors: List<Color>)
+data class MeshPalette(
+    val colors: List<Color>,
+    val edge: List<Color> = emptyList(),
+    val light: Boolean = false,
+)
 
 /**
  * The Apple Music "Now Playing" backdrop: four luminous colour blobs sampled
@@ -125,9 +132,12 @@ fun MeshGradientBackground(
 ) {
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
 
+    // Cover putih/pucat: warna dibuat kalem dan terang (abu kebiruan) seperti
+    // Apple Music, bukan dipaksa gelap pekat yang bentrok dengan cover.
+    val light = palette.light
     val tuned = (palette.colors.ifEmpty { FallbackColors } + FallbackColors)
         .take(4)
-        .map { it.tuned() }
+        .map { if (light) it.tunedLight() else it.tuned() }
 
     // Each colour slot crossfades independently when the track (palette) changes,
     // unless "reduce animation" is on, in which case colours snap straight to target.
@@ -141,7 +151,11 @@ fun MeshGradientBackground(
     val animatedColors = tuned.mapIndexed { index, color ->
         animateColorAsState(color, colorSpec, label = "meshColor$index").value
     }
-    val baseColor by animateColorAsState(tuned.first().dimmed(), colorSpec, label = "meshBase")
+    val baseColor by animateColorAsState(
+        if (light) tuned.first().dimmedLight() else tuned.first().dimmed(),
+        colorSpec,
+        label = "meshBase",
+    )
 
     // Read in the draw lambda, not here: an Animatable read during draw
     // invalidates only the drawing, leaving composition out of the loop.
@@ -201,15 +215,17 @@ fun MeshGradientBackground(
             Offset(0.20f, 0.25f),
         )
         val speeds = listOf(1f, -0.7f, 0.85f, -1.15f)
+        val blobRadius = listOf(0.74f, 0.62f, 0.52f, 0.48f)
+        val blobAlpha = listOf(1.1f, 0.96f, 0.72f, 0.58f)
         val drift = phase.value
 
         animatedColors.forEachIndexed { index, color ->
             val anchor = anchors[index]
             val center = Offset(
-                x = (anchor.x + 0.16f * cos(drift * speeds[index] + index * 1.7f)) * size.width,
-                y = (anchor.y + 0.16f * sin(drift * speeds[index] * 0.9f + index * 2.3f)) * size.height,
+                x = (anchor.x + 0.12f * cos(drift * speeds[index] + index * 1.7f)) * size.width,
+                y = (anchor.y + 0.12f * sin(drift * speeds[index] * 0.9f + index * 2.3f)) * size.height,
             )
-            val radius = size.maxDimension * 0.62f
+            val radius = size.maxDimension * blobRadius[index]
             drawCircle(
                 // Along smootherstep rather than a straight falloff: a straight one
                 // stops dead at the rim, and that corner showed as a ring where each
@@ -217,7 +233,7 @@ fun MeshGradientBackground(
                 brush = Brush.radialGradient(
                     colorStops = Array(FADE_CURVE_STOPS + 1) { i ->
                         val t = i / FADE_CURVE_STOPS.toFloat()
-                        t to color.copy(alpha = BLOB_ALPHA * (1f - smootherStep(t)))
+                        t to color.copy(alpha = (BLOB_ALPHA * blobAlpha[index]).coerceAtMost(1f) * (1f - smootherStep(t)))
                     },
                     center = center,
                     radius = radius,
@@ -232,8 +248,8 @@ fun MeshGradientBackground(
         drawRect(
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color.Black.copy(alpha = 0.04f),
-                    Color.Black.copy(alpha = 0.20f),
+                    Color.Black.copy(alpha = if (light) 0f else 0.02f),
+                    Color.Black.copy(alpha = if (light) 0.06f else 0.14f),
                 ),
             ),
         )
@@ -242,6 +258,192 @@ fun MeshGradientBackground(
 
 /** A blob's opacity at its centre. */
 private const val BLOB_ALPHA = 0.85f
+
+/** Share of near-white pixels from which a cover counts as a light one. */
+private const val LIGHT_COVER_SHARE = 0.55f
+
+/** True when the cover is mostly white or very pale, so deep tones would clash with it. */
+internal fun isLightCover(source: ImageBitmap): Boolean {
+    val w = source.width
+    val h = source.height
+    if (w < 8 || h < 8) return false
+    val pixels = source.argbPixels()
+    if (pixels.size != w * h) return false
+    var pale = 0
+    for (p in pixels) {
+        val r = (p shr 16) and 0xFF
+        val g = (p shr 8) and 0xFF
+        val b = p and 0xFF
+        val hi = maxOf(r, g, b)
+        val lo = minOf(r, g, b)
+        if (lo >= 205 && hi - lo <= 40) pale++
+    }
+    return pale >= pixels.size * LIGHT_COVER_SHARE
+}
+
+/** Muted, mid-light version of a swatch: keeps the hue, drops most of the saturation. */
+private fun Color.tunedLight(): Color {
+    val hsl = hsl()
+    hsl[1] = (hsl[1] * 0.45f).coerceIn(0.08f, 0.26f)
+    hsl[2] = 0.44f + 0.12f * hsl[2].coerceIn(0f, 1f)
+    return Color(ColorUtils.HSLToColor(hsl))
+}
+
+private fun Color.dimmedLight(): Color {
+    val hsl = hsl()
+    hsl[2] = 0.38f
+    return Color(ColorUtils.HSLToColor(hsl))
+}
+
+private const val EDGE_BINS = 8
+private const val EDGE_ROWS_SHARE = 0.04f
+private const val EDGE_SIDE_SHARE = 0.08f
+private const val EDGE_MAX_LIGHTNESS = 0.52f
+private const val EDGE_MEAN_MIX = 0.35f
+private const val EDGE_RISE_START = 0.55f
+private const val EDGE_DROP_SHARE = 0.34f
+private const val EDGE_TINT_MIX = 0.3f
+private const val EDGE_SMOOTH_MILLIS = 380f
+
+internal fun edgeColorsOf(source: ImageBitmap): List<Color> {
+    val w = source.width
+    val h = source.height
+    if (w < EDGE_BINS * 2 || h < 8) return emptyList()
+    val pixels = source.argbPixels()
+    if (pixels.size != w * h) return emptyList()
+    val rows = (h * EDGE_ROWS_SHARE).toInt().coerceIn(1, h)
+    val side = (w * EDGE_SIDE_SHARE).toInt()
+    val span = w - side * 2
+    val bins = List(EDGE_BINS) { bin ->
+        val from = side + span * bin / EDGE_BINS
+        val stop = (side + span * (bin + 1) / EDGE_BINS).coerceAtLeast(from + 1)
+        var red = 0L
+        var green = 0L
+        var blue = 0L
+        var count = 0
+        for (y in h - rows until h) {
+            for (x in from until stop) {
+                val p = pixels[y * w + x]
+                red += (p shr 16) and 0xFF
+                green += (p shr 8) and 0xFF
+                blue += p and 0xFF
+                count++
+            }
+        }
+        val n = count.coerceAtLeast(1)
+        Color((red / n).toInt(), (green / n).toInt(), (blue / n).toInt())
+    }
+    val mean = Color(
+        (bins.sumOf { it.red.toDouble() } / bins.size).toFloat(),
+        (bins.sumOf { it.green.toDouble() } / bins.size).toFloat(),
+        (bins.sumOf { it.blue.toDouble() } / bins.size).toFloat(),
+    )
+    return bins.map { androidx.compose.ui.graphics.lerp(it, mean, EDGE_MEAN_MIX).edgeTuned() }
+}
+
+private fun Color.edgeTuned(): Color {
+    val lightness = (maxOf(red, green, blue) + minOf(red, green, blue)) / 2f
+    if (lightness <= EDGE_MAX_LIGHTNESS) return copy(alpha = 1f)
+    val scale = EDGE_MAX_LIGHTNESS / lightness
+    return Color(red * scale, green * scale, blue * scale)
+}
+
+@Composable
+fun CoverEdgeBackdrop(
+    edge: List<Color>,
+    seam: () -> Float,
+    modifier: Modifier = Modifier,
+    tint: Color? = null,
+    frame: () -> ImageBitmap? = { null },
+    frozen: Boolean = false,
+) {
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    // Warna tepi dari frame klip yang sedang diputar. Frame dibaca lewat lambda
+    // supaya layar induk tidak ikut recompose setiap frame baru.
+    var liveEdge by remember { mutableStateOf<List<Color>>(emptyList()) }
+    val currentFrame by androidx.compose.runtime.rememberUpdatedState(frame)
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { currentFrame() }.collect { grabbed ->
+            if (grabbed == null) {
+                liveEdge = emptyList()
+                return@collect
+            }
+            val computed = withContext(Dispatchers.Default) {
+                if (isLikelyBlackFrame(grabbed)) emptyList() else edgeColorsOf(grabbed)
+            }
+            if (computed.isNotEmpty()) liveEdge = computed
+        }
+    }
+    val target = remember(edge, liveEdge, tint) {
+        val source = liveEdge.ifEmpty { edge }
+        val mix = tint?.tuned()
+        if (mix == null) {
+            source
+        } else {
+            source.map { androidx.compose.ui.graphics.lerp(it, mix, EDGE_TINT_MIX) }
+        }
+    }
+    // Warna yang benar-benar digambar: mendekati target tiap frame secara
+    // eksponensial, jadi perubahan antar pengambilan frame tidak melompat.
+    val shown = remember { mutableStateOf<List<Color>>(emptyList()) }
+    LaunchedEffect(target, reduceAnimation, frozen) {
+        if (target.size < 2 || reduceAnimation || frozen || shown.value.size != target.size) {
+            shown.value = target
+            return@LaunchedEffect
+        }
+        var last = 0L
+        while (isActive) {
+            val now = androidx.compose.runtime.withFrameNanos { it }
+            val dtNs = if (last == 0L) 16_000_000L else (now - last).coerceAtMost(64_000_000L)
+            last = now
+            val k = 1f - kotlin.math.exp(-(dtNs / 1_000_000f) / EDGE_SMOOTH_MILLIS)
+            val next = shown.value.mapIndexed { i, c ->
+                androidx.compose.ui.graphics.lerp(c, target[i], k)
+            }
+            shown.value = next
+            val settled = next.indices.all { i ->
+                abs(next[i].red - target[i].red) < 0.004f &&
+                    abs(next[i].green - target[i].green) < 0.004f &&
+                    abs(next[i].blue - target[i].blue) < 0.004f
+            }
+            if (settled) {
+                shown.value = target
+                break
+            }
+        }
+    }
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
+    ) {
+        val drawn = shown.value
+        if (drawn.size < 2) return@Canvas
+        val seamY = seam().coerceIn(0f, size.height)
+        if (seamY < 1f) return@Canvas
+        val top = seamY * EDGE_RISE_START
+        val bottom = (seamY + size.height * EDGE_DROP_SHARE).coerceAtMost(size.height)
+        if (bottom - top < 1f) return@Canvas
+        val seamAt = ((seamY - top) / (bottom - top)).coerceIn(0.05f, 1f)
+        val riseEnd = seamAt * 0.6f
+        val steps = 8
+        val stops = ArrayList<Pair<Float, Color>>()
+        for (i in 0..steps) {
+            val t = i / steps.toFloat()
+            stops += (riseEnd * t) to Color.Black.copy(alpha = smootherStep(t))
+        }
+        for (i in 0..steps) {
+            val t = i / steps.toFloat()
+            val keep = 1f - smootherStep(t)
+            stops += (seamAt + (1f - seamAt) * t) to Color.Black.copy(alpha = keep * keep)
+        }
+        drawRect(brush = Brush.horizontalGradient(colors = drawn, startX = 0f, endX = size.width))
+        drawRect(
+            brush = Brush.verticalGradient(colorStops = stops.toTypedArray(), startY = top, endY = bottom),
+            blendMode = BlendMode.DstIn,
+        )
+    }
+}
 
 /**
  * How long each palette in a [cyclingMeshPalette] is held, which is also how
@@ -336,7 +538,9 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
             .build()
         val result = SingletonImageLoader.get(context).execute(request)
         val bitmap = (result as? SuccessResult)?.image?.toImageBitmap() ?: return@LaunchedEffect
-        val computed = MeshPalette(withContext(Dispatchers.Default) { paletteOf(bitmap) })
+        val computed = withContext(Dispatchers.Default) {
+            MeshPalette(paletteOf(bitmap), edgeColorsOf(bitmap), isLightCover(bitmap))
+        }
         artworkPaletteCache[imageUrl] = computed
         palette = computed
     }
@@ -347,8 +551,9 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
         // ExoPlayer decodes real content).  A dark sleeve will still exceed the
         // threshold because compression noise pushes mean luminance above ~12.
         if (isLikelyBlackFrame(frame)) return@LaunchedEffect
-        val colors = withContext(Dispatchers.Default) { paletteOf(frame) }
-        palette = MeshPalette(colors)
+        palette = withContext(Dispatchers.Default) {
+            MeshPalette(paletteOf(frame), edgeColorsOf(frame), isLightCover(frame))
+        }
     }
     return palette
 }
@@ -416,7 +621,7 @@ private const val MIN_SWATCH_SHARE = 0.03f
 private fun swatchScore(rgb: Int, share: Float): Float {
     val hsl = FloatArray(3).also { ColorUtils.colorToHSL(rgb, it) }
     val vividness = hsl[1] * (1f - abs(2f * hsl[2] - 1f))
-    return sqrt(share) * (0.25f + vividness)
+    return share.pow(0.6f) * (0.3f + vividness)
 }
 
 /** Drop near-duplicates, so the four blobs don't collapse into one wash. */
@@ -488,14 +693,14 @@ private fun Color.hsl(): FloatArray =
 private fun Color.tuned(): Color {
     val hsl = FloatArray(3)
     ColorUtils.colorToHSL(toArgb(), hsl)
-    hsl[1] = if (hsl[1] < 0.12f) hsl[1] else (hsl[1] * 0.85f).coerceIn(0.35f, 0.62f)
-    hsl[2] = 0.16f + 0.16f * hsl[2].coerceIn(0f, 1f)
+    hsl[1] = if (hsl[1] < 0.12f) hsl[1] else (hsl[1] * 1.15f).coerceIn(0.48f, 0.80f)
+    hsl[2] = 0.20f + 0.16f * hsl[2].coerceIn(0f, 1f)
     return Color(ColorUtils.HSLToColor(hsl))
 }
 
 private fun Color.dimmed(): Color {
     val hsl = FloatArray(3)
     ColorUtils.colorToHSL(toArgb(), hsl)
-    hsl[2] = 0.12f
+    hsl[2] = 0.14f
     return Color(ColorUtils.HSLToColor(hsl))
 }

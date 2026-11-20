@@ -49,15 +49,15 @@ import kotlin.math.roundToInt
  * terlihat. Setelah nilai pas, jadikan default permanen lalu matikan [ENABLED].
  */
 object CanvasFadeTuning {
-    /** Tampilkan tombol dan popup debug di player utama. */
-    const val ENABLED = true
+    /** Tombol dan popup debug tampil hanya setelah kode rahasia diketik di pencarian. */
+    val unlocked = mutableStateOf(false)
 
-    const val DEFAULT_HEIGHT_SCALE = 0.6f
-    const val DEFAULT_CURVE = 0.8f
-    const val DEFAULT_POWER = 1.3f
-    const val DEFAULT_OFFSET_DP = 0f
-    const val DEFAULT_CURVE_EXP = 2f
-    const val DEFAULT_BLUR_SCALE = 1f
+    const val DEFAULT_HEIGHT_SCALE = 0.52f
+    const val DEFAULT_CURVE = 0.06f
+    const val DEFAULT_POWER = 1.37f
+    const val DEFAULT_OFFSET_DP = 80f
+    const val DEFAULT_CURVE_EXP = 4f
+    const val DEFAULT_BLUR_SCALE = 1.95f
 
     /** Panjang fade: makin besar, batas blur makin naik. */
     val heightScale = mutableFloatStateOf(DEFAULT_HEIGHT_SCALE)
@@ -192,15 +192,26 @@ private fun FadeTunerPanel() {
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f).padding(end = 8.dp),
             )
-            Text(
-                text = "Reset",
-                color = Color.White,
-                fontSize = 13.sp,
-                modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(50))
-                    .clickable { CanvasFadeTuning.reset() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            )
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Reset",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(50))
+                        .clickable { CanvasFadeTuning.reset() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                Text(
+                    text = "Nonaktifkan",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    modifier = Modifier
+                        .background(Color(0xFFB3261E).copy(alpha = 0.8f), RoundedCornerShape(50))
+                        .clickable { CanvasFadeTuning.unlocked.value = false }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
         }
     }
 }

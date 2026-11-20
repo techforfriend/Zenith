@@ -1206,29 +1206,17 @@ fun SettingsScreen(
                                 .padding(vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            // A glass foreground holds the finished icon in its own shape on the
-                            // central 72 of 108 dp: scaled 1.5× it fills the tile as designed.
-                            // Only the default goes through an adaptive mask.
-                            val preview = option.previewRes
-                            if (preview == null) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        android.widget.ImageView(ctx).apply { setImageResource(option.iconRes) }
-                                    },
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .clip(RoundedCornerShape(22.dp)),
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(preview),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .scale(1.5f),
-                                )
-                            }
+                            // Semua ikon (default dan glass) lewat mask adaptive sistem, sama
+                            // seperti yang dilihat di launcher.
+                            AndroidView(
+                                factory = { ctx ->
+                                    android.widget.ImageView(ctx).apply { setImageResource(option.iconRes) }
+                                },
+                                update = { view -> view.setImageResource(option.iconRes) },
+                                modifier = Modifier
+                                    .size(68.dp)
+                                    .clip(RoundedCornerShape(22.dp)),
+                            )
                             Text(
                                 text = stringResource(option.labelRes),
                                 textAlign = TextAlign.Center,

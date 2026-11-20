@@ -39,6 +39,11 @@ val canvasSecret: String = (
         ?: System.getenv("CANVAS_SECRET")
         ?: ""
     ).trim()
+val debugSecret: String = (
+    localProps.getProperty("DEBUG_SECRET")
+        ?: System.getenv("DEBUG_SECRET")
+        ?: ""
+    ).trim()
 
 /*
  * Where Listen Together's party server lives. Not a credential — it is a public
@@ -116,6 +121,7 @@ android {
         // the same GitHub release, told apart by file name. See
         // AppUpdateChecker.apkAssetUrl.
         buildConfigField("String", "CANVAS_SECRET", "\"$canvasSecret\"")
+        buildConfigField("String", "DEBUG_SECRET", "\"${debugSecret.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"Zenith-\"")
         buildConfigField("String", "UPDATE_REPO", "\"${updateRepo.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }

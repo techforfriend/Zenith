@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -431,6 +432,7 @@ fun SongRow(
 fun SwipeToQueueBox(
     onSwipeToQueue: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    destructive: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     if (onSwipeToQueue == null) {
@@ -552,7 +554,7 @@ fun SwipeToQueueBox(
                     0f
                 }
             },
-        backgroundContent = { QueueSwipeBackground(swipeState, armedState) },
+        backgroundContent = { QueueSwipeBackground(swipeState, armedState, destructive) },
     ) {
         content()
     }
@@ -560,9 +562,9 @@ fun SwipeToQueueBox(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueSwipeBackground(swipeState: SwipeToDismissBoxState, armed: Boolean) {
+private fun QueueSwipeBackground(swipeState: SwipeToDismissBoxState, armed: Boolean, destructive: Boolean) {
     val playNext by AppUi.host.swipeToPlayNext.collectAsStateWithLifecycle()
-    val primary = MaterialTheme.colorScheme.primary
+    val primary = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     // The panel brightens as the swipe arms, so it says "let go now" itself.
     val glow by animateFloatAsState(
         targetValue = if (armed) 1f else 0f,
@@ -602,14 +604,14 @@ private fun QueueSwipeBackground(swipeState: SwipeToDismissBoxState, armed: Bool
             Arrangement.Start
         },
     ) {
-        QueueSwipeLabel(playNext, swipeState, armed)
+        QueueSwipeLabel(playNext, swipeState, armed, destructive)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueSwipeLabel(playNext: Boolean, swipeState: SwipeToDismissBoxState, armed: Boolean) {
-    val primary = MaterialTheme.colorScheme.primary
+private fun QueueSwipeLabel(playNext: Boolean, swipeState: SwipeToDismissBoxState, armed: Boolean, destructive: Boolean) {
+    val primary = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     // The badge pops when the swipe arms and fills solid, like a button
     // pressed in.
     val pop by animateFloatAsState(
@@ -618,7 +620,11 @@ private fun QueueSwipeLabel(playNext: Boolean, swipeState: SwipeToDismissBoxStat
         label = "queueSwipePop",
     )
     val iconTint by animateColorAsState(
-        targetValue = if (armed) MaterialTheme.colorScheme.onPrimary else primary,
+        targetValue = if (armed) {
+            if (destructive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onPrimary
+        } else {
+            primary
+        },
         label = "queueSwipeIconTint",
     )
     Row(
@@ -647,7 +653,13 @@ private fun QueueSwipeLabel(playNext: Boolean, swipeState: SwipeToDismissBoxStat
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (playNext) ZenithIcons.PlayNext else ZenithIcons.PlayLast,
+                imageVector = if (destructive) {
+                    Icons.Rounded.Delete
+                } else if (playNext) {
+                    ZenithIcons.PlayNext
+                } else {
+                    ZenithIcons.PlayLast
+                },
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(18.dp),
@@ -655,7 +667,15 @@ private fun QueueSwipeLabel(playNext: Boolean, swipeState: SwipeToDismissBoxStat
         }
         Spacer(Modifier.width(10.dp))
         Text(
-            text = stringResource(if (playNext) Res.string.play_next else Res.string.queue),
+            text = stringResource(
+                if (destructive) {
+                    Res.string.remove_from_queue
+                } else if (playNext) {
+                    Res.string.play_next
+                } else {
+                    Res.string.queue
+                },
+            ),
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
             color = primary,

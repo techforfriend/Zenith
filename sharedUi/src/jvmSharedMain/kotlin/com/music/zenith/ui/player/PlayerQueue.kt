@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
 import com.music.zenith.ui.components.thumbnailBorder
+import com.music.zenith.ui.components.SwipeToQueueBox
 import com.music.zenith.ui.icons.ZenithIcons
 import androidx.compose.material.icons.rounded.Add
 import com.music.zenith.ui.haptics.Haptic
@@ -999,6 +1000,54 @@ private fun InlineQueueRow(
     onClick: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
+    locked: Boolean = false,
+    draggable: Boolean = false,
+    lifted: Boolean = false,
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+) {
+    if (locked || lifted) {
+        InlineQueueRowBody(
+            song = song,
+            isCurrent = isCurrent,
+            onClick = onClick,
+            modifier = modifier,
+            locked = locked,
+            draggable = draggable,
+            lifted = lifted,
+            onDragStart = onDragStart,
+            onDrag = onDrag,
+            onDragEnd = onDragEnd,
+        )
+    } else {
+        SwipeToQueueBox(
+            onSwipeToQueue = onRemove,
+            modifier = modifier,
+            destructive = true,
+        ) {
+            InlineQueueRowBody(
+                song = song,
+                isCurrent = isCurrent,
+                onClick = onClick,
+                modifier = Modifier,
+                locked = locked,
+                draggable = draggable,
+                lifted = lifted,
+                onDragStart = onDragStart,
+                onDrag = onDrag,
+                onDragEnd = onDragEnd,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InlineQueueRowBody(
+    song: Song,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     /** @see InlineQueue */
     locked: Boolean = false,
     /** Shows the handle; drags on it go to the callbacks below. */
@@ -1020,30 +1069,6 @@ private fun InlineQueueRow(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (draggable) {
-            Icon(
-                Icons.Rounded.DragHandle,
-                contentDescription = stringResource(Res.string.drag_to_reorder),
-                tint = Color.White.copy(alpha = 0.4f),
-                modifier = Modifier
-                    .size(20.dp)
-                    // The glyph sits well inset in its own box; this pulls it
-                    // back to the row's edge.
-                    .offset(x = (-4).dp)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { onDragStart() },
-                            onDragEnd = { onDragEnd() },
-                            onDragCancel = { onDragEnd() },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                onDrag(amount.y)
-                            },
-                        )
-                    },
-            )
-            Spacer(Modifier.width(4.dp))
-        }
         AsyncImage(
             model = rememberRemoteArtworkUrl(song),
             contentDescription = null,
@@ -1078,20 +1103,35 @@ private fun InlineQueueRow(
             )
             Spacer(Modifier.width(10.dp))
         }
-        if (!locked) {
+        if (draggable) {
+            val dragLabel = stringResource(Res.string.drag_to_reorder)
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onRemove),
+                    .size(width = 32.dp, height = 36.dp)
+                    .semantics { contentDescription = dragLabel }
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { onDragStart() },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                onDrag(amount.y)
+                            },
+                        )
+                    },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Rounded.Close,
-                    contentDescription = stringResource(Res.string.remove_from_queue),
-                    tint = Color.White.copy(alpha = 0.55f),
-                    modifier = Modifier.size(18.dp),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(3) {
+                        Box(
+                            Modifier
+                                .width(24.dp)
+                                .height(1.5.dp)
+                                .background(Color.White.copy(alpha = 0.45f), RoundedCornerShape(1.dp)),
+                        )
+                    }
+                }
             }
         }
     }

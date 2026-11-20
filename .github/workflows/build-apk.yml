@@ -90,6 +90,7 @@ jobs:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
           CANVAS_SECRET: ${{ secrets.CANVAS_SECRET }}
+          DEBUG_SECRET: ${{ secrets.DEBUG_SECRET }}
         run: |
           set -o pipefail
           chmod +x gradlew
