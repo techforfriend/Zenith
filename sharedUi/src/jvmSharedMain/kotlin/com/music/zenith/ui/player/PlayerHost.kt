@@ -430,6 +430,8 @@ class CanvasVideoSpec(
     val frameGrab: CanvasFrameGrab?,
     /** Pengali [bottomFade] yang dibaca tiap frame, untuk fade yang ikut animasi. */
     val bottomFadeScale: () -> Float = { 1f },
+    /** 0..1: seberapa jauh klip portrait sudah tumbuh dari kotak contain ke crop layar penuh. */
+    val fillProgress: () -> Float = { 0f },
 )
 
 /**
@@ -458,6 +460,8 @@ fun CanvasArtworkPlayer(
     blurPx: () -> Float = { 0f },
     /** Pengali [bottomFade] yang dibaca tiap frame, untuk fade yang ikut animasi. */
     bottomFadeScale: () -> Float = { 1f },
+    /** 0..1: seberapa jauh klip portrait sudah tumbuh dari kotak contain ke crop layar penuh. */
+    fillProgress: () -> Float = { 0f },
     pausedForTransition: Boolean = false,
     /** How long the clip holds still after [pausedForTransition] lifts before it plays on. */
     resumeDelayMs: Long = 0L,
@@ -495,6 +499,7 @@ fun CanvasArtworkPlayer(
             bottomFadeEndPx = bottomFadeEndPx,
             blurPx = blurPx,
             bottomFadeScale = bottomFadeScale,
+            fillProgress = fillProgress,
             pausedForTransition = pausedForTransition,
             resumeDelayMs = resumeDelayMs,
             startPositionMs = startPositionMs,
