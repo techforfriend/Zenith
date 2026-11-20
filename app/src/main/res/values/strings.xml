@@ -354,6 +354,7 @@
     <string name="app_icon_default">Default</string>
 
     <string name="app_icon_liquid_glass" translatable="false">Liquid Glass</string>
+    <string name="app_icon_dark_glass" translatable="false">Dark Glass</string>
     <string name="theme">Theme</string>
     <string name="font">Font</string>
     <string name="font_default">Default</string>

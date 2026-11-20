@@ -16,7 +16,13 @@ import android.content.pm.PackageManager
  */
 enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val previewRes: Int? = null) {
     Default("LauncherDefault", R.mipmap.ic_launcher, R.string.app_icon_default),
-    LiquidGlass("LauncherGlassLight", R.mipmap.ic_liquid_glass, R.string.app_icon_liquid_glass);
+    LiquidGlass("LauncherGlassLight", R.mipmap.ic_liquid_glass, R.string.app_icon_liquid_glass),
+    DarkGlass(
+        "LauncherDarkGlass",
+        R.mipmap.ic_dark_glass,
+        R.string.app_icon_dark_glass,
+        R.drawable.ic_zenith_dark_glass_foreground,
+    );
 
     private fun component(context: Context) =
         ComponentName(context.packageName, "com.music.zenith.$alias")

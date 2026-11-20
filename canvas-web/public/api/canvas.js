@@ -2,7 +2,7 @@ const PROJECT_ID = "zenith-canvas-17133";
 const API_KEY = "AIzaSyCO8txNS4UPwjrRKplPenuL-RA557gGhco";
 const OLD_MANIFEST = "https://vivimusicanvas.mkmdevilmi.workers.dev/canvas.json";
 const crypto = require("crypto");
-const CACHE_MS = 10 * 60 * 1000;
+const CACHE_MS = 60 * 1000;
 const MAX_SKEW_SECONDS = 12 * 60 * 60;
 const cache = { items: null, at: 0 };
 
@@ -94,8 +94,7 @@ module.exports = async (req, res) => {
   }
   try {
     if (!cache.items || Date.now() - cache.at > CACHE_MS) {
-      const own = await loadOwn();
-      const old = await loadOld();
+      const [own, old] = await Promise.all([loadOwn(), loadOld()]);
       const seen = new Set(own.map((item) => item.url));
       cache.items = own.concat(old.filter((item) => item && item.url && !seen.has(item.url)));
       cache.at = Date.now();
