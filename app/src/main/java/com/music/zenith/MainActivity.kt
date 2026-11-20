@@ -263,6 +263,7 @@ import com.music.zenith.ui.components.GlassNavBar
 import com.music.zenith.ui.components.GlassSearchBar
 import com.music.zenith.ui.components.searchMiniRise
 import com.music.zenith.ui.components.searchMiniHide
+import androidx.compose.ui.layout.layout
 import com.music.zenith.ui.components.GlassSearchMorph
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
@@ -322,6 +323,7 @@ import com.music.zenith.ui.components.topBarHeight
 import com.music.zenith.ui.components.AppLanguageDialog
 import com.music.zenith.ui.components.HomeLayoutDialog
 import com.music.zenith.ui.components.TranslationLanguageDialog
+import com.music.zenith.ui.components.CanvasProvidersDialog
 import com.music.zenith.ui.components.LyricsSourcesDialog
 import com.music.zenith.ui.components.ServerEditorHost
 import com.music.zenith.ui.components.UpdateAvailableDialog
@@ -828,6 +830,7 @@ private fun ZenithApp(
     var editingSignatureApi by remember { mutableStateOf(false) }
     var librarySortMenuOpen by remember { mutableStateOf(false) }
     var showLyricsSources by remember { mutableStateOf(false) }
+    var showCanvasProviders by remember { mutableStateOf(false) }
     var showAppLanguage by remember { mutableStateOf(false) }
     var showHomeLayout by remember { mutableStateOf(false) }
     var showTranslationLanguage by remember { mutableStateOf(false) }
@@ -3456,6 +3459,7 @@ private fun ZenithApp(
                                 onChosen = { navigator.pop() },
                                 onConfirmBitPerfect = { confirmBitPerfect = it },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
+                                onCanvasProviders = { showCanvasProviders = true },
                                 contentPadding = listPadding,
                             )
                         } else if (pageRoute == AppRoute.Settings || pageRoute is AppRoute.SettingsSection) {
@@ -4903,7 +4907,15 @@ private fun ZenithApp(
                                 .searchMiniHide { miniHide }
                                 .searchMiniRise { if (searchFromInline) miniOpenProgress() else 1f },
                         )
-                        Spacer(Modifier.height(8.dp))
+                        // Gap shrinks as the search morph opens: the visible search circle is
+                        // ~7dp lower than the 62dp nav pill, so the mini player drops to fill it.
+                        Spacer(
+                            Modifier.layout { _, constraints ->
+                                val p = miniOpenProgress().coerceIn(0f, 1f)
+                                val gapPx = (8.dp.toPx() + (1.dp.toPx() - 8.dp.toPx()) * p).toInt()
+                                layout(constraints.maxWidth, gapPx) {}
+                            },
+                        )
                     }
                     GlassSearchBar(
                         startInline = searchFromInline,
@@ -6462,6 +6474,14 @@ private fun ZenithApp(
             LyricsSourcesDialog(
                 hazeState = hazeState,
                 onDismiss = { showLyricsSources = false },
+            )
+        }
+
+        if (showCanvasProviders) {
+            BackHandler { showCanvasProviders = false }
+            CanvasProvidersDialog(
+                hazeState = hazeState,
+                onDismiss = { showCanvasProviders = false },
             )
         }
 

@@ -13,6 +13,7 @@ import android.net.NetworkCapabilities
 import androidx.media3.common.Player
 import com.music.zenith.BuildConfig
 import com.music.zenith.auth.AuthStore
+import com.music.zenith.data.canvas.CanvasProvider
 import com.music.zenith.data.canvas.SpotifyToken
 import com.music.zenith.data.lyrics.LyricsSource
 import com.music.zenith.data.model.HOME_SLOT_MOODS
@@ -929,6 +930,14 @@ object AppSettings {
     val prioritizeSpotifyCanvas = MutableStateFlow(false)
 
     /**
+     * The order the animated-cover providers are asked in. The first to answer
+     * with a clip that matches the track wins. A full permutation of
+     * [CanvasProvider.entries]. Replaces the old [prioritizeSpotifyCanvas]
+     * switch, which is only read once to seed this on upgrade.
+     */
+    val canvasProviderOrder = MutableStateFlow(CanvasProvider.defaultOrder)
+
+    /**
      * Secondary artist art: a user-hosted artist-signature API used only when
      * Apple Music has no title logo. Blank URL means unconfigured and the
      * lookup is skipped entirely — there is no hosted default.
@@ -1610,6 +1619,7 @@ object AppSettings {
         canvasOverCellular.value = prefs.getBoolean(KEY_CANVAS_OVER_CELLULAR, false)
         spotifyCanvasAutoHide.value = prefs.getBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, true)
         prioritizeSpotifyCanvas.value = prefs.getBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, false)
+        canvasProviderOrder.value = readCanvasProviderOrder()
         signatureApiEnabled.value = prefs.getBoolean(KEY_SIGNATURE_API_ENABLED, false)
         signatureApiUrl.value = normalizeSignatureApiUrl(prefs.getString(KEY_SIGNATURE_API_URL, "").orEmpty())
         fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
@@ -2494,6 +2504,28 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, value).apply()
     }
 
+    fun setCanvasProviderOrder(value: List<CanvasProvider>) {
+        val order = CanvasProvider.ordered(value)
+        canvasProviderOrder.value = order
+        prefs.edit().putString(KEY_CANVAS_PROVIDER_ORDER, order.joinToString(",") { it.name }).apply()
+    }
+
+    fun resetCanvasProviderOrder() {
+        setCanvasProviderOrder(CanvasProvider.defaultOrder)
+    }
+
+    /**
+     * Nothing stored yet: an upgrade from the old switch keeps what it chose
+     * (Spotify first when it was on), a fresh install gets the default order.
+     */
+    private fun readCanvasProviderOrder(): List<CanvasProvider> {
+        val stored = prefs.getString(KEY_CANVAS_PROVIDER_ORDER, null)
+            ?: return if (prioritizeSpotifyCanvas.value) CanvasProvider.spotifyFirst else CanvasProvider.defaultOrder
+        val saved = stored.split(",")
+            .mapNotNull { name -> CanvasProvider.entries.firstOrNull { it.name == name } }
+        return CanvasProvider.ordered(saved)
+    }
+
     fun setSignatureApiEnabled(value: Boolean) {
         signatureApiEnabled.value = value
         prefs.edit().putBoolean(KEY_SIGNATURE_API_ENABLED, value).apply()
@@ -3231,6 +3263,7 @@ object AppSettings {
     private const val KEY_CANVAS_OVER_CELLULAR = "canvas_over_cellular"
     private const val KEY_SPOTIFY_CANVAS_AUTO_HIDE = "spotify_canvas_auto_hide"
     private const val KEY_PRIORITIZE_SPOTIFY_CANVAS = "prioritize_spotify_canvas"
+    private const val KEY_CANVAS_PROVIDER_ORDER = "canvas_provider_order"
     private const val KEY_SIGNATURE_API_ENABLED = "signature_api_enabled"
     private const val KEY_SIGNATURE_API_URL = "signature_api_url"
     private const val KEY_FULL_BLEED_ARTWORK = "full_bleed_artwork"

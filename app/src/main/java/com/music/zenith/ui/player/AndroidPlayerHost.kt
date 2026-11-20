@@ -79,7 +79,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         override val meteredConnection get() = AppSettings.meteredConnection
         override val streamCeilingOverride get() = AppSettings.streamCeilingOverride
         override val preferUsbDac get() = AppSettings.preferUsbDac
-        override val prioritizeSpotifyCanvas get() = AppSettings.prioritizeSpotifyCanvas
+        override val canvasProviderOrder get() = AppSettings.canvasProviderOrder
         override val reduceAnimation get() = AppSettings.reduceAnimation
         override val coverSlideAnimation get() = AppSettings.coverSlideAnimation
         override val coverFluidAnimation get() = AppSettings.coverFluidAnimation

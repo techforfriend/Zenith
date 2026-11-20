@@ -5,7 +5,7 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <!-- Badan kaca: merah, sedikit lebih terang di atas dan di dasar. -->
-    <path android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z">
+    <path android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="54"
@@ -20,7 +20,7 @@
         </aapt:attr>
     </path>
     <!-- Ketebalan kaca: tepi lebih dalam, tengah tetap cerah. -->
-    <path android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z">
+    <path android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:centerX="54"
@@ -34,7 +34,7 @@
         </aapt:attr>
     </path>
     <!-- Cahaya terbiaskan di dasar. -->
-    <path android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z">
+    <path android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:centerX="54"
@@ -47,7 +47,7 @@
         </aapt:attr>
     </path>
     <!-- Kilau lebar di bagian atas. -->
-    <path android:pathData="M22,26C34,17 74,17 86,26C74,38 34,38 22,26Z">
+    <path android:pathData="M24,31C35,19.5 73,19.5 84,31C73,39 35,39 24,31Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="54"
@@ -62,7 +62,7 @@
     </path>
     <!-- Pantulan diagonal, dipotong mengikuti bentuk kaca. -->
     <group>
-        <clip-path android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z" />
+        <clip-path android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z" />
         <path android:pathData="M62,18L78,18L44,90L28,90Z">
             <aapt:attr name="android:fillColor">
                 <gradient
@@ -80,7 +80,7 @@
     </group>
     <!-- Pantulan tajam mengikuti sudut kiri atas. -->
     <path
-        android:pathData="M22.2,33C22.6,25.5 30.5,20.6 41,20.5L66,20.5"
+        android:pathData="M21.4,40C21.8,30 29,22.4 42,20.6L66,20.5"
         android:strokeWidth="0.9"
         android:strokeLineCap="round">
         <aapt:attr name="android:strokeColor">
@@ -98,7 +98,7 @@
     </path>
     <!-- Cahaya tipis di tepi bawah bagian dalam. -->
     <path
-        android:pathData="M32,87C42,88.4 66,88.4 76,87"
+        android:pathData="M36,86.8C44,88 64,88 72,86.8"
         android:strokeWidth="0.8"
         android:strokeLineCap="round">
         <aapt:attr name="android:strokeColor">
@@ -121,7 +121,7 @@
         android:scaleX="0.95"
         android:scaleY="0.95">
         <path
-            android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z"
+            android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z"
             android:strokeWidth="0.8">
             <aapt:attr name="android:strokeColor">
                 <gradient
@@ -140,7 +140,7 @@
     </group>
     <!-- Lis luar: terang di atas dan di dasar. -->
     <path
-        android:pathData="M40,18L68,18C82,18 90,26 90,40L90,68C90,82 82,90 68,90L40,90C26,90 18,82 18,68L18,40C18,26 26,18 40,18Z"
+        android:pathData="M42,18L66,18C80,18 90,28 90,42L90,66C90,80 80,90 66,90L42,90C28,90 18,80 18,66L18,42C18,28 28,18 42,18Z"
         android:strokeWidth="1.1">
         <aapt:attr name="android:strokeColor">
             <gradient

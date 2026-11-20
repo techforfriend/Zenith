@@ -770,6 +770,8 @@
     <string name="spotify_canvas_auto_hide_subtitle">Spotify Canvas 재생 중 5초 후 하프 플레이어를 접어요</string>
     <string name="prioritize_spotify_canvas">Spotify Canvas 우선 사용</string>
     <string name="prioritize_spotify_canvas_subtitle">Apple Music 및 다른 움직이는 커버 제공처보다 Spotify를 먼저 시도해요</string>
+    <string name="canvas_provider_order">캔버스 제공처 순서</string>
+    <string name="canvas_provider_order_subtitle">위에서 아래로 차례로 확인해 곡의 캔버스가 있는 곳을 사용해요</string>
     <string name="status">상태</string>
     <string name="status_dialog_message">프레즌스가 켜져 있는 동안 내 계정에 표시되는 상태예요.</string>
     <string name="status_dnd">방해 금지</string>

@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RenderEffect
+import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.graphics.SurfaceTexture
 import android.os.Build
@@ -69,6 +70,16 @@ import kotlin.math.roundToInt
 import java.util.Locale
 
 private const val TAG = "CanvasArtworkPlayer"
+
+/**
+ * How far the clip's bottom dissolve is lifted at the left and right edges,
+ * as a share of the fade height. The centre keeps the video's bottom, so the
+ * boundary reads as a V, as in Apple Music. Android 13+ only.
+ */
+private const val CLIP_FADE_CURVE = 0.9f
+
+/** Share of the old fade height that is kept, so the dissolve starts a little lower. */
+private const val CLIP_FADE_HEIGHT_SCALE = 0.8f
 
 /**
  * How long a clip gets to paint itself onto a surface it was just handed back
@@ -926,17 +937,22 @@ private fun TextureView.setBottomFade(
     }
     // Along smootherstep, as the still sleeve's banner dissolves, so the clip
     // and a still of it standing in for it end the same way.
-    val gradient = LinearGradient(
-        0f,
-        endY * (1f - fraction.coerceAtMost(1f)),
-        0f,
-        endY,
-        IntArray(FADE_CURVE_STOPS + 1) { i ->
-            android.graphics.Color.argb(1f - smootherStep(i / FADE_CURVE_STOPS.toFloat()), 0f, 0f, 0f)
-        },
-        FloatArray(FADE_CURVE_STOPS + 1) { i -> i / FADE_CURVE_STOPS.toFloat() },
-        Shader.TileMode.CLAMP,
-    )
+    val fadeH = endY * fraction.coerceAtMost(1f) * CLIP_FADE_HEIGHT_SCALE
+    val gradient: Shader = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        curvedFadeShader(bounds.width.toFloat(), endY, fadeH, fadeH * CLIP_FADE_CURVE)
+    } else {
+        LinearGradient(
+            0f,
+            endY - fadeH,
+            0f,
+            endY,
+            IntArray(FADE_CURVE_STOPS + 1) { i ->
+                android.graphics.Color.argb(1f - smootherStep(i / FADE_CURVE_STOPS.toFloat()), 0f, 0f, 0f)
+            },
+            FloatArray(FADE_CURVE_STOPS + 1) { i -> i / FADE_CURVE_STOPS.toFloat() },
+            Shader.TileMode.CLAMP,
+        )
+    }
     // createOffsetEffect(0, 0) is the identity effect over the node's own
     // content, which is the only way to name "what this view drew" as the
     // destination of a blend.
@@ -948,6 +964,33 @@ private fun TextureView.setBottomFade(
         ),
     )
 }
+
+/**
+ * The curved bottom dissolve as an AGSL alpha mask, in the view's own pixels.
+ * Each column's smootherstep band ends [lift] higher the further it is from
+ * the centre (a parabola), so the fade boundary dips in the middle.
+ */
+private const val CURVED_FADE_AGSL = """
+uniform float width;
+uniform float endY;
+uniform float fadeH;
+uniform float lift;
+half4 main(float2 p) {
+    float u = clamp(p.x / width, 0.0, 1.0) * 2.0 - 1.0;
+    float t = clamp((p.y - (endY - fadeH - lift * u * u)) / fadeH, 0.0, 1.0);
+    float s = t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+    return half4(0.0, 0.0, 0.0, 1.0 - s);
+}
+"""
+
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun curvedFadeShader(width: Float, endY: Float, fadeH: Float, lift: Float): RuntimeShader =
+    RuntimeShader(CURVED_FADE_AGSL).apply {
+        setFloatUniform("width", width.coerceAtLeast(1f))
+        setFloatUniform("endY", endY)
+        setFloatUniform("fadeH", fadeH.coerceAtLeast(1f))
+        setFloatUniform("lift", lift)
+    }
 
 /**
  * The pre-[Build.VERSION_CODES.S] bottom fade: the same dissolve

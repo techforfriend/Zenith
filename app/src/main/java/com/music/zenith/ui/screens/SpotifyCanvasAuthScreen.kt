@@ -41,7 +41,6 @@ fun SpotifyCanvasAuthScreen(
 ) {
     val currentToken by AppSettings.spotifySpdcToken.collectAsStateWithLifecycle()
     val autoHidePlayer by AppSettings.spotifyCanvasAutoHide.collectAsStateWithLifecycle()
-    val prioritizeSpotify by AppSettings.prioritizeSpotifyCanvas.collectAsStateWithLifecycle()
     var tokenInput by remember(currentToken) { mutableStateOf(currentToken) }
 
     val scroll = rememberScrollState()
@@ -76,13 +75,6 @@ fun SpotifyCanvasAuthScreen(
                     subtitle = stringResource(R.string.spotify_canvas_auto_hide_subtitle),
                     checked = autoHidePlayer,
                     onCheckedChange = AppSettings::setSpotifyCanvasAutoHide,
-                )
-                Spacer(Modifier.height(4.dp))
-                SettingsSubRow(
-                    title = stringResource(R.string.prioritize_spotify_canvas),
-                    subtitle = stringResource(R.string.prioritize_spotify_canvas_subtitle),
-                    checked = prioritizeSpotify,
-                    onCheckedChange = AppSettings::setPrioritizeSpotifyCanvas,
                 )
             }
 

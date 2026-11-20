@@ -263,7 +263,7 @@ interface PlayerSettingsSource {
     /** A temporary cap over both ceilings, null when none applies — the watch's, on the phone. */
     val streamCeilingOverride: StateFlow<AudioQuality?>
     val preferUsbDac: StateFlow<Boolean>
-    val prioritizeSpotifyCanvas: StateFlow<Boolean>
+    val canvasProviderOrder: StateFlow<List<com.music.zenith.data.canvas.CanvasProvider>>
     val reduceAnimation: StateFlow<Boolean>
     /** Whether the cover slides/sweeps to the new song's on a song change, rather than cutting. */
     val coverSlideAnimation: StateFlow<Boolean>

@@ -48,7 +48,7 @@ import androidx.compose.runtime.rememberUpdatedState
 internal fun rememberCanvasArtwork(song: Song): CanvasArtwork? {
     val canvasEnabled by PlayerSettings.animatedCanvas.collectAsStateWithLifecycle()
     val canvasOverCellular by PlayerSettings.canvasOverCellular.collectAsStateWithLifecycle()
-    val prioritizeSpotifyCanvas by PlayerSettings.prioritizeSpotifyCanvas.collectAsStateWithLifecycle()
+    val canvasProviderOrder by PlayerSettings.canvasProviderOrder.collectAsStateWithLifecycle()
     val meteredConnection by PlayerSettings.meteredConnection.collectAsStateWithLifecycle()
     // The switch turns the feature off outright; this is the narrower "not
     // over cellular" case — see [PlayerSettings.canvasOverCellular] for why a
@@ -62,7 +62,7 @@ internal fun rememberCanvasArtwork(song: Song): CanvasArtwork? {
     // clean; the same-titled-impostor case is guarded where the clip is
     // adopted, by [CanvasArtwork.matches].
     var canvas by remember(song.title, song.artist) { mutableStateOf<CanvasArtwork?>(null) }
-    LaunchedEffect(song.videoId, song.albumName, canvasEnabled, canvasAllowedNow, prioritizeSpotifyCanvas) {
+    LaunchedEffect(song.videoId, song.albumName, canvasEnabled, canvasAllowedNow, canvasProviderOrder) {
         if (!canvasAllowedNow) {
             // Fitur hidup tapi data seluler tidak diizinkan: hanya klip yang
             // sudah utuh di cache disk yang diputar. Selain itu, still art.
