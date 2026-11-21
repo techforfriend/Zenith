@@ -117,6 +117,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.zenith.data.settings.AppSettings
 import com.music.zenith.ui.components.GlassSpring
@@ -997,7 +998,9 @@ private fun SharedTransitionScope.ExpandedBar(
                     elevations = elevations,
                     animatedVisibilityScope = animatedVisibilityScope,
                     tabBarContentModifier = tabBarContentModifier,
-                    modifier = Modifier.weight(1f)
+                    // Di atas lingkaran Search: indikator yang terangkat melewati tepi pill
+                    // tetap tergambar utuh, tidak tertimpa atau terpotong lingkaran.
+                    modifier = Modifier.weight(1f).zIndex(1f)
                 )
             }
 
@@ -1141,13 +1144,17 @@ private fun SharedTransitionScope.ExpandedTabs(
         Offset(if (isRtl) rowSize.width - x else x, rowHeightPx / 2f)
     }
     val showPill = selectedTabIndex >= 0 && tabWidthPx > 0f
+    // Geser tepi depan lensa saat ditarik melewati ujung, searah tarikan (dibalik untuk RTL).
+    val overShiftPx: () -> Float = {
+        (if (isRtl) -1f else 1f) * pill.over * (tabWidthPx * 0.3f + tabStepPx * 0.1f)
+    }
 
     LaunchedEffect(selectedTabIndex) {
         if (selectedTabIndex >= 0) {
             // Back from the standalone tab (Search): the pill flies in from where
             // that tab sits, one step past the last tab, instead of just appearing.
             if (lastSelectedTabIndex < 0) {
-                pill.enterFrom(tabCount.toDouble(), selectedTabIndex)
+                pill.enterFrom((tabCount - 1).toDouble(), selectedTabIndex)
             } else {
                 pill.animateTo(selectedTabIndex)
             }
@@ -1305,8 +1312,11 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     totalDrag += delta * direction
                                     val dragMax = scope.tabs.lastIndex.toFloat() +
                                         (if (scope.standaloneTab != null) STANDALONE_DRAG_REACH else 0f)
-                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
-                                        .coerceIn(0f, dragMax)
+                                    val rawIndex = dragStartIndex + totalDrag / step
+                                    val absoluteIndexFloat = rawIndex.coerceIn(0f, dragMax)
+                                    // Mentok di ujung tapi jari masih menarik: lensa tertarik
+                                    // seperti karet, lalu memantul kembali saat dilepas.
+                                    pill.pullOver(rubberOvershoot(rawIndex - absoluteIndexFloat))
                                     pill.dragTo(absoluteIndexFloat)
 
                                     val approximateTab = absoluteIndexFloat.roundToInt()
@@ -1422,7 +1432,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                 modifier = Modifier
                     .matchParentSize()
                     .pillPlacement(
-                        center = { pillCenterInRow(pill.position) + Offset(padLeftPx, padTopPx) },
+                        center = {
+                            pillCenterInRow(pill.position) + Offset(padLeftPx + overShiftPx(), padTopPx)
+                        },
                         size = { pill.liveSize(restSize, liftedSize) },
                     ),
             )
@@ -1566,8 +1578,19 @@ private fun Modifier.animateEnterExitTab(
     }
 }
 
+/** Jarak maksimum, dalam langkah tab, indikator boleh tertarik melewati ujung pill. */
+private const val OVERSHOOT_LIMIT = 0.3f
+
+/** Hambatan karet: makin jauh ditarik melewati ujung, makin berat, mendekati [OVERSHOOT_LIMIT]. */
+private fun rubberOvershoot(over: Float): Float {
+    if (over == 0f) return 0f
+    val r = abs(over) / OVERSHOOT_LIMIT
+    val v = OVERSHOOT_LIMIT * (r / (r + 1f))
+    return if (over < 0f) -v else v
+}
+
 /** How far past the last tab, in tab steps, a drag may carry the indicator towards the standalone tab. */
-private const val STANDALONE_DRAG_REACH = 1f
+private const val STANDALONE_DRAG_REACH = 0f
 
 private class FloatingTabBarScopeImpl(
     private val inlineSplitLast: Boolean = false,

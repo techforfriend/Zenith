@@ -65,6 +65,19 @@
   .dropHint[hidden] ~ .swap { display: block; }
   .rules { display: flex; justify-content: center; gap: 5px; margin: 0 0 16px; white-space: nowrap; }
   .rules span { font-size: 11px; color: var(--muted); padding: 4px 8px; border-radius: 999px; background: var(--card); }
+  .infoBtn { padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--accent); background: var(--card); }
+  #rulesPop { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,0); transition: background 0.18s ease; }
+  #rulesPop.show { background: rgba(0,0,0,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .popCard { width: min(100%, 340px); padding: 22px 18px 16px; border-radius: 22px; background: var(--card2); border: 0.5px solid var(--line); box-shadow: 0 24px 60px rgba(0,0,0,0.55); transform: scale(0.92); opacity: 0; transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.18s ease; }
+  #rulesPop.show .popCard { transform: none; opacity: 1; }
+  .popCard h3 { margin: 0 0 12px; font-size: 19px; font-weight: 700; letter-spacing: -0.2px; text-align: center; }
+  .popRow { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: baseline; padding: 10px 2px; border-bottom: 0.5px solid var(--line); }
+  .popRow:last-of-type { border-bottom: 0; }
+  .popRow span { color: var(--muted); font-size: 14px; }
+  .popRow b { font-weight: 500; font-size: 14.5px; }
+  .popNote { margin: 8px 2px 16px; color: var(--muted); font-size: 12.5px; }
+  .popCard button.primary { padding: 12px 16px; font-size: 16px; }
+  @media (prefers-reduced-motion: reduce) { #rulesPop, .popCard { transition: none; } }
   ul { list-style: none; padding: 0; margin: 0 0 14px; background: var(--card); border-radius: 12px; overflow: hidden; }
   ul:empty { display: none; }
   li { padding: 11px 14px; font-size: 14px; border-bottom: 0.5px solid var(--line); }
@@ -136,6 +149,11 @@
   .delBtn { position: absolute; z-index: 3; top: 6px; right: 6px; width: 26px; height: 26px; padding: 0; border-radius: 50%; font-size: 18px; line-height: 1; color: #fff; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
   .likes { position: absolute; z-index: 2; left: 8px; bottom: 6px; font-size: 13px; font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,0.9); }
   .cell { cursor: pointer; }
+  .byBtn { justify-self: start; margin-top: 4px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: #fff; background: rgba(250,88,106,0.85); text-shadow: none; }
+  .admBtn { width: 48px; height: 48px; padding: 0; border-radius: 50%; font-size: 24px; line-height: 1; color: #fff; background: rgba(255,69,58,0.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  #userView { position: fixed; inset: 0; z-index: 33; overflow-y: auto; overscroll-behavior: contain; background: var(--bg); }
+  #userView .note { text-align: center; padding: 8px 16px; }
+  .userHead { padding: calc(56px + env(safe-area-inset-top, 0px)) 16px 8px; text-align: center; }
   .cell video { pointer-events: none; }
   #viewer { position: fixed; inset: 0; z-index: 35; background: #000; }
   #viewer .feed { height: 100%; }
@@ -179,7 +197,7 @@
         <span class="swap">Change video</span>
       </label>
       <input id="file" type="file" accept="video/mp4" hidden>
-      <div class="rules"><span>1280x1280</span><span>3-8 seconds</span><span>No audio</span><span>Max 3 MB</span></div>
+      <div class="rules"><button id="rulesBtn" class="infoBtn" type="button">Video requirements</button></div>
       <ul id="checks"></ul>
       <div class="secTitle">Song info</div>
       <div class="info">
@@ -241,7 +259,33 @@
     </div>
     <div id="viewerFeed" class="feed"></div>
   </section>
+
+  <section id="userView" hidden>
+    <div class="upBar">
+      <button id="userClose" class="navBtn" aria-label="Close"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="userHead">
+      <div id="userAvatar" class="avatar">Z</div>
+      <h2 id="userName"></h2>
+    </div>
+    <p id="userStatus" class="note"></p>
+    <div id="userList" class="grid"></div>
+  </section>
 </main>
+
+<div id="rulesPop" hidden>
+  <div class="popCard" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <h3 id="rulesTitle">Video requirements</h3>
+    <div class="popRow"><span>Format</span><b>MP4</b></div>
+    <div class="popRow"><span>Shape</span><b>Square (1:1), width equals height</b></div>
+    <div class="popRow"><span>Resolution</span><b>720 to 1280 px, e.g. 720, 1024, 1080, 1280</b></div>
+    <div class="popRow"><span>Duration</span><b>3 to 8 seconds</b></div>
+    <div class="popRow"><span>Audio</span><b>No audio</b></div>
+    <div class="popRow"><span>File size</span><b>Max 3 MB</b></div>
+    <p class="popNote">Non-square videos (like 9:16) are rejected because they would be cropped in the app.</p>
+    <button id="rulesClose" class="primary" type="button">Got it</button>
+  </div>
+</div>
 
 <div id="dlg" hidden>
   <div class="dlgCard" role="alertdialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgText">
@@ -267,7 +311,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "992141009224",
   appId: "1:992141009224:web:6f27b1b2e2dd9cdeb5937d"
 };
-const RULES = { width: 1280, height: 1280, minSec: 3, maxSec: 8, maxBytes: 3 * 1024 * 1024 };
+const RULES = { minSide: 720, maxSide: 1280, minSec: 3, maxSec: 8, maxBytes: 3 * 1024 * 1024 };
 
 const db = getFirestore(initializeApp(FIREBASE_CONFIG));
 const $ = (id) => document.getElementById(id);
@@ -315,6 +359,19 @@ function session() {
   return DEV ? { token: "dev", name: "Dev Preview" } : null;
 }
 
+let isAdmin = false;
+
+function refreshRole() {
+  if (!session()) { isAdmin = false; return; }
+  api("mine", { action: "role" }).then((d) => {
+    const next = !!(d && d.admin);
+    if (next !== isAdmin) {
+      isAdmin = next;
+      if (feedLoaded) renderFeed();
+    }
+  }).catch(() => {});
+}
+
 function renderAuth() {
   const s = session();
   $("loginBox").hidden = !!s;
@@ -323,13 +380,14 @@ function renderAuth() {
   $("profName").textContent = nm;
   $("avatar").textContent = nm.slice(0, 1).toUpperCase() || "Z";
   if (!$("mine").hidden) loadMine();
+  refreshRole();
 }
 
 async function api(path, body) {
   const s = session();
   if (DEV && s && s.token === "dev") {
     await new Promise((r) => setTimeout(r, 400));
-    if (path === "mine") return { items: DEV_MINE };
+    if (path === "mine") return body && body.action === "role" ? { admin: true } : { items: DEV_MINE };
     if (path === "upload") return { ok: true, name: "dev.mp4", uploadUrl: "", remaining: 5 };
     return { ok: true };
   }
@@ -483,10 +541,25 @@ $("tabUpload").onclick = () => {
   show("upload");
 };
 $("upClose").onclick = () => show("browse");
+
+function closeRules() {
+  const pop = $("rulesPop");
+  pop.classList.remove("show");
+  setTimeout(() => { if (!pop.classList.contains("show")) pop.hidden = true; }, 200);
+}
+$("rulesBtn").onclick = () => {
+  const pop = $("rulesPop");
+  pop.hidden = false;
+  requestAnimationFrame(() => pop.classList.add("show"));
+};
+$("rulesClose").onclick = closeRules;
+$("rulesPop").onclick = (e) => { if (e.target === $("rulesPop")) closeRules(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("rulesPop").hidden) closeRules(); });
 $("tabBrowse").onclick = () => show("browse");
 $("tabMine").onclick = () => show("mine");
 window.addEventListener("popstate", (e) => {
   if (!$("viewer").hidden) { closeViewer(); return; }
+  if (!$("userView").hidden) { closeUser(); return; }
   show(e.state && e.state.zc ? e.state.zc : "browse", true);
 });
 renderAuth();
@@ -626,7 +699,7 @@ $("file").onchange = async () => {
   }
   const checks = [
     ["Format MP4", file.type === "video/mp4"],
-    ["Size " + meta.width + "x" + meta.height + " (must be 1280x1280)", meta.width === RULES.width && meta.height === RULES.height],
+    ["Size " + meta.width + "x" + meta.height + " (must be square, 720 to 1280 px)", meta.width === meta.height && meta.width >= RULES.minSide && meta.width <= RULES.maxSide],
     ["Duration " + meta.duration + " seconds (3 to 8)", meta.duration >= RULES.minSec && meta.duration <= RULES.maxSec],
     ["File " + (meta.size / 1048576).toFixed(2) + " MB (max 3 MB)", meta.size <= RULES.maxBytes]
   ];
@@ -668,12 +741,13 @@ $("send").onclick = async () => {
     show("mine");
   } catch (error) {
     const known = {
-      limit_reached: "Daily upload limit reached (5 per day).",
+      limit_reached: "Daily upload limit reached (3 per day).",
       not_member: "Your account is not a member of the Zenith group.",
       login_required: "Sign in with Telegram first.",
       spec_invalid: "Video specifications do not match.",
       file_invalid: "Invalid video file.",
-      bad_text: "Title, artist, or album is too long."
+      bad_text: "Title, artist, or album is too long.",
+      duplicate: "You already uploaded a canvas for this song."
     };
     $("status").textContent = "Failed: " + (known[error.message] || error.message);
     $("send").disabled = false;
@@ -719,6 +793,13 @@ function slide(id, data) {
   const sub = document.createElement("span");
   sub.textContent = [data.artist, data.album].filter(Boolean).join(" - ");
   meta.append(title, sub);
+  if (isAdmin && data.uid) {
+    const by = document.createElement("button");
+    by.className = "byBtn";
+    by.textContent = "@ " + (data.uname || data.uid);
+    by.onclick = () => openUser(data.uid, data.uname || "");
+    meta.appendChild(by);
+  }
   const side = document.createElement("div");
   side.className = "side";
   const button = document.createElement("button");
@@ -747,6 +828,30 @@ function slide(id, data) {
     button.disabled = false;
   };
   side.append(button, count);
+  if (isAdmin) {
+    const rm = document.createElement("button");
+    rm.className = "admBtn";
+    rm.setAttribute("aria-label", "Delete");
+    rm.textContent = "\u00D7";
+    rm.onclick = async () => {
+      const sure = await askConfirm({
+        title: "Delete this canvas?",
+        text: "Admin action. This video will be permanently removed.",
+        ok: "Delete"
+      });
+      if (!sure) return;
+      rm.disabled = true;
+      try {
+        await api("mine", { action: "delete", id });
+        feedItems = feedItems.filter((i) => i.id !== id);
+        feedLoaded = false;
+        box.remove();
+      } catch (error) {
+        rm.disabled = false;
+      }
+    };
+    side.appendChild(rm);
+  }
   box.append(video, meta, side);
   return box;
 }
@@ -837,13 +942,102 @@ $("viewerClose").onclick = () => {
   else closeViewer();
 };
 
+let userRun = 0;
+
+async function openUser(uid, name) {
+  const run = ++userRun;
+  if (!$("viewer").hidden) closeViewer();
+  for (const v of document.querySelectorAll(".slide video")) v.pause();
+  $("userName").textContent = name || uid;
+  $("userAvatar").textContent = (name || "Z").slice(0, 1).toUpperCase();
+  $("userList").innerHTML = "";
+  $("userStatus").textContent = "Loading...";
+  if ($("userView").hidden) history.pushState({ zc: current, user: 1 }, "");
+  $("userView").hidden = false;
+  try {
+    const data = await api("mine", { action: "user", uid });
+    if (run !== userRun) return;
+    const labels = { approved: "Approved", pending: "Pending", rejected: "Rejected" };
+    const approved = data.items.filter((i) => i.status === "approved").length;
+    const likes = data.items.reduce((n, i) => n + (i.likes || 0), 0);
+    $("userStatus").textContent = data.items.length
+      ? data.items.length + " uploads \u00B7 " + approved + " approved \u00B7 " + likes + " likes"
+      : "No uploads yet.";
+    data.items.forEach((it, idx) => {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const video = document.createElement("video");
+      video.src = it.url + "#t=0.1";
+      video.muted = true;
+      video.playsInline = true;
+      video.controls = false;
+      video.disablePictureInPicture = true;
+      video.preload = "metadata";
+      cell.appendChild(video);
+      cell.onclick = () => openViewer(data.items, idx);
+      const del = document.createElement("button");
+      del.className = "delBtn";
+      del.setAttribute("aria-label", "Delete");
+      del.textContent = "\u00D7";
+      del.onclick = async (e) => {
+        e.stopPropagation();
+        const sure = await askConfirm({
+          title: "Delete this canvas?",
+          text: "Admin action. This video will be permanently removed.",
+          ok: "Delete"
+        });
+        if (!sure) return;
+        del.disabled = true;
+        try {
+          await api("mine", { action: "delete", id: it.id });
+          feedLoaded = false;
+          openUser(uid, name);
+        } catch (error) {
+          del.disabled = false;
+          $("userStatus").textContent = "Failed to delete: " + error.message;
+        }
+      };
+      cell.appendChild(del);
+      if (it.status !== "approved") {
+        const badge = document.createElement("span");
+        badge.className = "badge " + it.status;
+        badge.textContent = labels[it.status] || it.status;
+        cell.appendChild(badge);
+      }
+      const likeEl = document.createElement("span");
+      likeEl.className = "likes";
+      likeEl.textContent = "\u2665 " + (it.likes || 0);
+      cell.appendChild(likeEl);
+      $("userList").appendChild(cell);
+    });
+  } catch (error) {
+    if (run !== userRun) return;
+    $("userStatus").textContent = "Failed to load: " + error.message;
+  }
+}
+
+function closeUser() {
+  userRun++;
+  $("userView").hidden = true;
+  $("userList").innerHTML = "";
+  for (const v of document.querySelectorAll("#feed .slide video")) if (v.getAttribute("src")) v.play().catch(() => {});
+}
+$("userClose").onclick = () => {
+  if (history.state && history.state.user) history.back();
+  else closeUser();
+};
+
+let mineRun = 0;
+
 async function loadMine() {
+  const run = ++mineRun;
   const list = $("mineList");
   list.innerHTML = "";
   if (!session()) { $("mineStatus").textContent = "Sign in with Telegram to see your uploads."; return; }
   $("mineStatus").textContent = "Loading...";
   try {
     const data = await api("mine", {});
+    if (run !== mineRun) return;
     const labels = { approved: "Approved", pending: "Pending", rejected: "Rejected" };
     $("mineStatus").textContent = data.items.length ? "" : "You haven't uploaded any canvases yet.";
     $("stUp").textContent = String(data.items.length);
@@ -898,6 +1092,7 @@ async function loadMine() {
       list.appendChild(cell);
     }
   } catch (error) {
+    if (run !== mineRun) return;
     $("mineStatus").textContent = "Failed to load: " + error.message;
   }
 }

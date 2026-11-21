@@ -4088,7 +4088,7 @@ class CrossfadeController(
          * before moving the queue plainly. Short on purpose: unlike an
          * automatic transition, someone is waiting on this button.
          */
-        const val SKIP_ARM_TIMEOUT_MS = 1_800L
+        const val SKIP_ARM_TIMEOUT_MS = 400L
 
         /**
          * Where the outgoing low-pass sits the instant a filter ride begins.

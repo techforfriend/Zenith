@@ -346,6 +346,10 @@ internal fun AndroidCanvasArtworkPlayer(
                 val aspect = if (width.isFinite() && width > 0f && videoSize.height > 0) {
                     width / videoSize.height
                 } else 0f
+                // Ukuran "tidak diketahui" sesaat (surface diganti di tengah transisi) tidak
+                // boleh menghapus matriks crop: video akan tampak gepeng dan blur hilang.
+                // Klip baru sudah mereset aspect lewat LaunchedEffect(url).
+                if (aspect <= 0f && clipAspect > 0f) return
                 if (aspect != clipAspect) rendered = false
                 clipAspect = aspect
                 reportAspect(aspect)
@@ -610,6 +614,10 @@ internal fun AndroidCanvasArtworkPlayer(
                         height: Int,
                     ) {
                         delegate?.onSurfaceTextureSizeChanged(surface, width, height)
+                        // Matriks crop dihitung ulang seketika, bukan menunggu update berikutnya.
+                        textureView?.applyContentTransform(
+                            clipAspect, currentContentMode, currentAlignPortraitTop, currentFillProgress(),
+                        )
                         if (currentContentMode == CanvasContentMode.FIT_PORTRAIT && clipAspect in 0f..1f) {
                             rendered = false
                         }
@@ -664,6 +672,13 @@ internal fun AndroidCanvasArtworkPlayer(
                     }
                 }
             }
+            texture.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                    (v as TextureView).applyContentTransform(
+                        clipAspect, currentContentMode, currentAlignPortraitTop, currentFillProgress(),
+                    )
+                }
+            }
             textureView = texture
             // Wrapped on every API level so there is one view tree to reason
             // about: below API 31 the frame is what draws [bottomFade], and
@@ -694,14 +709,20 @@ internal fun AndroidCanvasArtworkPlayer(
             // closing into the mini player, and each pass built a fresh matrix,
             // gradient and three RenderEffects for a picture that hadn't
             // moved — and re-setting the effect makes the node rebuild it.
+            // Crop penuh tanpa fade bawah tidak punya margin transparan: opaque menghindari
+            // buffer setengah transparan yang tampak sebagai garis hitam saat blur berubah.
+            val wantOpaque = contentMode == CanvasContentMode.CROP && bottomFade <= 0.001f
+            if (view.isOpaque != wantOpaque) view.isOpaque = wantOpaque
             val fill = fillProgress().coerceIn(0f, 1f)
             if (applied.transformDiffers(clipAspect, contentMode, alignPortraitTop, view.width, view.height, fill)) {
                 view.applyContentTransform(clipAspect, contentMode, alignPortraitTop, fill)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 // Read here so the blur follows the panel's progress every frame.
+                // Dibulatkan per 2px: RenderEffect tidak dibuat ulang tiap frame animasi,
+                // sehingga layer blur tidak ter-render ulang di tengah frame decoder baru.
                 val blur = (blurPx() * CanvasFadeTuning.blurScale.floatValue)
-                    .let { if (it < 0.5f) 0f else it }
+                    .let { if (it < 0.5f) 0f else (it / 2f).roundToInt() * 2f }
                 val fadeNow = bottomFade * bottomFadeScale().coerceIn(0f, 1f)
                 // Ujung fade ikut turun mengikuti dasar klip yang tumbuh memenuhi view.
                 val fadeEnd = bottomFadeEndPx?.let { it + (bounds.height - it) * fill }
@@ -761,6 +782,7 @@ private fun TextureView.captureAt(
             }
         } finally {
             setTransform(viewTransform)
+            invalidate()
         }
         if (raw == null) return null
         val frame = shownFrame(raw, clipAspect, contentMode, alignPortraitTop)

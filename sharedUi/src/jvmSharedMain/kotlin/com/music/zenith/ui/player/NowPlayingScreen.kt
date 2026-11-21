@@ -1979,8 +1979,13 @@ fun NowPlayingScreen(
 
     // Returning from a subview, or regaining the TextureView after backgrounding,
     // is a fresh visit, so show the deck again before any optional countdown.
-    LaunchedEffect(spotifyCanvasPresentation, lyricsOpen, queueOpen) {
-        if (spotifyCanvasPresentation && !lyricsOpen && !queueOpen) {
+    // Menutup lirik/antrean di atas Spotify Canvas layar penuh: dek kaca bawah ikut
+    // masuk sejak awal gerakan kembali, bukan baru setelah setengah jalan, supaya blur
+    // bawah tidak putus antara blur penuh panel dan dek.
+    val deckReturning = clipFullscreen && canvasRendered && !lyricsOpen && !queueOpen &&
+        !queueDragging && collapseStarted
+    LaunchedEffect(spotifyCanvasPresentation, deckReturning, lyricsOpen, queueOpen) {
+        if ((spotifyCanvasPresentation || deckReturning) && !lyricsOpen && !queueOpen) {
             spotifyCanvasControlsOpen = true
         }
     }
@@ -2552,8 +2557,11 @@ fun NowPlayingScreen(
     // on) juga harus jadi sumber blur live untuk popup dan menu di atasnya. Tanpa ini
     // spotifyCanvasPresentation sudah false begitu panel terbuka (heroClip lepas di
     // p >= 0.5), sehingga popup jatuh ke still statis.
+    // clipHeldForPanels menahan backdrop live sepanjang animasi kembali ke player utama,
+    // supaya blur tidak putus lalu menyala lagi saat panel menutup.
     val liveBackdropOn = spotifyCanvasPresentation ||
-        (liveCanvasPanels && clipFullscreen && canvasRendered && (lyricsOpen || queueOpen))
+        (liveCanvasPanels && clipFullscreen && canvasRendered &&
+            (lyricsOpen || queueOpen || clipHeldForPanels))
     val reportLiveCanvas by rememberUpdatedState(onLiveCanvasChanged)
     LaunchedEffect(liveBackdropOn) { reportLiveCanvas(liveBackdropOn) }
     DisposableEffect(Unit) { onDispose { reportLiveCanvas(false) } }
@@ -3120,7 +3128,9 @@ fun NowPlayingScreen(
                         colorFadeMillis = 3_500,
                         modifier = Modifier.graphicsLayer { alpha = 1f - fullArtworkBackdropAlpha },
                     )
-                    if (fullBleedArt && heroMode) {
+                    // Sambungan tepi cover tetap tampil di lagu ber-canvas (canvasHero)
+                    // walau "Sampul layar penuh" dimatikan; tanpa canvas tetap ikut setelan.
+                    if ((fullBleedArt || canvasHero) && heroMode) {
                         val edgeAlpha by animateFloatAsState(
                             targetValue = if (!lyricsOpen && !queueOpen) 1f else 0f,
                             animationSpec = tween(durationMillis = 300),
@@ -3229,7 +3239,7 @@ fun NowPlayingScreen(
                                         // Live blur off: klip bertahan utuh sampai blur
                                         // frame beku-nya siap, lalu melebur ke sana.
                                         if (spotifyFrameOnly && (lyricsOpen || queueOpen)) spotifyFrameHandoff
-                                        else 1f - smootherStep(((p() - 0.05f) / 0.3f).coerceIn(0f, 1f))
+                                        else 1f - smootherStep(((p() - 0.05f) / 0.55f).coerceIn(0f, 1f))
                                     } else (1f - 2f * p()).coerceIn(0f, 1f)
                                     ) * dockFade() * clipMixFade.value
                             },
@@ -3496,15 +3506,36 @@ fun NowPlayingScreen(
                 // Selagi frame canvas lama menutup layar, kaca dan dim hidup ikut
                 // tersembunyi (kaca di dalam frame sudah menggantikannya), lalu naik
                 // pelan seiring frame memudar — bukan langsung tampil memblur video baru.
-                val liveDeckShare: () -> Float = {
-                    if (dissolve.fullFrame != null && dissolve.fullProgress < 1f) {
-                        smootherStep(dissolve.fullProgress)
+                // Live blur off, masuk ke panel: dek bertahan selama klip belum selesai
+                // melebur ke blur frame beku, supaya bagian bawah tidak sempat tajam.
+                val deckHandingOff by remember(spotifyFrameOnly, lyricsOpen, queueOpen) {
+                    derivedStateOf {
+                        spotifyFrameOnly && (lyricsOpen || queueOpen) && spotifyFrameHandoff > 0.001f
+                    }
+                }
+                val deckShown = spotifyCanvasPresentation || deckReturning || deckHandingOff
+                // Dek ikut memudar bersama klip saat klip melebur ke blur beku.
+                val deckFollowsClip: () -> Float = {
+                    if (spotifyFrameOnly && (lyricsOpen || queueOpen)) spotifyFrameHandoff else 1f
+                }
+                // Live blur off, kembali: dim dek baru naik seiring klip tajam muncul,
+                // tidak menggelapkan blur beku lebih dulu.
+                val deckDimFollow: () -> Float = {
+                    if (spotifyFrameOnly && deckReturning) {
+                        1f - smootherStep(((p() - 0.05f) / 0.55f).coerceIn(0f, 1f))
                     } else {
                         1f
                     }
                 }
+                val liveDeckShare: () -> Float = {
+                    (if (dissolve.fullFrame != null && dissolve.fullProgress < 1f) {
+                        smootherStep(dissolve.fullProgress)
+                    } else {
+                        1f
+                    }) * deckFollowsClip()
+                }
                 AnimatedVisibility(
-                    visible = spotifyCanvasPresentation && spotifyCanvasControlsOpen,
+                    visible = deckShown && spotifyCanvasControlsOpen,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -3581,15 +3612,15 @@ fun NowPlayingScreen(
                 // under it: the deck's blur samples the video layer itself, so a dim
                 // beneath it never reached the glass and the deck stayed bright.
                 val spotifyCanvasDim = animateFloatAsState(
-                    targetValue = if (spotifyCanvasPresentation && spotifyCanvasControlsOpen) 0.5f else 0f,
+                    targetValue = if (deckShown && spotifyCanvasControlsOpen) 0.5f else 0f,
                     animationSpec = tween(SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS),
                     label = "spotifyCanvasDim",
                 )
                 val spotifyCanvasDimShowing by remember { derivedStateOf { spotifyCanvasDim.value > 0f } }
-                if (spotifyCanvasPresentation || spotifyCanvasDimShowing) {
+                if (deckShown || spotifyCanvasDimShowing) {
                     Box(
                         Modifier.matchParentSize()
-                            .graphicsLayer { alpha = spotifyCanvasDim.value * liveDeckShare() }
+                            .graphicsLayer { alpha = spotifyCanvasDim.value * liveDeckShare() * deckDimFollow() }
                             .background(Color.Black),
                     )
                 }

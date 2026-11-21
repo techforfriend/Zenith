@@ -56,6 +56,17 @@ function readSession(req) {
   }
 }
 
+async function isAdmin(userId) {
+  if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) return false;
+  const url = "https://api.telegram.org/bot" + process.env.TELEGRAM_BOT_TOKEN + "/getChatMember?chat_id=" +
+    encodeURIComponent(process.env.TELEGRAM_CHAT_ID) + "&user_id=" + encodeURIComponent(userId);
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const json = await res.json();
+  if (!json.ok) return false;
+  const status = json.result.status;
+  return status === "creator" || status === "administrator";
+}
+
 function str(field) {
   return field && field.stringValue !== undefined ? field.stringValue : "";
 }
@@ -80,6 +91,23 @@ module.exports = async (req, res) => {
   try {
     const token = await googleToken();
     const body = req.body && typeof req.body === "object" ? req.body : {};
+    if (body.action === "role") {
+      res.status(200).json({ admin: await isAdmin(session.uid) });
+      return;
+    }
+    let queryUid = String(session.uid);
+    if (body.action === "user") {
+      const target = String(body.uid || "");
+      if (!/^\d{1,20}$/.test(target)) {
+        res.status(400).json({ error: "bad_uid" });
+        return;
+      }
+      if (!(await isAdmin(session.uid))) {
+        res.status(403).json({ error: "forbidden" });
+        return;
+      }
+      queryUid = target;
+    }
     if (body.action === "delete") {
       const id = String(body.id || "");
       if (!/^[A-Za-z0-9]{10,40}$/.test(id) || !process.env.SUPABASE_SECRET_KEY) {
@@ -95,7 +123,7 @@ module.exports = async (req, res) => {
       if (!found.ok) throw new Error("firestore get " + found.status);
       const doc = await found.json();
       const df = doc.fields || {};
-      if (str(df.uid) !== String(session.uid)) {
+      if (str(df.uid) !== String(session.uid) && !(await isAdmin(session.uid))) {
         res.status(403).json({ error: "forbidden" });
         return;
       }
@@ -121,7 +149,7 @@ module.exports = async (req, res) => {
       body: JSON.stringify({
         structuredQuery: {
           from: [{ collectionId: "canvases" }],
-          where: { fieldFilter: { field: { fieldPath: "uid" }, op: "EQUAL", value: { stringValue: session.uid } } },
+          where: { fieldFilter: { field: { fieldPath: "uid" }, op: "EQUAL", value: { stringValue: queryUid } } },
           limit: 100
         }
       }),
@@ -141,6 +169,8 @@ module.exports = async (req, res) => {
         album: str(f.album),
         url: str(f.url),
         status: str(f.status),
+        uid: str(f.uid),
+        uname: str(f.uname),
         likes,
         createdAt: f.createdAt && f.createdAt.timestampValue ? f.createdAt.timestampValue : ""
       });

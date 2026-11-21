@@ -114,6 +114,8 @@ internal class GlassPillMotion(
     private val liftXAnim = Animatable(0f, 0.001f)
     private val liftYAnim = Animatable(0f, 0.001f)
     private val stretchAnim = Animatable(0f, 0.05f)
+    private val overSpec = spring<Float>(dampingRatio = 0.45f, stiffness = 320f, visibilityThreshold = 0.001f)
+    private val overAnim = Animatable(0f, 0.001f)
 
     private var held = false
     private var liftJob: Job? = null
@@ -130,6 +132,22 @@ internal class GlassPillMotion(
 
     /** The height lift; see [liftX]. */
     val liftY: Float get() = liftYAnim.value
+
+    /**
+     * Tarikan karet melewati ujung pill, dalam langkah tab: positif melewati tab terakhir,
+     * negatif melewati tab pertama. Nol di tengah; kembali ke nol dengan spring saat dilepas.
+     */
+    val over: Float get() = overAnim.value
+
+    /** Jari masih menarik setelah mentok di ujung: [value] sudah diberi hambatan oleh pemanggil. */
+    fun pullOver(value: Float) {
+        if (reduceMotion) return
+        scope.launch { overAnim.snapTo(value) }
+    }
+
+    private fun releaseOver() {
+        scope.launch { overAnim.animateTo(0f, overSpec) }
+    }
 
     /** How much of the glass is on, `0`..`1`: quick with the press, gone only as the pill shrinks back. */
     val material: Float
@@ -244,6 +262,7 @@ internal class GlassPillMotion(
         if (!held) return
         held = false
         index = next
+        releaseOver()
         if (reduceMotion) {
             snapTo(next)
             return
@@ -326,7 +345,12 @@ internal class GlassPillMotion(
         val w = rest.width + (lifted.width - rest.width) * liftX
         val h = rest.height + (lifted.height - rest.height) * liftY
         val s = stretch()
-        return Size(w * (1f + s), h * (1f - s / 3f))
+        val o = abs(overAnim.value)
+        // Ditarik melewati ujung: lensa memanjang ke arah tarikan dan sedikit memipih.
+        return Size(
+            w * (1f + s) + rest.width * OVER_WIDEN * o,
+            h * (1f - s / 3f) * (1f - OVER_SQUASH * o),
+        )
     }
 
     private companion object {
@@ -336,6 +360,12 @@ internal class GlassPillMotion(
 
         /** The lift is released this close (in tab steps) to the target tab. */
         const val LAND_STEPS = 0.05f
+
+        /** Tambahan lebar lensa per langkah tab tarikan melewati ujung, sebagai bagian lebar tab. */
+        const val OVER_WIDEN = 0.6f
+
+        /** Berkurangnya tinggi lensa per langkah tab tarikan melewati ujung. */
+        const val OVER_SQUASH = 0.12f
     }
 }
 
