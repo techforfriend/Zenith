@@ -1161,7 +1161,8 @@ fun NowPlayingScreen(
 
     val syncedLyricsEnabled by PlayerSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricStripSetting by PlayerSettings.lyricStrip.collectAsStateWithLifecycle()
-    val lyricStripEnabled = syncedLyricsEnabled && lyricStripSetting
+    // Saklar di popup debug bisa memaksa nilai ini selama mode debug aktif.
+    val lyricStripEnabled = syncedLyricsEnabled && ControlLayoutTuning.lyricStrip(lyricStripSetting)
     val lyricsOffsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
     // A lambda, not a value: read by the lyric strip and panel in scopes of
     // their own, so a tick recomposes them and not the player around them.
@@ -1169,7 +1170,8 @@ fun NowPlayingScreen(
     val seekToLyric: (Long) -> Unit = { lineTimeMs ->
         onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs))
     }
-    val hideVolumeBar by PlayerSettings.hideVolumeBar.collectAsStateWithLifecycle()
+    val hideVolumeBarSetting by PlayerSettings.hideVolumeBar.collectAsStateWithLifecycle()
+    val hideVolumeBar = ControlLayoutTuning.hideVolume(hideVolumeBarSetting)
     val hideSongStatus by PlayerSettings.hideSongStatus.collectAsStateWithLifecycle()
 
     // Animated cover art: the looping video some labels publish alongside a
@@ -3371,8 +3373,13 @@ fun NowPlayingScreen(
                 // Live blur on: the clip itself is blurred live on its TextureView; no static still.
 
                 // Popup debug untuk menyetel fade bawah klip secara langsung.
-                if (CanvasFadeTuning.unlocked.value && (heroClipMounted != null || fullBleedArt) && !dockMoving && !lyricsOpen && !queueOpen) {
-                    CanvasFadeDebugTuner()
+                if (CanvasFadeTuning.unlocked.value && !dockMoving && !lyricsOpen && !queueOpen) {
+                    CanvasFadeDebugTuner(
+                        canvasActive = heroClipMounted != null || fullBleedArt,
+                        hideVolume = hideVolumeBar,
+                        lyricStrip = lyricStripEnabled,
+                        lyricStripAvailable = syncedLyricsEnabled,
+                    )
                 }
 
                 // Frame terakhir Spotify Canvas layar penuh, di atas latar dan di
@@ -3891,7 +3898,10 @@ fun NowPlayingScreen(
                         // or coming back from the lyrics panel, where the strip is
                         // rebuilt from scratch) was pocketed for good. The gaps
                         // ratcheted open a little at a time and the sleeve paid for it.
-                        val roomy = maxHeight + (if (heroMode) controlSpread else 0.dp)
+                        // Tinggi deck kontrol yang disetel lewat popup debug tidak boleh
+                        // mengubah ukuran cover: selisihnya ditambahkan kembali di sini.
+                        val tuneDelta = ControlLayoutTuning.deckDelta(hideVolumeBar, lyricStripEnabled)
+                        val roomy = maxHeight + tuneDelta + (if (heroMode) controlSpread else 0.dp)
                         // The sleeve is square, so it is bounded by whichever of the
                         // two axes runs out first: the player's width on a phone, or —
                         // on a tablet, where there is width to spare — the height left
@@ -3906,14 +3916,14 @@ fun NowPlayingScreen(
                         // takes the gaps below to catch up with a change in their own
                         // height: a sleeve a few dp under for one frame is a better
                         // failure than a credits row overhanging the lyric strip.
-                        val fullArt = minOf(wantArt, maxHeight - ART_TITLE_GAP - HEADER_HEIGHT)
+                        val fullArt = minOf(wantArt, maxHeight + tuneDelta - ART_TITLE_GAP - HEADER_HEIGHT)
                             .coerceAtLeast(THUMB_SIZE)
                         // Slot yang sama di mode full-bleed maupun kartu, supaya judul dan
                         // tombol tidak bergeser saat lagu berpindah antar dua mode itu.
                         val slotArt = minOf(
                             maxWidth + 48.dp,
                             roomy - ART_TITLE_GAP - HEADER_HEIGHT,
-                            maxHeight - ART_TITLE_GAP - HEADER_HEIGHT,
+                            maxHeight + tuneDelta - ART_TITLE_GAP - HEADER_HEIGHT,
                         ).coerceAtLeast(fullArt)
                         // What's left over once the sleeve, the gap and the credits have
                         // had theirs. A few dp on a phone; the better part of a
@@ -3989,14 +3999,21 @@ fun NowPlayingScreen(
                         // the pair sits centred while the queue is closed — in whatever
                         // the controls couldn't take, which on all but the tallest
                         // screens is nothing.
-                        val groupTop = (maxHeight - slotArt - ART_TITLE_GAP - HEADER_HEIGHT)
+                        val groupTop = (maxHeight + tuneDelta - slotArt - ART_TITLE_GAP - HEADER_HEIGHT)
                             .coerceAtLeast(0.dp) / 2
                         // The lyric strip sits right under the credits row, so the
                         // extra drop would push the artist into it.
-                        val cardArtDrop =
-                            if (!heroMode && !videoMode && !lyricStripEnabled) CARD_ART_DROP else 0.dp
+                        // Saat dipisah dari lirik (popup debug), turunan otomatis karena
+                        // lirik atas bar mati dibuang; posisi hanya dari setelan debug.
+                        val titleSeparate = ControlLayoutTuning.titleSeparate(hideVolumeBar, lyricStripEnabled)
+                        val cardArtDrop = (
+                            (if (!heroMode && !videoMode && !lyricStripEnabled && !titleSeparate) CARD_ART_DROP else 0.dp) +
+                                (if (videoMode) 0.dp else ControlLayoutTuning.artExtra(hideVolumeBar, lyricStripEnabled))
+                            ).coerceAtLeast(0.dp)
                         val cardTitleDrop =
-                            if (!heroMode && !videoMode && !lyricStripEnabled) CARD_TITLE_DROP else 0.dp
+                            (if (!heroMode && !videoMode && !lyricStripEnabled && !titleSeparate) CARD_TITLE_DROP else 0.dp) +
+                                (if (videoMode) 0.dp else ControlLayoutTuning.titleExtra(hideVolumeBar, lyricStripEnabled))
+                        val titleHeroDrop = if (titleSeparate) 0.dp else heroTitleDrop
                         // Functions of the collapse, called at placement and measure
                         // — see [p]. Composition never reads them.
                         fun artSize(): Dp = lerp(fullArt, THUMB_SIZE, p())
@@ -4006,7 +4023,7 @@ fun NowPlayingScreen(
                         // hard against the left edge with the credits beside it.
                         fun artStart(): Dp = lerp((maxWidth - fullArt) / 2, 0.dp, p())
                         fun regularTitleTop(): Dp =
-                            lerp(groupTop + slotArt + ART_TITLE_GAP + heroTitleDrop + cardTitleDrop, 0.dp, p())
+                            lerp(groupTop + slotArt + ART_TITLE_GAP + titleHeroDrop + cardTitleDrop, 0.dp, p())
                         // Once Spotify's control deck has left, keep the only remaining
                         // player chrome against the bottom edge instead of stranding it
                         // where the artwork's title normally sits near mid-screen.
@@ -4040,7 +4057,7 @@ fun NowPlayingScreen(
                         // screen's top and this box's own top is fixed padding, so it
                         // can simply be added back up rather than measured.
                         val bannerBottom = statusBarTop + topStrip + ART_BOX_TOP_PAD +
-                            groupTop + slotArt + ART_TITLE_GAP / 2 + heroTitleDrop
+                            groupTop + slotArt + ART_TITLE_GAP / 2 + titleHeroDrop
                         // Frozen while lyrics are up. The controls now retain their full
                         // footprint across the transition, so this answer is identical
                         // on both sides; avoiding writes during the panel keeps the
@@ -5742,6 +5759,7 @@ Spacer(Modifier.width(12.dp))
                                 .padding(vertical = 4.dp),
                         )
                     }
+                    ControlGap(hideVolumeBar, lyricStripEnabled) { it.scrubTop }
                     val transitionWindow by PlayerSettings.smartTransitionWindow.collectAsStateWithLifecycle()
                     PlayerScrubber(
                         shown = shown,
@@ -5772,7 +5790,11 @@ Spacer(Modifier.width(12.dp))
                     // which sit close enough together to read as one. Both of its own
                     // gaps take half the spread, so on a tall screen it holds the
                     // centre rather than drifting up under the seek bar.
-                    Spacer(Modifier.height(28.dp + (if (heroMode) controlSpread else 0.dp) / 2))
+                    ControlGap(
+                        hideVolumeBar,
+                        lyricStripEnabled,
+                        extra = (if (heroMode) controlSpread else 0.dp) / 2,
+                    ) { it.transportTop }
 
                     TransportRow(
                         isPlaying = isPlaying,
@@ -5790,7 +5812,11 @@ Spacer(Modifier.width(12.dp))
                     // hidden. Removing the slot itself shortened the controls by 50dp
                     // and moved every control below it. A display preference should not
                     // change the half-player's geometry.
-                    Spacer(Modifier.height(0.dp + (if (heroMode) controlSpread else 0.dp) / 2))
+                    ControlGap(
+                        hideVolumeBar,
+                        lyricStripEnabled,
+                        extra = (if (heroMode) controlSpread else 0.dp) / 2,
+                    ) { it.transportBottom }
 
                     if (!hideVolumeBar) {
                         // Extra air only while the slider is shown, so it doesn't
@@ -5798,23 +5824,23 @@ Spacer(Modifier.width(12.dp))
                         // hidden state keeps its old footprint. The deck is measured
                         // at natural height, so the lyric strip on or off changes
                         // nothing here: the artwork simply takes what is left.
-                        Spacer(Modifier.height(8.dp))
+                        ControlGap(hideVolumeBar, lyricStripEnabled) { it.volumeTop }
                         VolumeRow(
                             value = { volume.level.value },
                             onValueChange = onVolumeChange,
                             onValueChangeFinished = onVolumeChangeFinished,
                         )
-                        Spacer(Modifier.height(12.dp))
+                        ControlGap(hideVolumeBar, lyricStripEnabled) { it.volumeBottom }
                     } else {
-                        Spacer(Modifier.height(VOLUME_ROW_HEIGHT))
+                        ControlGap(hideVolumeBar, lyricStripEnabled) { it.volumeSlot }
                     }
 
                     // The volume slider already has 13dp below its drawn track.
                     // Balance that invisible inset with the caption gap below the icons.
-                    Spacer(Modifier.height(0.dp))
+                    ControlGap(hideVolumeBar, lyricStripEnabled) { it.actionsTop }
 
                     playerActions()
-                    Spacer(Modifier.height(20.dp))
+                    ControlGap(hideVolumeBar, lyricStripEnabled) { it.bottomPad }
                     }
                     }
                     }
